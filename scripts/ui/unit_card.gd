@@ -25,6 +25,7 @@ static func build(
 	unit: Unit,
 	on_choose: Callable = Callable(),
 	choose_label: String = "",
+	on_name_clicked: Callable = Callable(),
 ) -> Control:
 	var panel := PanelContainer.new()
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -40,10 +41,20 @@ static func build(
 	vbox.add_theme_constant_override("separation", 6)
 	margin.add_child(vbox)
 
-	var name_lbl := Label.new()
-	name_lbl.text = "%s — %s" % [unit.unit_name, unit.class_label()]
-	name_lbl.add_theme_font_size_override("font_size", 18)
-	vbox.add_child(name_lbl)
+	# Name is a LinkButton when a click handler is provided (opens the
+	# Knight Overview screen); otherwise a plain Label.
+	var name_text: String = "%s — %s" % [unit.unit_name, unit.class_label()]
+	if on_name_clicked.is_valid():
+		var name_btn := LinkButton.new()
+		name_btn.text = name_text
+		name_btn.add_theme_font_size_override("font_size", 18)
+		name_btn.pressed.connect(on_name_clicked)
+		vbox.add_child(name_btn)
+	else:
+		var name_lbl := Label.new()
+		name_lbl.text = name_text
+		name_lbl.add_theme_font_size_override("font_size", 18)
+		vbox.add_child(name_lbl)
 
 	var task_lbl := Label.new()
 	var loc: String = "expedition #%d" % unit.expedition_id if unit.is_on_expedition() else "at home"

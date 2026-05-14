@@ -23,6 +23,9 @@ extends Control
 @onready var streak_lbl: Label = $Margin/VBox/Scroll/Body/StreakLine
 @onready var status_lbl: Label = $Margin/VBox/Bottom/StatusLabel
 @onready var next_btn: Button = $Margin/VBox/Bottom/NextBtn
+@onready var settings_btn: Button = $Margin/VBox/Bottom/SettingsBtn
+
+const SettingsPopup = preload("res://scripts/ui/settings_popup.gd")
 
 
 func _ready() -> void:
@@ -31,6 +34,7 @@ func _ready() -> void:
 		return
 
 	next_btn.pressed.connect(_on_next)
+	settings_btn.pressed.connect(_on_settings)
 	_render()
 
 
@@ -273,3 +277,7 @@ func _on_next() -> void:
 	GameState.phase_machine.transition(PhaseMachine.Phase.PLANNING)
 	GameState.roll_current_event()
 	get_tree().change_scene_to_file("res://scenes/screens/planning.tscn")
+
+
+func _on_settings() -> void:
+	SettingsPopup.show_for(self)

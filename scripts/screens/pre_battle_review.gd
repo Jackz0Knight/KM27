@@ -21,6 +21,9 @@ extends Control
 @onready var setup_pane: VBoxContainer = $Margin/VBox/Scroll/Body/Setup
 @onready var status_lbl: Label = $Margin/VBox/Bottom/StatusLabel
 @onready var confirm_btn: Button = $Margin/VBox/Bottom/ConfirmBtn
+@onready var settings_btn: Button = $Margin/VBox/Bottom/SettingsBtn
+
+const SettingsPopup = preload("res://scripts/ui/settings_popup.gd")
 
 
 func _ready() -> void:
@@ -31,6 +34,7 @@ func _ready() -> void:
 	GameState.phase_machine.transition(PhaseMachine.Phase.PRE_BATTLE)
 	_seed_formation_from_default()
 	confirm_btn.pressed.connect(_on_confirm)
+	settings_btn.pressed.connect(_on_settings)
 
 	_refresh_header()
 	_refresh_tick_recap()
@@ -496,3 +500,7 @@ func _on_confirm() -> void:
 		get_tree().change_scene_to_file("res://scenes/screens/battle_log.tscn")
 	else:
 		get_tree().change_scene_to_file("res://scenes/screens/weekly_summary.tscn")
+
+
+func _on_settings() -> void:
+	SettingsPopup.show_for(self)

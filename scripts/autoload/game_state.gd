@@ -76,10 +76,38 @@ var tournament_participants: Array[int] = []
 # Dictionary; see `append_history_entry` for the shape. Cleared on start_run.
 var run_history: Array[Dictionary] = []
 
+# Knight Overview routing — set by whoever opens the detail screen, read by
+# `knight_overview.gd` to know which unit to render.
+var focused_unit_id: int = -1
+
+# Planning shows a one-shot "Your Journey Begins…" panel on the very first
+# week's Planning render. Cleared by start_run so the next run shows it again.
+var intro_shown_for_run: bool = false
+
 
 func _ready() -> void:
 	phase_machine = PhaseMachine.new()
 	resources = ResourceBundle.new(5, 5, 2)
+
+
+# Global hotkeys. F11 toggles fullscreen — the project launches in fullscreen
+# (project.godot window/size/mode=3) so this is the escape hatch during play.
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_F11:
+			toggle_fullscreen()
+
+
+func toggle_fullscreen() -> void:
+	var mode := DisplayServer.window_get_mode()
+	var fullscreen_modes: Array = [
+		DisplayServer.WINDOW_MODE_FULLSCREEN,
+		DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN,
+	]
+	if fullscreen_modes.has(mode):
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+	else:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 
 
 # ---------- calendar passthroughs ----------
@@ -115,6 +143,8 @@ func start_run(seed_value: int) -> void:
 	expeditions.clear()
 	_next_expedition_id = 1
 	run_history.clear()
+	focused_unit_id = -1
+	intro_shown_for_run = false
 	default_defense_formation = {"blue": -1, "green": -1, "yellow": -1, "red": -1}
 	default_attack_formation = {"blue": -1, "green": -1, "yellow": -1, "red": -1}
 	_clear_pending_away()

@@ -11,6 +11,9 @@ extends Control
 @onready var totals_list: VBoxContainer = $Margin/VBox/Scroll/Body/Totals
 @onready var notes_list: VBoxContainer = $Margin/VBox/Scroll/Body/Notes
 @onready var continue_btn: Button = $Margin/VBox/Bottom/ContinueBtn
+@onready var settings_btn: Button = $Margin/VBox/Bottom/SettingsBtn
+
+const SettingsPopup = preload("res://scripts/ui/settings_popup.gd")
 
 
 func _ready() -> void:
@@ -19,6 +22,7 @@ func _ready() -> void:
 		return
 
 	continue_btn.pressed.connect(_on_continue)
+	settings_btn.pressed.connect(_on_settings)
 	_render()
 
 
@@ -148,3 +152,7 @@ func _row(cells: Array, header: bool) -> Control:
 
 func _on_continue() -> void:
 	get_tree().change_scene_to_file("res://scenes/screens/weekly_summary.tscn")
+
+
+func _on_settings() -> void:
+	SettingsPopup.show_for(self)
