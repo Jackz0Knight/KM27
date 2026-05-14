@@ -29,6 +29,7 @@ func _ready() -> void:
 		return
 
 	GameState.phase_machine.transition(PhaseMachine.Phase.PRE_BATTLE)
+	_seed_formation_from_default()
 	confirm_btn.pressed.connect(_on_confirm)
 
 	_refresh_header()
@@ -36,6 +37,30 @@ func _ready() -> void:
 	_refresh_roster()
 	_refresh_setup()
 	_refresh_confirm_button()
+
+
+# Seed this week's formation from the Tactics tab default when the week's
+# formation hasn't been touched yet (all slots -1). Invalid picks (units on
+# expedition, units not in the combat-participant set) are pruned later
+# by `_build_formation_editor`. Tournament / Duel weeks don't use formations.
+func _seed_formation_from_default() -> void:
+	if not GameState.current_event_uses_formation():
+		return
+	var all_empty: bool = true
+	for slot_key in Combat.SLOTS:
+		if int(GameState.formation.get(slot_key, -1)) >= 0:
+			all_empty = false
+			break
+	if not all_empty:
+		return
+
+	var src: Dictionary
+	if GameState.current_event == EventKind.AWAY_BATTLE:
+		src = GameState.default_attack_formation
+	else:
+		src = GameState.default_defense_formation
+	for slot_key in Combat.SLOTS:
+		GameState.formation[slot_key] = int(src.get(slot_key, -1))
 
 
 # ---------- header / resources ----------

@@ -20,4 +20,5 @@ func _ready() -> void:
 func _on_start() -> void:
 	GameState.start_run(_next_seed)
 	GameState.knight_candidates = RosterGenerator.roll_knight_candidates()
+	GameState.starting_squires = RosterGenerator.roll_starting_squires()
 	get_tree().change_scene_to_file("res://scenes/screens/knight_chooser.tscn")

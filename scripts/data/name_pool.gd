@@ -4,21 +4,21 @@ extends RefCounted
 # Names for procedurally generated Knights and Squires per GDD §3.
 # Pure medieval-fantasy flavour, no real-world surnames.
 
-const FIRST_NAMES: PackedStringArray = PackedStringArray([
+const FIRST_NAMES: Array[String] = [
 	"Aldric", "Bertran", "Cedric", "Dorian", "Edmund", "Florian", "Garrick",
 	"Halden", "Ivar", "Jaron", "Kael", "Lothar", "Magnus", "Nolen", "Orin",
 	"Percival", "Quentin", "Rolf", "Stellan", "Tomas", "Ulric", "Varic",
 	"Wulf", "Xander", "Yorath", "Zane", "Alaric", "Brennan", "Caelum",
 	"Darius", "Elias", "Faelan",
-])
+]
 
-const SURNAMES: PackedStringArray = PackedStringArray([
+const SURNAMES: Array[String] = [
 	"Blackmoor", "Stormcrow", "Ironheart", "Coldwater", "Ravensford",
 	"Hartwood", "Wolfsbane", "Marchwarden", "Hollowmere", "Stagsleap",
 	"Whitehall", "Redbrook", "Ashvale", "Greenwell", "Northgate", "Foxhollow",
 	"Brackenbough", "Silvermark", "Oakenshield", "Frostmere", "Lightholm",
 	"Carrowmoor", "Vaelis", "Thornwood", "Greyfell",
-])
+]
 
 
 static func random_name() -> String:

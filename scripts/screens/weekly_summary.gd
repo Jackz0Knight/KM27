@@ -257,6 +257,9 @@ func _refresh_next_button(r: Dictionary) -> void:
 
 
 func _on_next() -> void:
+	# Snapshot the resolved week into the history log BEFORE we clear buffers.
+	GameState.append_history_entry()
+
 	var r: Dictionary = GameState.last_battle_result
 	if r.get("is_game_over", false):
 		get_tree().change_scene_to_file("res://scenes/screens/game_over.tscn")

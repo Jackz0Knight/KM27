@@ -1,35 +1,44 @@
 extends Control
 
-# Planning screen per GDD §5. The player:
-#   • Sees this week's rolled event (top banner).
-#   • Assigns Defend / Train [stat] to each at-home unit.
-#   • Picks a tile on the map, tags units as "send next expedition", and
-#     launches Explore (Unknown tile) or Gather (Explored resource tile).
-#   • On Away-Battle weeks, picks Pillage or Assault Castle and a party.
-#   • Hits Advance Time, which commits tasks and runs the Tick (training,
-#     expedition returns, Determination). The Pre-Battle Review screen
-#     takes over from there.
+# Planning screen per GDD §5. Wrapped in a three-tab layout:
+#   • Tactics — roster at a glance, default Defense / Attack formations.
+#   • Town & Map — per-unit task picker, world map, expedition launcher,
+#     away-week mode picker (Pillage / Assault).
+#   • Calendar — upcoming tournament + expedition timings, run history log.
 #
-# Validation lives in the launch_* helpers — buttons are enabled / disabled
-# based on whether the action is currently legal.
+# Header / resources line / Advance Time live OUTSIDE the tabs so they're
+# always visible. Advance Time commits tasks, runs the Tick, and hands off
+# to the Pre-Battle Review screen.
 
 @onready var header_lbl: Label = $Margin/VBox/Header
 @onready var resources_lbl: Label = $Margin/VBox/Resources
-@onready var unit_list: VBoxContainer = $Margin/VBox/MainRow/LeftPane/UnitScroll/UnitList
-@onready var away_section: VBoxContainer = $Margin/VBox/MainRow/LeftPane/AwaySection
-@onready var map_holder: PanelContainer = $Margin/VBox/MainRow/RightPane/MapHolder
-@onready var selection_lbl: Label = $Margin/VBox/MainRow/RightPane/SelectionInfo
-@onready var explore_btn: Button = $Margin/VBox/MainRow/RightPane/Actions/ExploreBtn
-@onready var gather_btn: Button = $Margin/VBox/MainRow/RightPane/Actions/GatherBtn
-@onready var expedition_list: VBoxContainer = $Margin/VBox/MainRow/RightPane/ExpeditionList
+@onready var tabs: TabContainer = $Margin/VBox/Tabs
 @onready var advance_btn: Button = $Margin/VBox/Bottom/AdvanceBtn
 @onready var status_lbl: Label = $Margin/VBox/Bottom/StatusLabel
+
+# Tactics tab.
+@onready var roster_cards: VBoxContainer = $Margin/VBox/Tabs/Tactics/RosterScroll/RosterCards
+@onready var defense_pane: VBoxContainer = $Margin/VBox/Tabs/Tactics/DefensePane
+@onready var attack_pane: VBoxContainer = $Margin/VBox/Tabs/Tactics/AttackPane
+
+# Town & Map tab.
+@onready var unit_list: VBoxContainer = $Margin/VBox/Tabs/TownMap/LeftPane/UnitScroll/UnitList
+@onready var away_section: VBoxContainer = $Margin/VBox/Tabs/TownMap/LeftPane/AwaySection
+@onready var map_holder: PanelContainer = $Margin/VBox/Tabs/TownMap/RightPane/MapHolder
+@onready var selection_lbl: Label = $Margin/VBox/Tabs/TownMap/RightPane/SelectionInfo
+@onready var explore_btn: Button = $Margin/VBox/Tabs/TownMap/RightPane/Actions/ExploreBtn
+@onready var gather_btn: Button = $Margin/VBox/Tabs/TownMap/RightPane/Actions/GatherBtn
+@onready var expedition_list: VBoxContainer = $Margin/VBox/Tabs/TownMap/RightPane/ExpeditionList
+
+# Calendar tab.
+@onready var upcoming_list: VBoxContainer = $Margin/VBox/Tabs/Calendar/UpcomingList
+@onready var history_list: VBoxContainer = $Margin/VBox/Tabs/Calendar/HistoryScroll/HistoryList
 
 var _map: WorldMapView = null
 var _selected: Vector2i = Vector2i(-1, -1)
 
 # Pending plan, committed when Advance Time is pressed.
-var _pending_tasks: Dictionary = {}             # unit_id -> task string ("defend" or "train:<stat>")
+var _pending_tasks: Dictionary = {}             # unit_id -> task string
 var _expedition_party: Array[int] = []          # unit ids selected for the next launch
 
 
@@ -41,6 +50,10 @@ func _ready() -> void:
 
 	if GameState.current_event < 0:
 		GameState.roll_current_event()
+
+	tabs.set_tab_title(0, "Tactics")
+	tabs.set_tab_title(1, "Town & Map")
+	tabs.set_tab_title(2, "Calendar")
 
 	_map = WorldMapView.new()
 	_map.tile_clicked.connect(_on_tile_clicked)
@@ -65,12 +78,14 @@ func _default_pending_tasks() -> void:
 
 func _refresh_all() -> void:
 	_refresh_header()
+	_refresh_tactics_tab()
 	_refresh_unit_list()
 	_refresh_away_section()
 	_refresh_map()
 	_refresh_selection()
 	_refresh_expeditions()
 	_refresh_action_buttons()
+	_refresh_calendar_tab()
 
 
 func _refresh_header() -> void:
@@ -87,33 +102,76 @@ func _refresh_header() -> void:
 	status_lbl.text = ""
 
 
-func _refresh_map() -> void:
-	_map.render(GameState.world, _selected)
+# ---------- Tactics tab ----------
+
+func _refresh_tactics_tab() -> void:
+	for c in roster_cards.get_children():
+		c.queue_free()
+	for u in GameState.roster:
+		roster_cards.add_child(UnitCard.build(u))
+
+	_build_default_formation_pane(defense_pane, GameState.default_defense_formation)
+	_build_default_formation_pane(attack_pane, GameState.default_attack_formation)
 
 
-func _refresh_selection() -> void:
-	if _selected.x < 0:
-		selection_lbl.text = "Click a tile on the map to select it."
-		return
-	var tile: MapTile = GameState.world.get_tile(_selected.x, _selected.y)
-	var bits: PackedStringArray = PackedStringArray()
-	bits.append("Tile (%d,%d):" % [tile.x, tile.y])
-	if tile.knowledge == MapTile.Knowledge.EXPLORED:
-		bits.append("  Terrain: %s" % MapTile.Terrain.keys()[tile.terrain])
-		var res: String = tile.gather_resource()
-		bits.append("  Yield: %s" % (res if res != "" else "—"))
-		if tile.castle != null:
-			bits.append("  Castle: difficulty %d, reward %s" % [
-				tile.castle.difficulty, tile.castle.reward.describe(),
-			])
-	else:
-		bits.append("  Knowledge: Unknown — Explore to reveal")
-	if tile.active_expedition != null:
-		bits.append("  Active: %s" % tile.active_expedition.describe())
-	selection_lbl.text = "\n".join(bits)
+# Builds 4 slot rows for a default formation Dict. Selection writes back
+# into the same Dict; Pre-Battle Review seeds the week's formation from it.
+func _build_default_formation_pane(pane: VBoxContainer, default_dict: Dictionary) -> void:
+	for c in pane.get_children():
+		c.queue_free()
+
+	# Prune any slot-assigned unit ids that are no longer in the roster.
+	var live_ids: Array = []
+	for u in GameState.roster:
+		live_ids.append(u.id)
+	for slot_key in Combat.SLOTS:
+		if not live_ids.has(int(default_dict.get(slot_key, -1))):
+			default_dict[slot_key] = -1
+
+	for slot_key in Combat.SLOTS:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+
+		var lbl := Label.new()
+		lbl.text = Combat.SLOT_LABELS[slot_key]
+		lbl.custom_minimum_size = Vector2(220, 0)
+		row.add_child(lbl)
+
+		var picker := OptionButton.new()
+		picker.add_item("(empty)")
+		picker.set_item_metadata(0, -1)
+		for u in GameState.roster:
+			var marker: String = "  [match]" if Combat.is_slot_match(u, slot_key) else ""
+			picker.add_item("%s — %s%s" % [u.unit_name, u.class_label(), marker])
+			picker.set_item_metadata(picker.item_count - 1, u.id)
+
+		var current_id: int = int(default_dict.get(slot_key, -1))
+		for i in range(picker.item_count):
+			if int(picker.get_item_metadata(i)) == current_id:
+				picker.select(i)
+				break
+
+		picker.item_selected.connect(
+			_on_default_slot_picked.bind(slot_key, picker, default_dict)
+		)
+		row.add_child(picker)
+		pane.add_child(row)
 
 
-# ---------- unit assignment ----------
+func _on_default_slot_picked(idx: int, slot_key: String, picker: OptionButton, default_dict: Dictionary) -> void:
+	var unit_id: int = int(picker.get_item_metadata(idx))
+	# Enforce one-slot-per-unit within this default's 4 slots.
+	if unit_id >= 0:
+		for other in Combat.SLOTS:
+			if other != slot_key and int(default_dict.get(other, -1)) == unit_id:
+				default_dict[other] = -1
+	default_dict[slot_key] = unit_id
+	# Refresh both default panes so the cleared-slot picker updates.
+	_build_default_formation_pane(defense_pane, GameState.default_defense_formation)
+	_build_default_formation_pane(attack_pane, GameState.default_attack_formation)
+
+
+# ---------- Town & Map tab — assignments ----------
 
 func _refresh_unit_list() -> void:
 	for child in unit_list.get_children():
@@ -176,7 +234,10 @@ func _build_unit_row(u: Unit) -> Control:
 	vbox.add_child(send_chk)
 
 	if EventKind.is_tournament(GameState.current_event):
-		pass   # Phase 7 hooks tournament participation here
+		var hint := Label.new()
+		hint.text = "Tournament participants picked on Pre-Battle Review."
+		hint.modulate = Color(0.65, 0.65, 0.65)
+		vbox.add_child(hint)
 	elif GameState.current_event == EventKind.AWAY_BATTLE:
 		var away_chk := CheckBox.new()
 		away_chk.text = "Send to Away Battle"
@@ -214,7 +275,7 @@ func _on_away_party_toggled(pressed: bool, unit_id: int) -> void:
 	_refresh_away_section()
 
 
-# ---------- away-week options ----------
+# ---------- Town & Map tab — away-week options ----------
 
 func _refresh_away_section() -> void:
 	for child in away_section.get_children():
@@ -302,7 +363,33 @@ func _explored_castles() -> Array:
 	return out
 
 
-# ---------- map + expedition launch ----------
+# ---------- Town & Map tab — map + expedition launch ----------
+
+func _refresh_map() -> void:
+	_map.render(GameState.world, _selected)
+
+
+func _refresh_selection() -> void:
+	if _selected.x < 0:
+		selection_lbl.text = "Click a tile on the map to select it."
+		return
+	var tile: MapTile = GameState.world.get_tile(_selected.x, _selected.y)
+	var bits: PackedStringArray = PackedStringArray()
+	bits.append("Tile (%d,%d):" % [tile.x, tile.y])
+	if tile.knowledge == MapTile.Knowledge.EXPLORED:
+		bits.append("  Terrain: %s" % MapTile.Terrain.keys()[tile.terrain])
+		var res: String = tile.gather_resource()
+		bits.append("  Yield: %s" % (res if res != "" else "—"))
+		if tile.castle != null:
+			bits.append("  Castle: difficulty %d, reward %s" % [
+				tile.castle.difficulty, tile.castle.reward.describe(),
+			])
+	else:
+		bits.append("  Knowledge: Unknown — Explore to reveal")
+	if tile.active_expedition != null:
+		bits.append("  Active: %s" % tile.active_expedition.describe())
+	selection_lbl.text = "\n".join(bits)
+
 
 func _on_tile_clicked(x: int, y: int) -> void:
 	_selected = Vector2i(x, y)
@@ -368,12 +455,14 @@ func _launch(kind: Expedition.Kind) -> void:
 	for uid in party:
 		_pending_tasks.erase(uid)
 		GameState.pending_away_party.erase(uid)
+	_refresh_tactics_tab()
 	_refresh_unit_list()
 	_refresh_away_section()
 	_refresh_map()
 	_refresh_selection()
 	_refresh_expeditions()
 	_refresh_action_buttons()
+	_refresh_calendar_tab()
 
 
 func _refresh_expeditions() -> void:
@@ -391,13 +480,78 @@ func _refresh_expeditions() -> void:
 		expedition_list.add_child(lbl)
 
 
-# ---------- expedition lookup ----------
-
 func _find_expedition_for(unit: Unit) -> Expedition:
 	for exp in GameState.expeditions:
 		if exp.id == unit.expedition_id:
 			return exp
 	return null
+
+
+# ---------- Calendar tab ----------
+
+func _refresh_calendar_tab() -> void:
+	for c in upcoming_list.get_children():
+		c.queue_free()
+	for c in history_list.get_children():
+		c.queue_free()
+
+	# Upcoming — next tournament, Grand override warning, expedition returns.
+	var next_t: int = _next_tournament_week()
+	if next_t > 0:
+		var weeks_away: int = next_t - GameState.week
+		var label: String = "Tournament — Week %d (in %d week%s)" % [
+			next_t, weeks_away, "s" if weeks_away != 1 else "",
+		]
+		if GameState.tournament_streak >= 2:
+			label += " — will be Grand Tournament!"
+		_add_upcoming_line(label, GameState.tournament_streak >= 2)
+
+	if GameState.expeditions.is_empty():
+		_add_upcoming_line("No active expeditions.", true)
+	else:
+		for exp in GameState.expeditions:
+			var return_week: int = GameState.week + exp.weeks_remaining
+			_add_upcoming_line("Expedition #%d (%s) returns Week %d (in %dw)" % [
+				exp.id, exp.kind_label(), return_week, exp.weeks_remaining,
+			], false)
+
+	# History — newest first.
+	if GameState.run_history.is_empty():
+		var none := Label.new()
+		none.text = "No weeks recorded yet."
+		none.modulate = Color(0.65, 0.65, 0.65)
+		history_list.add_child(none)
+		return
+
+	var entries: Array = GameState.run_history.duplicate()
+	entries.reverse()
+	for entry in entries:
+		var bits: PackedStringArray = PackedStringArray()
+		bits.append("Y%d W%d (%d/48)" % [entry["year"], entry["week"], entry["week_of_year"]])
+		bits.append(entry["event_label"])
+		bits.append(entry["outcome"])
+		if int(entry.get("player_total", 0)) > 0 or int(entry.get("enemy_total", 0)) > 0:
+			bits.append("%d vs %d" % [entry["player_total"], entry["enemy_total"]])
+		if entry.get("reward_str", "") != "":
+			bits.append("+ %s" % entry["reward_str"])
+		var lbl := Label.new()
+		lbl.text = " · ".join(bits)
+		history_list.add_child(lbl)
+
+
+func _add_upcoming_line(text: String, faded: bool) -> void:
+	var lbl := Label.new()
+	lbl.text = "  • " + text
+	if faded:
+		lbl.modulate = Color(0.7, 0.7, 0.7)
+	upcoming_list.add_child(lbl)
+
+
+func _next_tournament_week() -> int:
+	var n: int = GameState.week
+	while n % Calendar.TOURNAMENT_INTERVAL != 0:
+		n += 1
+	return n
 
 
 # ---------- advance time ----------

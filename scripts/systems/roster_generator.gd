@@ -30,14 +30,24 @@ static func roll_knight_candidates() -> Array[Unit]:
 	return out
 
 
-# Final roster: chosen Knight (id=1) plus 3 freshly-rolled Squires (ids 2..4).
-# The unchosen candidates are discarded.
-static func build_starting_roster(chosen_knight: Unit) -> Array[Unit]:
+# Pre-rolled Squires — assigned the final roster ids 2..4 at roll time so
+# the Knight chooser screen can show them before the Knight pick (the player
+# decides which Knight best complements the Squires they're getting).
+static func roll_starting_squires() -> Array[Unit]:
+	var out: Array[Unit] = []
+	for i in range(STARTING_SQUIRE_COUNT):
+		out.append(_roll_squire(2 + i))
+	return out
+
+
+# Final roster: chosen Knight (id=1) plus the pre-rolled Squires (ids 2..4).
+# The unchosen Knight candidates are discarded.
+static func build_starting_roster(chosen_knight: Unit, squires: Array[Unit]) -> Array[Unit]:
 	chosen_knight.id = 1
 	var out: Array[Unit] = []
 	out.append(chosen_knight)
-	for i in range(STARTING_SQUIRE_COUNT):
-		out.append(_roll_squire(2 + i))
+	for s in squires:
+		out.append(s)
 	return out
 
 

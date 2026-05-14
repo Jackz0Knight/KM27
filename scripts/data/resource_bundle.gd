@@ -5,7 +5,7 @@ extends Resource
 # Tournament / Gather / event rewards all add and subtract through one helper
 # instead of duplicating field names.
 
-const KEYS: PackedStringArray = PackedStringArray(["wood", "fibres", "copper_ore"])
+const KEYS: Array[String] = ["wood", "fibres", "copper_ore"]
 
 var wood: int = 0
 var fibres: int = 0

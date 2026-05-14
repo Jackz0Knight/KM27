@@ -10,7 +10,8 @@
 # Local export overrides (export.cfg can hold credentials; export_presets.cfg
 # is intentionally tracked per Godot convention — audit it before committing).
 export.cfg
-# NOTE: do NOT ignore *.import files — Godot 4 requires them to be tracked.
+# NOTE: do NOT ignore *.import or *.uid files — Godot 4 requires both
+# tracked (Godot 4.4+ writes a .uid for every script as a stable id).
 
 # ---- OS ----
 .DS_Store
@@ -25,6 +26,7 @@ Desktop.ini
 # ---- Editors / IDEs ----
 .vscode/
 .idea/
+.claude/
 *.swp
 *.swo
 *~

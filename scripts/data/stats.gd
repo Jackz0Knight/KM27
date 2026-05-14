@@ -8,7 +8,7 @@ extends Resource
 # Travelling Champion's Duel reward all route through `try_increment` so the
 # PA / cap rules live in one place.
 
-const STAT_KEYS: PackedStringArray = PackedStringArray([
+const STAT_KEYS: Array[String] = [
 	"strength",
 	"speed",
 	"technique",
@@ -21,7 +21,7 @@ const STAT_KEYS: PackedStringArray = PackedStringArray([
 	"leadership",
 	"etiquette",
 	"intimidation",
-])
+]
 
 const STAT_CAP: int = 20
 

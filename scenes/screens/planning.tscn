@@ -37,76 +37,155 @@ layout_mode = 2
 text = "Stores — ?"
 modulate = Color(0.78, 0.78, 0.78, 1)
 
-[node name="MainRow" type="HBoxContainer" parent="Margin/VBox"]
+[node name="Tabs" type="TabContainer" parent="Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_constants/separation = 16
 
-[node name="LeftPane" type="VBoxContainer" parent="Margin/VBox/MainRow"]
+[node name="Tactics" type="VBoxContainer" parent="Margin/VBox/Tabs"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="RosterHeader" type="Label" parent="Margin/VBox/Tabs/Tactics"]
+layout_mode = 2
+text = "Roster"
+theme_override_font_sizes/font_size = 18
+
+[node name="RosterScroll" type="ScrollContainer" parent="Margin/VBox/Tabs/Tactics"]
+layout_mode = 2
+size_flags_vertical = 3
+custom_minimum_size = Vector2(0, 240)
+
+[node name="RosterCards" type="VBoxContainer" parent="Margin/VBox/Tabs/Tactics/RosterScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="AssignmentHeader" type="Label" parent="Margin/VBox/MainRow/LeftPane"]
+[node name="DefenseHeader" type="Label" parent="Margin/VBox/Tabs/Tactics"]
+layout_mode = 2
+text = "Default Defense Formation"
+theme_override_font_sizes/font_size = 18
+
+[node name="DefenseHint" type="Label" parent="Margin/VBox/Tabs/Tactics"]
+layout_mode = 2
+text = "Auto-applied to Home Battle and Bandit Ambush. Override on the Pre-Battle Review screen any week."
+modulate = Color(0.72, 0.72, 0.72, 1)
+autowrap_mode = 3
+
+[node name="DefensePane" type="VBoxContainer" parent="Margin/VBox/Tabs/Tactics"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="AttackHeader" type="Label" parent="Margin/VBox/Tabs/Tactics"]
+layout_mode = 2
+text = "Default Attack Formation"
+theme_override_font_sizes/font_size = 18
+
+[node name="AttackHint" type="Label" parent="Margin/VBox/Tabs/Tactics"]
+layout_mode = 2
+text = "Auto-applied to Away Battles (Pillage and Assault). Override on the Pre-Battle Review screen any week."
+modulate = Color(0.72, 0.72, 0.72, 1)
+autowrap_mode = 3
+
+[node name="AttackPane" type="VBoxContainer" parent="Margin/VBox/Tabs/Tactics"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="TownMap" type="HBoxContainer" parent="Margin/VBox/Tabs"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="LeftPane" type="VBoxContainer" parent="Margin/VBox/Tabs/TownMap"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="AssignmentHeader" type="Label" parent="Margin/VBox/Tabs/TownMap/LeftPane"]
 layout_mode = 2
 text = "Assignments"
 theme_override_font_sizes/font_size = 18
 
-[node name="UnitScroll" type="ScrollContainer" parent="Margin/VBox/MainRow/LeftPane"]
+[node name="UnitScroll" type="ScrollContainer" parent="Margin/VBox/Tabs/TownMap/LeftPane"]
 layout_mode = 2
 size_flags_vertical = 3
 custom_minimum_size = Vector2(0, 320)
 
-[node name="UnitList" type="VBoxContainer" parent="Margin/VBox/MainRow/LeftPane/UnitScroll"]
+[node name="UnitList" type="VBoxContainer" parent="Margin/VBox/Tabs/TownMap/LeftPane/UnitScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 6
 
-[node name="AwaySection" type="VBoxContainer" parent="Margin/VBox/MainRow/LeftPane"]
+[node name="AwaySection" type="VBoxContainer" parent="Margin/VBox/Tabs/TownMap/LeftPane"]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="RightPane" type="VBoxContainer" parent="Margin/VBox/MainRow"]
+[node name="RightPane" type="VBoxContainer" parent="Margin/VBox/Tabs/TownMap"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="MapHeader" type="Label" parent="Margin/VBox/MainRow/RightPane"]
+[node name="MapHeader" type="Label" parent="Margin/VBox/Tabs/TownMap/RightPane"]
 layout_mode = 2
 text = "World Map (click a tile)"
 theme_override_font_sizes/font_size = 18
 
-[node name="MapHolder" type="PanelContainer" parent="Margin/VBox/MainRow/RightPane"]
+[node name="MapHolder" type="PanelContainer" parent="Margin/VBox/Tabs/TownMap/RightPane"]
 layout_mode = 2
 size_flags_horizontal = 0
 
-[node name="SelectionInfo" type="Label" parent="Margin/VBox/MainRow/RightPane"]
+[node name="SelectionInfo" type="Label" parent="Margin/VBox/Tabs/TownMap/RightPane"]
 layout_mode = 2
 text = "Click a tile on the map to select it."
 custom_minimum_size = Vector2(0, 76)
 
-[node name="Actions" type="HBoxContainer" parent="Margin/VBox/MainRow/RightPane"]
+[node name="Actions" type="HBoxContainer" parent="Margin/VBox/Tabs/TownMap/RightPane"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="ExploreBtn" type="Button" parent="Margin/VBox/MainRow/RightPane/Actions"]
+[node name="ExploreBtn" type="Button" parent="Margin/VBox/Tabs/TownMap/RightPane/Actions"]
 layout_mode = 2
 text = "Launch Explore (2w)"
 disabled = true
 
-[node name="GatherBtn" type="Button" parent="Margin/VBox/MainRow/RightPane/Actions"]
+[node name="GatherBtn" type="Button" parent="Margin/VBox/Tabs/TownMap/RightPane/Actions"]
 layout_mode = 2
 text = "Launch Gather (3w)"
 disabled = true
 
-[node name="ExpHeader" type="Label" parent="Margin/VBox/MainRow/RightPane"]
+[node name="ExpHeader" type="Label" parent="Margin/VBox/Tabs/TownMap/RightPane"]
 layout_mode = 2
 text = "Active Expeditions"
 theme_override_font_sizes/font_size = 18
 
-[node name="ExpeditionList" type="VBoxContainer" parent="Margin/VBox/MainRow/RightPane"]
+[node name="ExpeditionList" type="VBoxContainer" parent="Margin/VBox/Tabs/TownMap/RightPane"]
 layout_mode = 2
 theme_override_constants/separation = 4
+
+[node name="Calendar" type="VBoxContainer" parent="Margin/VBox/Tabs"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="UpcomingHeader" type="Label" parent="Margin/VBox/Tabs/Calendar"]
+layout_mode = 2
+text = "Upcoming"
+theme_override_font_sizes/font_size = 18
+
+[node name="UpcomingList" type="VBoxContainer" parent="Margin/VBox/Tabs/Calendar"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="HistoryHeader" type="Label" parent="Margin/VBox/Tabs/Calendar"]
+layout_mode = 2
+text = "History"
+theme_override_font_sizes/font_size = 18
+
+[node name="HistoryScroll" type="ScrollContainer" parent="Margin/VBox/Tabs/Calendar"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="HistoryList" type="VBoxContainer" parent="Margin/VBox/Tabs/Calendar/HistoryScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
 
 [node name="Bottom" type="HBoxContainer" parent="Margin/VBox"]
 layout_mode = 2

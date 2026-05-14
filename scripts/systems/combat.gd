@@ -18,7 +18,7 @@ extends RefCounted
 #
 # Tournament: unit_power = 10 + Str + Tec + max(Sword, Arch). No formation.
 
-const SLOTS: PackedStringArray = PackedStringArray(["blue", "green", "yellow", "red"])
+const SLOTS: Array[String] = ["blue", "green", "yellow", "red"]
 const SLOT_LABELS: Dictionary = {
 	"blue": "Blue (Camp Leader)",
 	"green": "Green (Ranged)",

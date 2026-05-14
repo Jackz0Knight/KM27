@@ -34,9 +34,23 @@ theme_override_font_sizes/font_size = 32
 
 [node name="SubHeader" type="Label" parent="Margin/VBox"]
 layout_mode = 2
-text = "Three candidates ride into your courtyard. They are mechanically equivalent — the choice is between three stat rolls."
+text = "Three Squires already serve your house. Pick the Knight whose strengths complement them."
 modulate = Color(0.72, 0.72, 0.72, 1)
 autowrap_mode = 3
+
+[node name="SquiresLabel" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+text = "Your Squires"
+theme_override_font_sizes/font_size = 20
+
+[node name="SquiresRow" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="KnightsLabel" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+text = "Knight Candidates"
+theme_override_font_sizes/font_size = 20
 
 [node name="Scroll" type="ScrollContainer" parent="Margin/VBox"]
 layout_mode = 2

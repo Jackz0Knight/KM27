@@ -19,9 +19,10 @@ var world: World = null
 var tournament_streak: int = 0
 var current_event: int = -1   # EventKind; -1 means "no event rolled yet".
 
-# Transient: Knight candidates shown on the chooser screen. Cleared once one
-# is picked.
+# Transient: Knight candidates + pre-rolled Squires shown on the chooser
+# screen. Cleared once the Knight is picked.
 var knight_candidates: Array[Unit] = []
+var starting_squires: Array[Unit] = []
 
 # Phase 4: active expeditions. Each one removes its units from the home pool
 # until weeks_remaining ticks to 0 (Phase 5).
@@ -57,12 +58,23 @@ var merchant_pick: int = -1
 #        "red" (Light Melee). Set by the Pre-Battle Review screen.
 var formation: Dictionary = {"blue": -1, "green": -1, "yellow": -1, "red": -1}
 
+# Persistent default formations set on the Tactics tab. Pre-Battle Review
+# seeds the week's `formation` from one of these when entering the screen,
+# so the player only configures slot picks once per run unless they want
+# to override mid-week. Survives wrap_week() — cleared on start_run.
+var default_defense_formation: Dictionary = {"blue": -1, "green": -1, "yellow": -1, "red": -1}
+var default_attack_formation: Dictionary = {"blue": -1, "green": -1, "yellow": -1, "red": -1}
+
 # Phase 6 — Champion's Duel selection.
 var champion_unit_id: int = -1
 var champion_target_stat: String = ""
 
 # Phase 7 — Tournament participants (up to 4 at-home unit ids).
 var tournament_participants: Array[int] = []
+
+# Calendar tab — chronological log of resolved weeks. Each entry is a
+# Dictionary; see `append_history_entry` for the shape. Cleared on start_run.
+var run_history: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -96,10 +108,15 @@ func start_run(seed_value: int) -> void:
 	tournament_streak = 0
 	resources = ResourceBundle.new(5, 5, 2)
 	roster.clear()
+	knight_candidates.clear()
+	starting_squires.clear()
 	current_event = -1
 	current_battle_event = ""
 	expeditions.clear()
 	_next_expedition_id = 1
+	run_history.clear()
+	default_defense_formation = {"blue": -1, "green": -1, "yellow": -1, "red": -1}
+	default_attack_formation = {"blue": -1, "green": -1, "yellow": -1, "red": -1}
 	_clear_pending_away()
 	_clear_week_buffers()
 	if phase_machine != null:
@@ -218,6 +235,42 @@ func current_event_uses_formation() -> bool:
 	if current_event == EventKind.BATTLE_EVENT:
 		return current_battle_event == "bandit_ambush"
 	return false
+
+
+# Calendar tab — capture this week's outcome for the history log. Called by
+# Weekly Summary just before wrap_week(), so the entry sees the resolved
+# state (battle result, rewards, deltas) before the buffers clear.
+func append_history_entry() -> void:
+	var r: Dictionary = last_battle_result
+	var outcome: String = "—"
+	if r.get("is_game_over", false):
+		outcome = "Defeat — homestead breached"
+	elif r.get("is_run_win", false):
+		outcome = "Victory — Grand Tournament won"
+	elif r.get("fought", false):
+		outcome = "Won" if r["won"] else "Lost"
+	elif r.get("event_kind", -1) != -1:
+		outcome = "Resolved"
+
+	var reward_str: String = ""
+	var reward: ResourceBundle = r.get("reward")
+	if reward != null and not reward.is_empty():
+		reward_str = reward.describe()
+
+	var label: String = EventKind.label(r.get("event_kind", current_event))
+	if r.get("sub_event", "") != "":
+		label = "%s — %s" % [label, BattleEvent.label(r["sub_event"])]
+
+	run_history.append({
+		"week": week,
+		"year": current_year(),
+		"week_of_year": current_week_of_year(),
+		"event_label": label,
+		"outcome": outcome,
+		"player_total": r.get("player_total", 0),
+		"enemy_total": r.get("enemy_total", 0),
+		"reward_str": reward_str,
+	})
 
 
 # Filtered helper — at-home units that can be slotted in a formation this week.

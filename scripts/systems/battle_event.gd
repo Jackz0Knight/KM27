@@ -8,12 +8,12 @@ extends RefCounted
 # Sub-type ids are kept as kebab-case strings so they round-trip through
 # GameState.current_battle_event cleanly (Resource serialisation safe).
 
-const SUB_TYPES: PackedStringArray = PackedStringArray([
+const SUB_TYPES: Array[String] = [
 	"bandit_ambush",
 	"champion_duel",
 	"bountiful_harvest",
 	"merchant_caravan",
-])
+]
 
 
 static func roll_sub_type() -> String:

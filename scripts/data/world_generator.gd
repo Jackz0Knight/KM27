@@ -25,9 +25,9 @@ const WILDERNESS_TERRAINS: Array = [
 	MapTile.Terrain.OCEAN,
 ]
 
-const CASTLE_DIFFICULTY_ANCHORS: PackedInt32Array = PackedInt32Array([
+const CASTLE_DIFFICULTY_ANCHORS: Array[int] = [
 	30, 55, 80, 105, 130, 155, 180, 205
-])
+]
 const CASTLE_DIFFICULTY_MIN: int = 30
 const CASTLE_DIFFICULTY_MAX: int = 200
 const CASTLE_DIFFICULTY_JITTER: int = 10
