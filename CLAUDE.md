@@ -30,24 +30,31 @@ project.godot        Godot 4 project config
 icon.svg             Placeholder app icon ("KM" mark)
 scenes/              Godot scenes (.tscn)
   Main.tscn          Title screen (project's main_scene)
-  screens/           Player-facing screens
+  screens/           Player-facing screens (Planning → Tick → Pre-Battle → Resolution loop)
     knight_chooser.tscn    Pick 1 of 3 starting Knights
     roster_view.tscn       Roster overview, Continue → Planning
     planning.tscn          Weekly Planning Phase UI
+    pre_battle_review.tscn Post-Tick roster + event-aware setup pane
+    battle_log.tscn        Per-unit combat breakdown (combat events only)
+    weekly_summary.tscn    Deltas, returns, rewards, Merchant Caravan picker
+    game_over.tscn         Run-ending screen (Home Battle loss)
+    run_win.tscn           Run-winning screen (Grand Tournament victory)
   dev/               Dev-only scenes
     world_dump.tscn        Phase 1 world-gen verifier (F6 to run)
     event_roll_test.tscn   Phase 2 50-week event roller (F6 to run)
 scripts/             GDScript sources
   main.gd            Title-screen controller
   autoload/          Singletons registered in project.godot
-    game_state.gd    Run state (week, year, resources, roster, world)
+    game_state.gd    Run state (week, year, resources, roster, world,
+                     last_tick_results, last_battle_result, formation, etc.)
     event_bus.gd     Cross-scene signal hub
     rng.gd           Seedable RandomNumberGenerator wrapper
   data/              Game data classes (class_name): Unit, Stats,
                      ResourceBundle, MapTile, Castle, World, WorldGenerator,
                      EventKind, NamePool, Expedition
   systems/           Stateless rules: Calendar, EventRoller, PhaseMachine,
-                     RosterGenerator, Determination
+                     RosterGenerator, Determination, Tick, Combat,
+                     BattleEvent, Resolution
   ui/                Shared UI builders: UnitCard, WorldMapView
   screens/           Player-facing screen controllers
   dev/               Dev-only tooling (run with F6 in the editor)

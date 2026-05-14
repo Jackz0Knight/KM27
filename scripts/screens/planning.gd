@@ -1,14 +1,14 @@
 extends Control
 
-# Phase 4 Planning screen. The player:
+# Planning screen per GDD §5. The player:
 #   • Sees this week's rolled event (top banner).
 #   • Assigns Defend / Train [stat] to each at-home unit.
 #   • Picks a tile on the map, tags units as "send next expedition", and
 #     launches Explore (Unknown tile) or Gather (Explored resource tile).
 #   • On Away-Battle weeks, picks Pillage or Assault Castle and a party.
-#   • Hits Advance Time, which commits tasks and walks Plan → Tick →
-#     Pre-Battle → Resolution. Phases 5–7 fill in those steps; Phase 4
-#     just runs the scaffold so the loop is testable.
+#   • Hits Advance Time, which commits tasks and runs the Tick (training,
+#     expedition returns, Determination). The Pre-Battle Review screen
+#     takes over from there.
 #
 # Validation lives in the launch_* helpers — buttons are enabled / disabled
 # based on whether the action is currently legal.
@@ -74,11 +74,14 @@ func _refresh_all() -> void:
 
 
 func _refresh_header() -> void:
+	var event_label: String = EventKind.label(GameState.current_event)
+	if GameState.current_event == EventKind.BATTLE_EVENT and GameState.current_battle_event != "":
+		event_label = "%s — %s" % [event_label, BattleEvent.label(GameState.current_battle_event)]
 	header_lbl.text = "Year %d, Week %d (week %d / 48) — %s" % [
 		GameState.current_year(),
 		GameState.week,
 		GameState.current_week_of_year(),
-		EventKind.label(GameState.current_event),
+		event_label,
 	]
 	resources_lbl.text = "Stores — %s" % GameState.resources.describe()
 	status_lbl.text = ""
@@ -360,10 +363,13 @@ func _launch(kind: Expedition.Kind) -> void:
 	var exp: Expedition = GameState.launch_expedition(kind, _selected.x, _selected.y, party)
 	status_lbl.text = "Launched: %s" % exp.describe()
 	_expedition_party.clear()
-	# Drop launched units from any pending task assignments — they're away now.
+	# Drop launched units from any pending task assignments or away-party
+	# selections — they're no longer at home.
 	for uid in party:
 		_pending_tasks.erase(uid)
+		GameState.pending_away_party.erase(uid)
 	_refresh_unit_list()
+	_refresh_away_section()
 	_refresh_map()
 	_refresh_selection()
 	_refresh_expeditions()
@@ -396,9 +402,10 @@ func _find_expedition_for(unit: Unit) -> Expedition:
 
 # ---------- advance time ----------
 
+# Commit pending tasks to at-home units, run the Tick (training, expedition
+# returns, Determination), and hand off to the Pre-Battle Review screen.
+# Resolution / Battle Log / Weekly Summary handle the rest of the week.
 func _on_advance() -> void:
-	# Commit pending tasks to at-home units. Expedition units already had their
-	# task set at launch and must not be overwritten.
 	for u in GameState.roster:
 		if u.is_on_expedition():
 			continue
@@ -407,34 +414,6 @@ func _on_advance() -> void:
 		else:
 			u.current_task = Unit.TASK_DEFEND
 
-	# Walk the phase machine through the cycle. Phases 5–7 will inject their
-	# logic at each transition; for Phase 4 we just step through and emit.
 	GameState.phase_machine.transition(PhaseMachine.Phase.TICK)
-	_run_phase_5_stub()
-	GameState.phase_machine.transition(PhaseMachine.Phase.PRE_BATTLE)
-	_run_phase_6_stub()
-	GameState.phase_machine.transition(PhaseMachine.Phase.RESOLUTION)
-	_run_phase_7_stub()
-	# Wrap to next week.
-	GameState.advance_to_next_week()
-	GameState.phase_machine.transition(PhaseMachine.Phase.PLANNING)
-	GameState.roll_current_event()
-
-	_pending_tasks.clear()
-	_default_pending_tasks()
-	_selected = Vector2i(-1, -1)
-	_refresh_all()
-
-
-# These stubs are intentional placeholders; Phases 5/6/7 replace them with
-# real Tick / Pre-Battle / Resolution logic.
-func _run_phase_5_stub() -> void:
-	print("[Planning] (stub) Tick — Phase 5 will run training, expedition timers, returns.")
-
-
-func _run_phase_6_stub() -> void:
-	print("[Planning] (stub) Pre-Battle Review — Phase 5/6 will gate formation here.")
-
-
-func _run_phase_7_stub() -> void:
-	print("[Planning] (stub) Resolution — Phase 6/7 will resolve battles + tournaments.")
+	Tick.apply(GameState)
+	get_tree().change_scene_to_file("res://scenes/screens/pre_battle_review.tscn")

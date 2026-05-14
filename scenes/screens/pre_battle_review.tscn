@@ -1,0 +1,89 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/screens/pre_battle_review.gd" id="1_pbr"]
+
+[node name="PreBattleReview" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_pbr")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Header" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+text = "Pre-Battle Review"
+theme_override_font_sizes/font_size = 22
+
+[node name="Resources" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+text = "Stores — ?"
+modulate = Color(0.78, 0.78, 0.78, 1)
+
+[node name="Scroll" type="ScrollContainer" parent="Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Body" type="VBoxContainer" parent="Margin/VBox/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="TickRecapHeader" type="Label" parent="Margin/VBox/Scroll/Body"]
+layout_mode = 2
+text = "What happened during the Tick"
+theme_override_font_sizes/font_size = 18
+
+[node name="TickRecap" type="VBoxContainer" parent="Margin/VBox/Scroll/Body"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="RosterHeader" type="Label" parent="Margin/VBox/Scroll/Body"]
+layout_mode = 2
+text = "Roster"
+theme_override_font_sizes/font_size = 18
+
+[node name="Roster" type="VBoxContainer" parent="Margin/VBox/Scroll/Body"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SetupHeader" type="Label" parent="Margin/VBox/Scroll/Body"]
+layout_mode = 2
+text = "Combat Setup"
+theme_override_font_sizes/font_size = 18
+
+[node name="Setup" type="VBoxContainer" parent="Margin/VBox/Scroll/Body"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Bottom" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="StatusLabel" type="Label" parent="Margin/VBox/Bottom"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+modulate = Color(0.85, 0.85, 0.7, 1)
+
+[node name="ConfirmBtn" type="Button" parent="Margin/VBox/Bottom"]
+layout_mode = 2
+text = "To Battle →"
+custom_minimum_size = Vector2(200, 40)

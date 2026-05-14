@@ -27,3 +27,10 @@ static func tournament_number(week: int) -> int:
 	if not is_tournament_week(week):
 		return 0
 	return week / TOURNAMENT_INTERVAL
+
+
+# 1-based "years into the run". Week 1–48 → year 1, week 49–96 → year 2, ...
+# Used by GDD §6's Grand Tournament enemy-power formula `200 + (year × 50)`,
+# which is per-run year, not the calendar year (year_for returns 1627+).
+static func run_year(week: int) -> int:
+	return (week - 1) / WEEKS_PER_YEAR + 1

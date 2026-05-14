@@ -68,10 +68,19 @@ func try_increment(stat: String, potential_ability: int) -> bool:
 # Pick a random non-maxed stat that still has PA headroom, +1 it.
 # Returns the chosen stat name, or "" if no stat can grow.
 func try_increment_random(potential_ability: int) -> String:
+	return try_increment_random_excluding(potential_ability, "")
+
+
+# Same as try_increment_random but skips `exclude_stat`. Phase 5's training
+# system uses this for the per-training Determination-rolled +1 (GDD §7),
+# which goes to a stat OTHER than the unit's training target.
+func try_increment_random_excluding(potential_ability: int, exclude_stat: String) -> String:
 	if sum() >= potential_ability:
 		return ""
 	var candidates: Array[String] = []
 	for k in STAT_KEYS:
+		if k == exclude_stat:
+			continue
 		if int(get(k)) < STAT_CAP:
 			candidates.append(k)
 	if candidates.is_empty():

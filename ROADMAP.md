@@ -120,13 +120,17 @@ The single source of truth for *what's built, what's in flight, and what's queue
 **Goal:** Plan commit → world state actually changes → player gets a review window before the battle.
 
 **Deliverables**
-- [ ] Training resolver — `+1` to target stat (capped 20, capped by remaining PA); small Det-rolled bonus +1 chance to another stat.
-- [ ] Expedition timer tick — decrement, on hit-zero deliver yield (`base_tile_yield × (1 + Σstrength/30)`), reveal Explored tile + castle if any, return units to home pool.
-- [ ] `scenes/screens/pre_battle_review.tscn` — post-Tick roster snapshot.
-- [ ] Formation editor — 4-0-0 slot picker (Blue / Green / Yellow / Red), unit drag-and-drop, slot-match `+2` highlighting.
-- [ ] "To Battle" button → hands off to Phase 6's resolver.
+- [x] Training resolver — `+1` to target stat (capped 20, capped by remaining PA); small Det-rolled bonus +1 chance to another stat.
+- [x] Expedition timer tick — decrement, on hit-zero deliver yield (`base_tile_yield × (1 + Σstrength/30)`), reveal Explored tile + castle if any, return units to home pool.
+- [x] `scenes/screens/pre_battle_review.tscn` — post-Tick roster snapshot.
+- [x] Formation editor — 4-0-0 slot picker (Blue / Green / Yellow / Red), per-slot OptionButton picker with slot-match `[match]` marker, live forecast.
+- [x] "To Battle" button → hands off to Phase 6's resolver.
 
-**Done when:** training and expedition returns mutate `GameState` correctly during Tick, the review screen shows the post-Tick state, and the formation editor records assignments.
+**Done when:** training and expedition returns mutate `GameState` correctly during Tick, the review screen shows the post-Tick state, and the formation editor records assignments. ✓
+
+**Notes**
+- Implemented as OptionButton-per-slot (with single-unit-per-slot enforcement on pick), not drag-and-drop. Same outcome with less UI plumbing.
+- The Pre-Battle Review's setup pane is event-aware: formation editor for Away / Home / Bandit Ambush, champion + target-stat picker for Champion's Duel, up-to-4 participant checkboxes for Tournaments, a note for Bountiful Harvest / Merchant Caravan.
 
 ---
 
@@ -135,14 +139,19 @@ The single source of truth for *what's built, what's in flight, and what's queue
 **Goal:** Every event type can resolve end-to-end and produce a Weekly Summary.
 
 **Deliverables**
-- [ ] Formation-battle math — `unit_power = 5 + Str + Bra + skill + slot_bonus + leadership_buff`, intimidation reduction of enemy total, Defend=full / other-home-tasks=×0.75, expedition units absent.
-- [ ] Pillage (`20 + week×3`), Home (`25 + week×4`), Assault (castle's fixed difficulty); won-castle removal from the world.
-- [ ] Battle Event templates: Bandit Ambush, Travelling Champion's Duel (single-unit `Str + Bra + Sword` vs `20 + week×2`, +1 to a chosen stat on win), Bountiful Harvest, Merchant Caravan.
-- [ ] `scenes/screens/battle_log.tscn` — per-unit contribution + final totals.
-- [ ] `scenes/screens/weekly_summary.tscn` — stat deltas, returned expeditions, rewards, "Next Week" button.
-- [ ] `scenes/screens/game_over.tscn` — triggered by Home Battle loss with cause + run stats.
+- [x] Formation-battle math — `unit_power = 5 + Str + Bra + skill + slot_bonus + leadership_buff`, intimidation reduction of enemy total, Defend=full / other-home-tasks=×0.75, expedition units absent.
+- [x] Pillage (`20 + week×3`), Home (`25 + week×4`), Assault (castle's fixed difficulty); won-castle removal from the world.
+- [x] Battle Event templates: Bandit Ambush, Travelling Champion's Duel (single-unit `Str + Bra + Sword` vs `20 + week×2`, +1 to a chosen stat on win), Bountiful Harvest, Merchant Caravan.
+- [x] `scenes/screens/battle_log.tscn` — per-unit contribution + final totals.
+- [x] `scenes/screens/weekly_summary.tscn` — stat deltas, returned expeditions, rewards, "Next Week" button.
+- [x] `scenes/screens/game_over.tscn` — triggered by Home Battle loss with cause + run stats.
 
-**Done when:** any rolled event can play out from Planning through Weekly Summary, rewards land in `GameState.resources`, and a Home Battle loss ends the run.
+**Done when:** any rolled event can play out from Planning through Weekly Summary, rewards land in `GameState.resources`, and a Home Battle loss ends the run. ✓
+
+**Notes**
+- Resolution is split: `scripts/systems/combat.gd` (pure formulas + enemy-power constants), `scripts/systems/battle_event.gd` (sub-type roll, harvest/caravan/duel), `scripts/systems/resolution.gd` (orchestrator + reward delivery). Combat doesn't touch GameState — it takes participants in, gives a breakdown out. Resolution is the only mutator.
+- Slot-match is binary per GDD §12's "MVP simplification: no 1-slot-away rule"; rules live in `Combat.is_slot_match` and are tunable in one place.
+- Merchant Caravan picker fires on the Weekly Summary (3 randomised bundles); Next Week is disabled until the player commits.
 
 ---
 
@@ -151,14 +160,18 @@ The single source of truth for *what's built, what's in flight, and what's queue
 **Goal:** The win condition exists and can be reached.
 
 **Deliverables**
-- [ ] Tournament override at week 12N (already routed by Phase 2; finalise UI).
-- [ ] Tournament resolution — `unit_power = 10 + Str + Tec + max(Sword, Arch)`, enemy `60 + tournament_number × 25`, up to 4 participants, no formation editor.
-- [ ] Etiquette reward modifier — `reward × (1 + highest_Etiquette/40)` on Tournament wins.
-- [ ] `tournament_streak` increments on win / resets on loss.
-- [ ] Grand Tournament substitution after 2 consecutive wins (enemy `200 + year × 50`).
-- [ ] `scenes/screens/run_win.tscn` and final-summary version of game_over for the Grand Tournament loss case.
+- [x] Tournament override at week 12N (already routed by Phase 2; finalise UI).
+- [x] Tournament resolution — `unit_power = 10 + Str + Tec + max(Sword, Arch)`, enemy `60 + tournament_number × 25`, up to 4 participants, no formation editor.
+- [x] Etiquette reward modifier — `reward × (1 + highest_Etiquette/40)` on Tournament wins.
+- [x] `tournament_streak` increments on win / resets on loss.
+- [x] Grand Tournament substitution after 2 consecutive wins (enemy `200 + year × 50`).
+- [x] `scenes/screens/run_win.tscn` and final-summary version of game_over for the Grand Tournament loss case.
 
-**Done when:** a full playable line from week 1 → Grand Tournament outcome is reachable in a single run.
+**Done when:** a full playable line from week 1 → Grand Tournament outcome is reachable in a single run. ✓
+
+**Notes**
+- Grand Tournament uses `Calendar.run_year(week)` (1-based years-since-start, not 1627+) — matches GDD §13's sanity check (`200 + year×50 = 250` at week 36).
+- A lost Grand Tournament resets the streak and continues the run, per GDD §6 ("Lose: counter resets to 0; continue playing"). Only Home Battle loss ends the run.
 
 ---
 
@@ -181,6 +194,7 @@ The single source of truth for *what's built, what's in flight, and what's queue
 
 *Newest entry first. Add a dated line each session that ships code.*
 
+- **2026-05-14** — Phases 5, 6, 7 shipped together. The week is now a real loop end-to-end: Planning → Tick (training, expedition timers/returns, per-training Det-rolled bonus, every-4-weeks Determination) → Pre-Battle Review → Resolution → Battle Log (combat events only) → Weekly Summary → Next Week. New stateless systems: `Tick`, `Combat`, `BattleEvent`, `Resolution` — each one a static helper that takes GameState in and writes results to typed Dictionary buffers (`last_tick_results`, `last_battle_result`). New scenes: `pre_battle_review.tscn` (event-aware setup pane), `battle_log.tscn` (per-unit table), `weekly_summary.tscn` (deltas + returns + rewards + caravan picker + branching Next button), `game_over.tscn`, `run_win.tscn`. Formation editor enforces single-unit-per-slot; live forecast shows player total vs enemy. Every reward formula and enemy-power scaling lives in `Combat.gd` as named static helpers so Phase 8 tuning has one file to touch. **Next up:** Phase 8 — playthrough(s) to tune enemy multipliers, gather base yield, reward sizes; UI polish where the play surfaces it.
 - **2026-05-14** — Phase 4 complete. `Expedition` class + `active_expedition` on `MapTile` give a clean model for parties in the field. `WorldMapView` is a reusable 15×15 grid widget that the Planning screen drops in; tiles are colour-coded by terrain, Unknown is greyed, castles are red, town is gold, active expeditions show weeks-remaining. The Planning screen wires it all together: event banner, per-unit task picker (Defend / Train *stat*), per-unit checkbox for the next expedition party, separate Explore/Gather launch buttons gated by validation, away-week sub-section with Pillage/Assault and an Explored-castle dropdown, Advance Time button that walks the phase machine (Phase-5/6/7 logic is stubbed for now) and bumps the week. Roster view's Continue button now jumps to Planning. **Next up:** Phase 5 (real Tick — training application, expedition timers/returns, Pre-Battle Review screen with the formation editor).
 - **2026-05-14** — Phase 3 complete. Title screen → Knight chooser → Roster view is wired end-to-end. `RosterGenerator` rolls 3 Knight candidates (stats 7–14 +1 flat, PA 100–180) and 3 starting Squires (stats 4–10, PA 60–140) using the seeded RNG, so the whole starting roster is reproducible. `UnitCard.build` is a shared builder used by both chooser and roster; PA stays hidden per GDD §10. `NamePool` provides 32×25 = 800 unique procedural names. `Determination.roll_for_units` honours the PA cap and skips expedition units — Phase 5's Tick will call it on weeks divisible by 4. **Next up:** Phase 4 (TileMap world map + Planning screen for at-home tasks, expeditions, and Away-week choice).
 - **2026-05-14** — Phase 2 complete. `GameState` now tracks the run end-to-end (world, roster, resources, tournament streak, current event). `PhaseMachine` (lightweight RefCounted held on GameState) drives the Planning → Tick → Pre-Battle → Resolution cycle and emits `phase_changed` through `EventBus`. `Calendar`, `EventKind`, and `EventRoller` carry the weekly-clock and event-pick logic. Dev scene `scenes/dev/event_roll_test.tscn` (F6) simulates 50 weeks against a pinned seed and validates the tournament + Grand override rules. `main.gd` now prints the phase label so booting the game shows the wiring is live. **Next up:** Phase 3 (Title screen + Knight chooser + Roster view, then the every-4-weeks Determination roll).
