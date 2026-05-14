@@ -31,7 +31,8 @@ icon.svg             Placeholder app icon ("KM" mark)
 scenes/              Godot scenes (.tscn)
   Main.tscn          Entry-point handshake scene
   dev/               Dev-only scenes
-    world_dump.tscn  Phase 1 world-gen verifier (F6 to run)
+    world_dump.tscn        Phase 1 world-gen verifier (F6 to run)
+    event_roll_test.tscn   Phase 2 50-week event roller (F6 to run)
 scripts/             GDScript sources
   main.gd            Main scene controller
   autoload/          Singletons registered in project.godot
@@ -39,7 +40,9 @@ scripts/             GDScript sources
     event_bus.gd     Cross-scene signal hub
     rng.gd           Seedable RandomNumberGenerator wrapper
   data/              Game data classes (class_name): Unit, Stats,
-                     ResourceBundle, MapTile, Castle, World, WorldGenerator
+                     ResourceBundle, MapTile, Castle, World, WorldGenerator,
+                     EventKind
+  systems/           Stateless rules: Calendar, EventRoller, PhaseMachine
   dev/               Dev-only tooling (run with F6 in the editor)
 assets/              Art and audio
   textures/

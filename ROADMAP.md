@@ -58,12 +58,18 @@ The single source of truth for *what's built, what's in flight, and what's queue
 **Goal:** A headless week-advancer that loops Plan → Tick → Pre-Battle Review → Resolution and rolls events correctly.
 
 **Deliverables**
-- [ ] `GameState` populated with the world from Phase 1 plus calendar helpers (week → year, tournament-week check).
-- [ ] `PhaseMachine` (script or autoload) with explicit transitions and `phase_changed` signal.
-- [ ] `EventRoller` — 33/33/33 base distribution, tournament override on weeks divisible by 12, Grand Tournament substitution when `tournament_streak >= 2`.
-- [ ] Headless test scene that runs 50 weeks and prints an event-type tally — verifies distribution and override rules.
+- [x] `GameState` populated with `world`, `roster: Array[Unit]`, `resources: ResourceBundle`, `tournament_streak`, `current_event`, plus `current_year()` / `current_week_of_year()` / `is_tournament_week()` helpers and `start_run(seed)` / `advance_to_next_week()` / `roll_current_event()` lifecycle methods.
+- [x] `PhaseMachine` (held on GameState, not a separate autoload) with explicit `Phase` enum, `transition()` / `advance()` and a `phase_changed` signal routed through EventBus.
+- [x] `EventRoller` — uniform pick across Away / Home / Battle Event on normal weeks; Tournament on week-12N; Grand Tournament substitution when `tournament_streak >= 2`.
+- [x] `Calendar` helpers (`year_for`, `week_of_year`, `is_tournament_week`, `tournament_number`).
+- [x] `EventKind` constants + label helper.
+- [x] Headless test scene `scenes/dev/event_roll_test.tscn` (F6) — runs 50 weeks with a pinned seed, simulates winning every tournament, tallies, and validates the override + Grand-substitution rules.
 
 **Done when:** 50-week dry run produces ~33% each event type outside tournament weeks, a Tournament on every week-12N, and a Grand Tournament after winning 2 in a row.
+
+**Notes**
+- `EventBus` now declares the full set of signals we'll need across phases 2–7 (commented at the top of `event_bus.gd`).
+- `GameState.roll_current_event()` is the single entry point for Planning to ask "what's happening this week?" — it stores on `current_event` and emits `event_rolled`.
 
 ---
 
@@ -163,5 +169,6 @@ The single source of truth for *what's built, what's in flight, and what's queue
 
 *Newest entry first. Add a dated line each session that ships code.*
 
+- **2026-05-14** — Phase 2 complete. `GameState` now tracks the run end-to-end (world, roster, resources, tournament streak, current event). `PhaseMachine` (lightweight RefCounted held on GameState) drives the Planning → Tick → Pre-Battle → Resolution cycle and emits `phase_changed` through `EventBus`. `Calendar`, `EventKind`, and `EventRoller` carry the weekly-clock and event-pick logic. Dev scene `scenes/dev/event_roll_test.tscn` (F6) simulates 50 weeks against a pinned seed and validates the tournament + Grand override rules. `main.gd` now prints the phase label so booting the game shows the wiring is live. **Next up:** Phase 3 (Title screen + Knight chooser + Roster view, then the every-4-weeks Determination roll).
 - **2026-05-14** — Phase 1 complete. Data classes landed under `scripts/data/`: `Stats`, `ResourceBundle`, `MapTile`, `Castle`, `Unit`, `World`, and the static `WorldGenerator`. `Stats.try_increment` enforces both the 20 cap and the hidden PA cap, so future Train/Determination/Champion's Duel rewards all route through one place. `WorldGenerator.generate(seed)` is deterministic — same seed in, identical world (terrain, knowledge mask, castles, reward bundles) out. Dev scene `scenes/dev/world_dump.tscn` (F6) renders both grids, lists castles, runs all GDD §3/§4 sanity checks, and re-rolls the same seed for a determinism diff. **Next up:** Phase 2 (GameState wiring, weekly phase machine, event roller with tournament override).
 - **2026-05-14** — Repo scaffolded (`cd69208`). MVP GDD imported into `GDD.md`. Phase 0 complete: `project.godot`, autoloads (`GameState`, `EventBus`, `RNG`), `Main.tscn`, folder layout.
