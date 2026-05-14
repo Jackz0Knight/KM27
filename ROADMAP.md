@@ -1,0 +1,161 @@
+# KM27 — Implementation Roadmap
+
+The single source of truth for *what's built, what's in flight, and what's queued*.
+
+## How to use this file
+
+- **Phases** are vertical slices. Each one ends in something that runs and can be playtested.
+- **Tick the `- [ ]` boxes** as deliverables land. Don't skip phases; each builds on the previous.
+- **Update the Progress Log** at the bottom every session that ships code — newest entry first, ISO date prefix.
+- **GDD refs** point to sections of `GDD.md`. If a phase contradicts the GDD, the GDD wins — update the GDD first, then the roadmap.
+- **Tuning numbers** (enemy power, yields, etc.) are placeholders per the GDD. Don't re-balance until Phase 8 unless something is unplayable.
+
+---
+
+## Phase 0 — Godot scaffold
+
+**Goal:** A Godot 4 project that opens, runs `Main.tscn`, and proves the autoloads are wired.
+
+**Deliverables**
+- [x] `project.godot` with name, main scene, autoloads, 1280×720 viewport, GL Compatibility renderer.
+- [x] `icon.svg` placeholder ("KM" mark).
+- [x] `scenes/Main.tscn` — minimal Control scene with a centred "booting…" label.
+- [x] `scripts/main.gd` — prints week/year + starting resources on `_ready()`.
+- [x] `scripts/autoload/game_state.gd` — stub with week, year, phase, resources, roster, world, tournament_streak.
+- [x] `scripts/autoload/event_bus.gd` — empty signal hub with planned-signal comments.
+- [x] `scripts/autoload/rng.gd` — seedable `RandomNumberGenerator` wrapper.
+- [x] Folder layout (`scenes/`, `scripts/`, `scripts/autoload/`, `assets/textures/`, `assets/audio/`, `data/`).
+
+**Done when:** opening `project.godot` in Godot 4.3+ loads without errors and the main scene prints `[KM27] Main scene ready. Year 1627, Week 1.` followed by the resource dictionary.
+
+---
+
+## Phase 1 — Data layer & World generation *(GDD §3, §4)*
+
+**Goal:** Generate a deterministic 15×15 world that matches GDD §4 exactly, with no UI yet.
+
+**Deliverables**
+- [ ] `Unit` class (`scripts/data/unit.gd`) — id, name, class (Squire/Knight), visible stats, hidden PA, current task/expedition state.
+- [ ] `Stats` resource — Strength, Speed, Technique, Bravery, Loyalty, Determination, Swordsmanship, Archery, Horsemanship, Leadership, Etiquette, Intimidation. Helpers for sum, clamp-on-set, PA-aware increment.
+- [ ] `ResourceBundle` helper — add/subtract dictionaries for wood/fibres/copper_ore.
+- [ ] `Tile` class — coords, terrain, optional resource, optional castle ref, knowledge state.
+- [ ] `Castle` class — coords, difficulty (30–200 spread with ±10 jitter), pre-rolled reward bundle.
+- [ ] `World` class — 15×15 grid, town at (7,7), 9 starting Explored tiles, 8 castles placed with the "no castle within 2 tiles of town" rule.
+- [ ] `WorldGenerator.generate(seed: int) -> World` static helper using `RNG.seed_run()`.
+- [ ] Debug scene `scenes/dev/world_dump.tscn` that prints the grid + castle list to the output panel.
+
+**Done when:** running the debug scene with the same seed twice produces an identical world, castle difficulties span 30–200, and no castle sits within 2 tiles of (7,7).
+
+---
+
+## Phase 2 — Game state & weekly clock *(GDD §5, §6, §16)*
+
+**Goal:** A headless week-advancer that loops Plan → Tick → Pre-Battle Review → Resolution and rolls events correctly.
+
+**Deliverables**
+- [ ] `GameState` populated with the world from Phase 1 plus calendar helpers (week → year, tournament-week check).
+- [ ] `PhaseMachine` (script or autoload) with explicit transitions and `phase_changed` signal.
+- [ ] `EventRoller` — 33/33/33 base distribution, tournament override on weeks divisible by 12, Grand Tournament substitution when `tournament_streak >= 2`.
+- [ ] Headless test scene that runs 50 weeks and prints an event-type tally — verifies distribution and override rules.
+
+**Done when:** 50-week dry run produces ~33% each event type outside tournament weeks, a Tournament on every week-12N, and a Grand Tournament after winning 2 in a row.
+
+---
+
+## Phase 3 — Starting flow & Roster UI *(GDD §3, §9, §10)*
+
+**Goal:** Player can start a run, pick a Knight, and see their 4-unit roster with correct stat ranges.
+
+**Deliverables**
+- [ ] `scenes/screens/title.tscn` — "New Run" button → world gen → Knight chooser.
+- [ ] `scenes/screens/knight_chooser.tscn` — 3 randomly-rolled Knight candidates (stats 7–14, PA 100–180, Knight class bonus).
+- [ ] Squire stat roller (4–10, PA 60–140, no bonus).
+- [ ] `scenes/screens/roster_view.tscn` — 4 unit cards with visible stats, current task, expedition status. PA hidden.
+- [ ] Determination weekly hook — every 4th week, each unit rolls `(Determination × 0.5)%` for a free +1 to a random non-maxed visible stat (respect PA cap).
+
+**Done when:** new run produces 1 Knight + 3 Squires inside the documented stat ranges, the chosen Knight has the class bonus, and the roster view renders correctly.
+
+---
+
+## Phase 4 — Planning UI (at-home tasks + expeditions + map) *(GDD §4, §7, §8, §15)*
+
+**Goal:** Player can plan a week — assign at-home tasks, launch expeditions, and on Away weeks choose Pillage or Assault.
+
+**Deliverables**
+- [ ] `scenes/screens/world_map.tscn` — TileMap 15×15 with knowledge-state shading, town marker, castle markers (Explored only), expedition overlays with "X weeks left".
+- [ ] `scenes/screens/planning.tscn` — per-unit task picker (Train target stat / Defend), expedition launcher (type, target tile, party).
+- [ ] Away-week chooser (Pillage / Assault + castle picker; Assault disabled if no Explored castle).
+- [ ] Event preview banner (uses Phase 2's rolled event).
+- [ ] "Advance Time" button that commits the plan and triggers Phase 5's Tick.
+
+**Done when:** player can place all 4 units onto tasks/expeditions, validation prevents impossible plans (e.g. assigning a unit on expedition), and clicking Advance Time hands off to the Tick phase.
+
+---
+
+## Phase 5 — Tick & Pre-Battle Review *(GDD §5, §8, §12)*
+
+**Goal:** Plan commit → world state actually changes → player gets a review window before the battle.
+
+**Deliverables**
+- [ ] Training resolver — `+1` to target stat (capped 20, capped by remaining PA); small Det-rolled bonus +1 chance to another stat.
+- [ ] Expedition timer tick — decrement, on hit-zero deliver yield (`base_tile_yield × (1 + Σstrength/30)`), reveal Explored tile + castle if any, return units to home pool.
+- [ ] `scenes/screens/pre_battle_review.tscn` — post-Tick roster snapshot.
+- [ ] Formation editor — 4-0-0 slot picker (Blue / Green / Yellow / Red), unit drag-and-drop, slot-match `+2` highlighting.
+- [ ] "To Battle" button → hands off to Phase 6's resolver.
+
+**Done when:** training and expedition returns mutate `GameState` correctly during Tick, the review screen shows the post-Tick state, and the formation editor records assignments.
+
+---
+
+## Phase 6 — Combat resolution + events *(GDD §6, §13)*
+
+**Goal:** Every event type can resolve end-to-end and produce a Weekly Summary.
+
+**Deliverables**
+- [ ] Formation-battle math — `unit_power = 5 + Str + Bra + skill + slot_bonus + leadership_buff`, intimidation reduction of enemy total, Defend=full / other-home-tasks=×0.75, expedition units absent.
+- [ ] Pillage (`20 + week×3`), Home (`25 + week×4`), Assault (castle's fixed difficulty); won-castle removal from the world.
+- [ ] Battle Event templates: Bandit Ambush, Travelling Champion's Duel (single-unit `Str + Bra + Sword` vs `20 + week×2`, +1 to a chosen stat on win), Bountiful Harvest, Merchant Caravan.
+- [ ] `scenes/screens/battle_log.tscn` — per-unit contribution + final totals.
+- [ ] `scenes/screens/weekly_summary.tscn` — stat deltas, returned expeditions, rewards, "Next Week" button.
+- [ ] `scenes/screens/game_over.tscn` — triggered by Home Battle loss with cause + run stats.
+
+**Done when:** any rolled event can play out from Planning through Weekly Summary, rewards land in `GameState.resources`, and a Home Battle loss ends the run.
+
+---
+
+## Phase 7 — Tournaments & endgame *(GDD §6, §13, §16)*
+
+**Goal:** The win condition exists and can be reached.
+
+**Deliverables**
+- [ ] Tournament override at week 12N (already routed by Phase 2; finalise UI).
+- [ ] Tournament resolution — `unit_power = 10 + Str + Tec + max(Sword, Arch)`, enemy `60 + tournament_number × 25`, up to 4 participants, no formation editor.
+- [ ] Etiquette reward modifier — `reward × (1 + highest_Etiquette/40)` on Tournament wins.
+- [ ] `tournament_streak` increments on win / resets on loss.
+- [ ] Grand Tournament substitution after 2 consecutive wins (enemy `200 + year × 50`).
+- [ ] `scenes/screens/run_win.tscn` and final-summary version of game_over for the Grand Tournament loss case.
+
+**Done when:** a full playable line from week 1 → Grand Tournament outcome is reachable in a single run.
+
+---
+
+## Phase 8 — Tuning & polish
+
+**Goal:** A playable MVP that lasts a satisfying number of weeks without being trivially won or impossible.
+
+**Deliverables**
+- [ ] Run at least one full playthrough (Knight pick → ending). Capture week reached + outcome.
+- [ ] Adjust enemy power multipliers (`× 3`, `× 4`, castle difficulty curve) per GDD §13's sanity check.
+- [ ] Adjust gather-yield base values + Strength scaling if resource scarcity is wrong.
+- [ ] UI polish — readable battle log, clearer event preview, consistent panel theming.
+- [ ] Bug-fix pass on any rough edges flagged during playtest.
+
+**Done when:** a fresh tester can finish a run without confusion and outcomes feel earned rather than coin-flippy.
+
+---
+
+## Progress Log
+
+*Newest entry first. Add a dated line each session that ships code.*
+
+- **2026-05-14** — Repo scaffolded (`cd69208`). MVP GDD imported into `GDD.md`. Phase 0 complete: `project.godot`, autoloads (`GameState`, `EventBus`, `RNG`), `Main.tscn`, folder layout. Next up: Phase 1 (data classes + world gen).

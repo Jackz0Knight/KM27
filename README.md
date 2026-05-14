@@ -2,6 +2,6 @@
 
 A football/medieval roguelike mashup. Only for the brave...
 
-**Status:** Pre-production — GDD in progress.
+**Status:** MVP build — Phase 0 (Godot scaffold) complete. See [ROADMAP.md](./ROADMAP.md).
 **Tech:** Godot 4.x.
-**Docs:** [GDD.md](./GDD.md) · [CLAUDE.md](./CLAUDE.md)
+**Docs:** [GDD.md](./GDD.md) · [ROADMAP.md](./ROADMAP.md) · [CLAUDE.md](./CLAUDE.md)

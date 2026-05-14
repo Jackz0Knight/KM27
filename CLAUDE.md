@@ -8,7 +8,7 @@ Persistent context for Claude Code sessions working on KM27.
 
 ## Current Phase
 
-**Pre-production.** Focus is the Game Design Document. No engine code yet — do not scaffold a Godot project, scenes, or scripts unless explicitly requested.
+**MVP build.** GDD imported (`GDD.md`); implementation underway. See `ROADMAP.md` for the active phase, deliverable checklist, and Progress Log.
 
 ## Tech Stack
 
@@ -19,15 +19,28 @@ Persistent context for Claude Code sessions working on KM27.
 ## Repository Layout
 
 ```
-README.md       Public landing page
-GDD.md          Single-source Game Design Document (tiered headings)
-CLAUDE.md       This file
-LICENSE         Proprietary, all rights reserved
-.gitignore      Godot 4 + OS/IDE patterns
-.editorconfig   Cross-editor formatting rules
+README.md            Public landing page
+GDD.md               Single-source Game Design Document (tiered headings)
+ROADMAP.md           Phased implementation plan + Progress Log (living)
+CLAUDE.md            This file
+LICENSE              Proprietary, all rights reserved
+.gitignore           Godot 4 + OS/IDE patterns
+.editorconfig        Cross-editor formatting rules
+project.godot        Godot 4 project config
+icon.svg             Placeholder app icon ("KM" mark)
+scenes/              Godot scenes (.tscn)
+  Main.tscn          Entry-point handshake scene
+scripts/             GDScript sources
+  main.gd            Main scene controller
+  autoload/          Singletons registered in project.godot
+    game_state.gd    Run state (week, year, resources, roster, world)
+    event_bus.gd     Cross-scene signal hub
+    rng.gd           Seedable RandomNumberGenerator wrapper
+assets/              Art and audio
+  textures/
+  audio/
+data/                Static design data (CSV/JSON, future)
 ```
-
-No `/src`, `/scenes`, `/scripts`, or `project.godot` yet — intentional.
 
 ## GDD Conventions
 
@@ -48,11 +61,18 @@ No `/src`, `/scenes`, `/scripts`, or `project.godot` yet — intentional.
 - Reference the GDD section when relevant ("flesh out Core Loop section").
 - Keep commits scoped — one logical change per commit.
 
+## Implementation Status
+
+`ROADMAP.md` is the single source of truth for **what's done, what's in progress, and what's queued.** Before starting work in a new session, read it. After shipping code, **update the Progress Log at the bottom** with a newest-first dated entry summarising what changed and what the next phase needs.
+
+Phase ordering is deliberate — don't jump ahead without checking dependencies. If a phase needs to expand or split, edit the roadmap itself; don't track scope drift in commit messages alone.
+
 ## Working Agreements
 
 - Plan before multi-file edits; prefer minimal diffs.
-- Don't add Godot engine files (`project.godot`, scenes, scripts) without explicit instruction.
-- Don't add CI, issue/PR templates, labels, or contributor docs yet — premature for pre-production.
+- Follow the phase order in `ROADMAP.md`; tick boxes as deliverables ship.
+- Update `ROADMAP.md`'s Progress Log at the end of any session that ships code.
+- Don't add CI, issue/PR templates, labels, or contributor docs yet — premature for early MVP build.
 - Never push to `main` directly.
 
 ## Security Note
