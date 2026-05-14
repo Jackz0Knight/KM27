@@ -39,7 +39,7 @@ modulate = Color(0.78, 0.78, 0.78, 1)
 
 [node name="SubHeader" type="Label" parent="Margin/VBox"]
 layout_mode = 2
-text = "Phase 4 will hook the Continue button into Planning."
+text = "Continue takes you to the Planning phase."
 modulate = Color(0.65, 0.65, 0.65, 1)
 
 [node name="Scroll" type="ScrollContainer" parent="Margin/VBox"]
@@ -53,5 +53,5 @@ theme_override_constants/separation = 12
 
 [node name="ContinueButton" type="Button" parent="Margin/VBox"]
 layout_mode = 2
-text = "Continue (Phase 4 will hook here)"
-disabled = true
+text = "Continue → Planning"
+custom_minimum_size = Vector2(220, 40)

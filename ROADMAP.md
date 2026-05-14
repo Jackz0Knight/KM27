@@ -99,13 +99,19 @@ The single source of truth for *what's built, what's in flight, and what's queue
 **Goal:** Player can plan a week — assign at-home tasks, launch expeditions, and on Away weeks choose Pillage or Assault.
 
 **Deliverables**
-- [ ] `scenes/screens/world_map.tscn` — TileMap 15×15 with knowledge-state shading, town marker, castle markers (Explored only), expedition overlays with "X weeks left".
-- [ ] `scenes/screens/planning.tscn` — per-unit task picker (Train target stat / Defend), expedition launcher (type, target tile, party).
-- [ ] Away-week chooser (Pillage / Assault + castle picker; Assault disabled if no Explored castle).
-- [ ] Event preview banner (uses Phase 2's rolled event).
-- [ ] "Advance Time" button that commits the plan and triggers Phase 5's Tick.
+- [x] `Expedition` data class (`scripts/data/expedition.gd`) + `active_expedition` field on `MapTile`.
+- [x] `WorldMapView` (`scripts/ui/world_map_view.gd`) — reusable GridContainer-based 15×15 map. Tile colour by terrain, Unknown tiles greyed, castles overlaid in red, town in gold, active expeditions show "Xw" remaining; emits `tile_clicked(x,y)`.
+- [x] `scenes/screens/planning.tscn` — event banner, resources line, per-unit Defend/Train picker (with current value shown), checkbox to add a unit to the next expedition party, clickable map + selected-tile info, separate Explore/Gather launch buttons with full validation, active-expedition list.
+- [x] Away-week sub-section (visible only when current event = Away Battle): Pillage / Assault Castle buttons, castle dropdown filtered to Explored-tile castles only.
+- [x] `GameState.launch_expedition()` + `complete_expedition()` (Phase 5 uses the latter) + away-week pending fields (`pending_away_party`, `pending_away_mode`, `pending_assault_castle`).
+- [x] Advance Time button — commits each at-home unit's task, walks the phase machine through Tick → Pre-Battle → Resolution (stubs for now), advances the week counter, rolls the next event, and re-renders. Phases 5–7 will replace the stubs.
+- [x] Roster-view Continue button wired to Planning.
 
 **Done when:** player can place all 4 units onto tasks/expeditions, validation prevents impossible plans (e.g. assigning a unit on expedition), and clicking Advance Time hands off to the Tick phase.
+
+**Notes / known limitations**
+- Mountain → Copper Ore via adjacent-tile gather (GDD §4 footnote) is **deferred**. Gather currently requires the *selected* tile to yield its own resource. MVP copper comes from castle assaults and pillage instead.
+- The Advance Time button currently walks all four phases in one click because Phases 5–7 are not yet wired. Once Phase 5 lands, Tick will pause for the Pre-Battle Review screen instead of running through.
 
 ---
 
@@ -175,6 +181,7 @@ The single source of truth for *what's built, what's in flight, and what's queue
 
 *Newest entry first. Add a dated line each session that ships code.*
 
+- **2026-05-14** — Phase 4 complete. `Expedition` class + `active_expedition` on `MapTile` give a clean model for parties in the field. `WorldMapView` is a reusable 15×15 grid widget that the Planning screen drops in; tiles are colour-coded by terrain, Unknown is greyed, castles are red, town is gold, active expeditions show weeks-remaining. The Planning screen wires it all together: event banner, per-unit task picker (Defend / Train *stat*), per-unit checkbox for the next expedition party, separate Explore/Gather launch buttons gated by validation, away-week sub-section with Pillage/Assault and an Explored-castle dropdown, Advance Time button that walks the phase machine (Phase-5/6/7 logic is stubbed for now) and bumps the week. Roster view's Continue button now jumps to Planning. **Next up:** Phase 5 (real Tick — training application, expedition timers/returns, Pre-Battle Review screen with the formation editor).
 - **2026-05-14** — Phase 3 complete. Title screen → Knight chooser → Roster view is wired end-to-end. `RosterGenerator` rolls 3 Knight candidates (stats 7–14 +1 flat, PA 100–180) and 3 starting Squires (stats 4–10, PA 60–140) using the seeded RNG, so the whole starting roster is reproducible. `UnitCard.build` is a shared builder used by both chooser and roster; PA stays hidden per GDD §10. `NamePool` provides 32×25 = 800 unique procedural names. `Determination.roll_for_units` honours the PA cap and skips expedition units — Phase 5's Tick will call it on weeks divisible by 4. **Next up:** Phase 4 (TileMap world map + Planning screen for at-home tasks, expeditions, and Away-week choice).
 - **2026-05-14** — Phase 2 complete. `GameState` now tracks the run end-to-end (world, roster, resources, tournament streak, current event). `PhaseMachine` (lightweight RefCounted held on GameState) drives the Planning → Tick → Pre-Battle → Resolution cycle and emits `phase_changed` through `EventBus`. `Calendar`, `EventKind`, and `EventRoller` carry the weekly-clock and event-pick logic. Dev scene `scenes/dev/event_roll_test.tscn` (F6) simulates 50 weeks against a pinned seed and validates the tournament + Grand override rules. `main.gd` now prints the phase label so booting the game shows the wiring is live. **Next up:** Phase 3 (Title screen + Knight chooser + Roster view, then the every-4-weeks Determination roll).
 - **2026-05-14** — Phase 1 complete. Data classes landed under `scripts/data/`: `Stats`, `ResourceBundle`, `MapTile`, `Castle`, `Unit`, `World`, and the static `WorldGenerator`. `Stats.try_increment` enforces both the 20 cap and the hidden PA cap, so future Train/Determination/Champion's Duel rewards all route through one place. `WorldGenerator.generate(seed)` is deterministic — same seed in, identical world (terrain, knowledge mask, castles, reward bundles) out. Dev scene `scenes/dev/world_dump.tscn` (F6) renders both grids, lists castles, runs all GDD §3/§4 sanity checks, and re-rolls the same seed for a determinism diff. **Next up:** Phase 2 (GameState wiring, weekly phase machine, event roller with tournament override).

@@ -1,0 +1,124 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/screens/planning.gd" id="1_plan"]
+
+[node name="Planning" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_plan")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Header" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+text = "Year ?, Week ? — Event ?"
+theme_override_font_sizes/font_size = 22
+
+[node name="Resources" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+text = "Stores — ?"
+modulate = Color(0.78, 0.78, 0.78, 1)
+
+[node name="MainRow" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 16
+
+[node name="LeftPane" type="VBoxContainer" parent="Margin/VBox/MainRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="AssignmentHeader" type="Label" parent="Margin/VBox/MainRow/LeftPane"]
+layout_mode = 2
+text = "Assignments"
+theme_override_font_sizes/font_size = 18
+
+[node name="UnitScroll" type="ScrollContainer" parent="Margin/VBox/MainRow/LeftPane"]
+layout_mode = 2
+size_flags_vertical = 3
+custom_minimum_size = Vector2(0, 320)
+
+[node name="UnitList" type="VBoxContainer" parent="Margin/VBox/MainRow/LeftPane/UnitScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="AwaySection" type="VBoxContainer" parent="Margin/VBox/MainRow/LeftPane"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="RightPane" type="VBoxContainer" parent="Margin/VBox/MainRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="MapHeader" type="Label" parent="Margin/VBox/MainRow/RightPane"]
+layout_mode = 2
+text = "World Map (click a tile)"
+theme_override_font_sizes/font_size = 18
+
+[node name="MapHolder" type="PanelContainer" parent="Margin/VBox/MainRow/RightPane"]
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="SelectionInfo" type="Label" parent="Margin/VBox/MainRow/RightPane"]
+layout_mode = 2
+text = "Click a tile on the map to select it."
+custom_minimum_size = Vector2(0, 76)
+
+[node name="Actions" type="HBoxContainer" parent="Margin/VBox/MainRow/RightPane"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ExploreBtn" type="Button" parent="Margin/VBox/MainRow/RightPane/Actions"]
+layout_mode = 2
+text = "Launch Explore (2w)"
+disabled = true
+
+[node name="GatherBtn" type="Button" parent="Margin/VBox/MainRow/RightPane/Actions"]
+layout_mode = 2
+text = "Launch Gather (3w)"
+disabled = true
+
+[node name="ExpHeader" type="Label" parent="Margin/VBox/MainRow/RightPane"]
+layout_mode = 2
+text = "Active Expeditions"
+theme_override_font_sizes/font_size = 18
+
+[node name="ExpeditionList" type="VBoxContainer" parent="Margin/VBox/MainRow/RightPane"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Bottom" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="StatusLabel" type="Label" parent="Margin/VBox/Bottom"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+modulate = Color(0.85, 0.85, 0.7, 1)
+
+[node name="AdvanceBtn" type="Button" parent="Margin/VBox/Bottom"]
+layout_mode = 2
+text = "Advance Time →"
+custom_minimum_size = Vector2(180, 40)

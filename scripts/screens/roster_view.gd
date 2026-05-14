@@ -1,11 +1,12 @@
 extends Control
 
-# Shows all 4 units after the Knight has been chosen. Read-only in Phase 3 —
-# Phase 4's Planning screen takes over the "Continue" hand-off.
+# Shows all 4 units after the Knight has been chosen and routes to the
+# Planning screen on Continue.
 
 @onready var header: Label = $Margin/VBox/Header
 @onready var resources_lbl: Label = $Margin/VBox/Resources
 @onready var cards: VBoxContainer = $Margin/VBox/Scroll/Cards
+@onready var continue_btn: Button = $Margin/VBox/ContinueButton
 
 
 func _ready() -> void:
@@ -23,3 +24,9 @@ func _ready() -> void:
 
 	for unit in GameState.roster:
 		cards.add_child(UnitCard.build(unit))
+
+	continue_btn.pressed.connect(_on_continue)
+
+
+func _on_continue() -> void:
+	get_tree().change_scene_to_file("res://scenes/screens/planning.tscn")

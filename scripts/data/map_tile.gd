@@ -13,6 +13,7 @@ var y: int = 0
 var terrain: Terrain = Terrain.PLAINS
 var knowledge: Knowledge = Knowledge.UNKNOWN
 var castle: Castle = null
+var active_expedition: Expedition = null   # null when no expedition is targeting this tile
 
 
 func _init(p_x: int = 0, p_y: int = 0, p_terrain: Terrain = Terrain.PLAINS) -> void:

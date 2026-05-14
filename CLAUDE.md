@@ -32,7 +32,8 @@ scenes/              Godot scenes (.tscn)
   Main.tscn          Title screen (project's main_scene)
   screens/           Player-facing screens
     knight_chooser.tscn    Pick 1 of 3 starting Knights
-    roster_view.tscn       Roster overview (read-only in Phase 3)
+    roster_view.tscn       Roster overview, Continue → Planning
+    planning.tscn          Weekly Planning Phase UI
   dev/               Dev-only scenes
     world_dump.tscn        Phase 1 world-gen verifier (F6 to run)
     event_roll_test.tscn   Phase 2 50-week event roller (F6 to run)
@@ -44,10 +45,10 @@ scripts/             GDScript sources
     rng.gd           Seedable RandomNumberGenerator wrapper
   data/              Game data classes (class_name): Unit, Stats,
                      ResourceBundle, MapTile, Castle, World, WorldGenerator,
-                     EventKind, NamePool
+                     EventKind, NamePool, Expedition
   systems/           Stateless rules: Calendar, EventRoller, PhaseMachine,
                      RosterGenerator, Determination
-  ui/                Shared UI builders: UnitCard
+  ui/                Shared UI builders: UnitCard, WorldMapView
   screens/           Player-facing screen controllers
   dev/               Dev-only tooling (run with F6 in the editor)
 assets/              Art and audio
