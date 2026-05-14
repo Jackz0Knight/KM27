@@ -35,16 +35,21 @@ The single source of truth for *what's built, what's in flight, and what's queue
 **Goal:** Generate a deterministic 15×15 world that matches GDD §4 exactly, with no UI yet.
 
 **Deliverables**
-- [ ] `Unit` class (`scripts/data/unit.gd`) — id, name, class (Squire/Knight), visible stats, hidden PA, current task/expedition state.
-- [ ] `Stats` resource — Strength, Speed, Technique, Bravery, Loyalty, Determination, Swordsmanship, Archery, Horsemanship, Leadership, Etiquette, Intimidation. Helpers for sum, clamp-on-set, PA-aware increment.
-- [ ] `ResourceBundle` helper — add/subtract dictionaries for wood/fibres/copper_ore.
-- [ ] `Tile` class — coords, terrain, optional resource, optional castle ref, knowledge state.
-- [ ] `Castle` class — coords, difficulty (30–200 spread with ±10 jitter), pre-rolled reward bundle.
-- [ ] `World` class — 15×15 grid, town at (7,7), 9 starting Explored tiles, 8 castles placed with the "no castle within 2 tiles of town" rule.
-- [ ] `WorldGenerator.generate(seed: int) -> World` static helper using `RNG.seed_run()`.
-- [ ] Debug scene `scenes/dev/world_dump.tscn` that prints the grid + castle list to the output panel.
+- [x] `Unit` class (`scripts/data/unit.gd`) — id, name, class (Squire/Knight), visible stats, hidden PA, current task/expedition state.
+- [x] `Stats` resource — Strength, Speed, Technique, Bravery, Loyalty, Determination, Swordsmanship, Archery, Horsemanship, Leadership, Etiquette, Intimidation. Helpers for sum, clamp-on-set, PA-aware increment.
+- [x] `ResourceBundle` helper — add/subtract dictionaries for wood/fibres/copper_ore.
+- [x] `MapTile` class — coords, terrain, knowledge state, optional castle ref; resource type is derived from terrain.
+- [x] `Castle` class — coords, difficulty (30–200 spread with ±10 jitter), pre-rolled reward bundle.
+- [x] `World` class — 15×15 grid, town at (7,7), 9 starting Explored tiles, 8 castles placed with the "no castle within 2 tiles of town" rule (Chebyshev ≥ 3).
+- [x] `WorldGenerator.generate(seed: int) -> World` static helper using `RNG.seed_run()`.
+- [x] Debug scene `scenes/dev/world_dump.tscn` that prints the grid + castle list to the output panel and runs a battery of validation checks + a determinism re-roll.
 
 **Done when:** running the debug scene with the same seed twice produces an identical world, castle difficulties span 30–200, and no castle sits within 2 tiles of (7,7).
+
+**Notes**
+- `Tile` was renamed `MapTile` to dodge any future clash with Godot built-ins.
+- Terrain is uniformly random across 7 wilderness types (Village/Plains/Forest/Hills/Mountain/Beach/Ocean); per GDD §4 "MVP uses pure random distribution — tuning the placement formula is future work."
+- Run the dev scene in Godot with **F6** while `scenes/dev/world_dump.tscn` is open.
 
 ---
 
@@ -158,4 +163,5 @@ The single source of truth for *what's built, what's in flight, and what's queue
 
 *Newest entry first. Add a dated line each session that ships code.*
 
-- **2026-05-14** — Repo scaffolded (`cd69208`). MVP GDD imported into `GDD.md`. Phase 0 complete: `project.godot`, autoloads (`GameState`, `EventBus`, `RNG`), `Main.tscn`, folder layout. Next up: Phase 1 (data classes + world gen).
+- **2026-05-14** — Phase 1 complete. Data classes landed under `scripts/data/`: `Stats`, `ResourceBundle`, `MapTile`, `Castle`, `Unit`, `World`, and the static `WorldGenerator`. `Stats.try_increment` enforces both the 20 cap and the hidden PA cap, so future Train/Determination/Champion's Duel rewards all route through one place. `WorldGenerator.generate(seed)` is deterministic — same seed in, identical world (terrain, knowledge mask, castles, reward bundles) out. Dev scene `scenes/dev/world_dump.tscn` (F6) renders both grids, lists castles, runs all GDD §3/§4 sanity checks, and re-rolls the same seed for a determinism diff. **Next up:** Phase 2 (GameState wiring, weekly phase machine, event roller with tournament override).
+- **2026-05-14** — Repo scaffolded (`cd69208`). MVP GDD imported into `GDD.md`. Phase 0 complete: `project.godot`, autoloads (`GameState`, `EventBus`, `RNG`), `Main.tscn`, folder layout.

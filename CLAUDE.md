@@ -30,12 +30,17 @@ project.godot        Godot 4 project config
 icon.svg             Placeholder app icon ("KM" mark)
 scenes/              Godot scenes (.tscn)
   Main.tscn          Entry-point handshake scene
+  dev/               Dev-only scenes
+    world_dump.tscn  Phase 1 world-gen verifier (F6 to run)
 scripts/             GDScript sources
   main.gd            Main scene controller
   autoload/          Singletons registered in project.godot
     game_state.gd    Run state (week, year, resources, roster, world)
     event_bus.gd     Cross-scene signal hub
     rng.gd           Seedable RandomNumberGenerator wrapper
+  data/              Game data classes (class_name): Unit, Stats,
+                     ResourceBundle, MapTile, Castle, World, WorldGenerator
+  dev/               Dev-only tooling (run with F6 in the editor)
 assets/              Art and audio
   textures/
   audio/
