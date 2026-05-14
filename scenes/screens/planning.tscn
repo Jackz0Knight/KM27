@@ -33,6 +33,8 @@ theme_override_constants/separation = 12
 
 [node name="Tabs" type="TabBar" parent="Margin/VBox/TopBar"]
 layout_mode = 2
+clip_tabs = false
+scrolling_enabled = false
 
 [node name="Spacer" type="Control" parent="Margin/VBox/TopBar"]
 layout_mode = 2
@@ -122,35 +124,21 @@ theme_override_constants/separation = 10
 
 [node name="Tactics" type="VBoxContainer" parent="Margin/VBox/Content"]
 layout_mode = 2
-theme_override_constants/separation = 14
+theme_override_constants/separation = 10
 
-[node name="TacticsHeader" type="Label" parent="Margin/VBox/Content/Tactics"]
+[node name="ModeTabs" type="TabBar" parent="Margin/VBox/Content/Tactics"]
 layout_mode = 2
-text = "Formations"
-theme_override_font_sizes/font_size = 18
+clip_tabs = false
+scrolling_enabled = false
 
 [node name="TacticsHint" type="Label" parent="Margin/VBox/Content/Tactics"]
 layout_mode = 2
-text = "Set persistent default formations here; Pre-Battle Review applies them automatically each week. You can still override on the Pre-Battle Review screen if a special battle calls for it."
-autowrap_mode = 3
+text = "Pre-Battle Review auto-applies this; override there for one-off battles."
 modulate = Color(0.72, 0.72, 0.72, 1)
 
-[node name="DefenseHeader" type="Label" parent="Margin/VBox/Content/Tactics"]
+[node name="EditorPane" type="VBoxContainer" parent="Margin/VBox/Content/Tactics"]
 layout_mode = 2
-text = "Default Defense Formation"
-theme_override_font_sizes/font_size = 16
-
-[node name="DefensePane" type="VBoxContainer" parent="Margin/VBox/Content/Tactics"]
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="AttackHeader" type="Label" parent="Margin/VBox/Content/Tactics"]
-layout_mode = 2
-text = "Default Attack Formation"
-theme_override_font_sizes/font_size = 16
-
-[node name="AttackPane" type="VBoxContainer" parent="Margin/VBox/Content/Tactics"]
-layout_mode = 2
+size_flags_vertical = 3
 theme_override_constants/separation = 4
 
 [node name="TownMap" type="HBoxContainer" parent="Margin/VBox/Content"]

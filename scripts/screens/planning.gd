@@ -34,8 +34,13 @@ const SettingsPopup = preload("res://scripts/ui/settings_popup.gd")
 @onready var roster_cards: VBoxContainer = $Margin/VBox/Content/Overview/RosterScroll/RosterCards
 
 # Tactics tab.
-@onready var defense_pane: VBoxContainer = $Margin/VBox/Content/Tactics/DefensePane
-@onready var attack_pane: VBoxContainer = $Margin/VBox/Content/Tactics/AttackPane
+@onready var tactics_mode_tabs: TabBar = $Margin/VBox/Content/Tactics/ModeTabs
+@onready var tactics_hint: Label = $Margin/VBox/Content/Tactics/TacticsHint
+@onready var editor_pane: VBoxContainer = $Margin/VBox/Content/Tactics/EditorPane
+
+const TACTICS_DEFENSE: int = 0
+const TACTICS_ATTACK: int = 1
+var _tactics_mode: int = TACTICS_DEFENSE
 
 # Town & Map tab.
 @onready var unit_list: VBoxContainer = $Margin/VBox/Content/TownMap/LeftPane/UnitScroll/UnitList
@@ -90,6 +95,13 @@ func _build_tabs() -> void:
 	tabs.current_tab = TAB_TOWNMAP
 	content.current_tab = TAB_TOWNMAP
 	tabs.tab_changed.connect(_on_tab_changed)
+
+	# Tactics sub-tabs (Defense / Attack). Only one FormationEditor is mounted
+	# at a time so the screen stays compact.
+	tactics_mode_tabs.add_tab("Defense")
+	tactics_mode_tabs.add_tab("Attack")
+	tactics_mode_tabs.current_tab = _tactics_mode
+	tactics_mode_tabs.tab_changed.connect(_on_tactics_mode_changed)
 
 
 func _build_map_panzoom() -> void:
@@ -173,20 +185,31 @@ func _open_knight_overview(unit_id: int) -> void:
 
 # ---------- Tactics tab ----------
 
+func _on_tactics_mode_changed(idx: int) -> void:
+	_tactics_mode = idx
+	_refresh_tactics_tab()
+
+
+# Mounts a single FormationEditor bound to whichever default Dict the
+# Defense / Attack sub-tab is on. Pre-Battle Review seeds the week's
+# formation from the relevant one at battle time.
 func _refresh_tactics_tab() -> void:
-	_build_default_pane(defense_pane, GameState.default_defense_formation)
-	_build_default_pane(attack_pane, GameState.default_attack_formation)
-
-
-# Drag-and-drop FormationEditor backed by one of the GameState default
-# Dictionaries. The editor mutates the Dictionary in place; the next call
-# to Pre-Battle Review seeds the week's formation from it.
-func _build_default_pane(pane: VBoxContainer, default_dict: Dictionary) -> void:
-	for c in pane.get_children():
+	for c in editor_pane.get_children():
 		c.queue_free()
+
+	var dict: Dictionary
+	var label: String
+	if _tactics_mode == TACTICS_DEFENSE:
+		dict = GameState.default_defense_formation
+		label = "Defense"
+	else:
+		dict = GameState.default_attack_formation
+		label = "Attack"
+	tactics_hint.text = "Default %s formation. Pre-Battle Review applies this automatically; override there for one-off battles." % label
+
 	var editor := FormationEditor.new()
-	pane.add_child(editor)
-	editor.setup(GameState.roster, default_dict)
+	editor_pane.add_child(editor)
+	editor.setup(GameState.roster, dict)
 
 
 # ---------- Town & Map tab — assignments ----------
