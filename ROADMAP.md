@@ -78,13 +78,19 @@ The single source of truth for *what's built, what's in flight, and what's queue
 **Goal:** Player can start a run, pick a Knight, and see their 4-unit roster with correct stat ranges.
 
 **Deliverables**
-- [ ] `scenes/screens/title.tscn` — "New Run" button → world gen → Knight chooser.
-- [ ] `scenes/screens/knight_chooser.tscn` — 3 randomly-rolled Knight candidates (stats 7–14, PA 100–180, Knight class bonus).
-- [ ] Squire stat roller (4–10, PA 60–140, no bonus).
-- [ ] `scenes/screens/roster_view.tscn` — 4 unit cards with visible stats, current task, expedition status. PA hidden.
-- [ ] Determination weekly hook — every 4th week, each unit rolls `(Determination × 0.5)%` for a free +1 to a random non-maxed visible stat (respect PA cap).
+- [x] Title screen (`scenes/Main.tscn`) — randomised seed display + "Begin a New Run" button that hands off to the Knight chooser.
+- [x] `scenes/screens/knight_chooser.tscn` — 3 randomly-rolled Knight candidates (stats 7–14 + flat +1, PA 100–180); each card has its own "Take into service" button.
+- [x] Squire stat roller (4–10, PA 60–140, no bonus) inside `RosterGenerator.build_starting_roster()`.
+- [x] `scenes/screens/roster_view.tscn` — 4 unit cards with visible stats, status line, and stat-total readout. PA hidden everywhere.
+- [x] `scripts/systems/determination.gd` — `should_trigger(week)` + `roll_for_units(units)` honouring the PA cap and skipping expedition units. (Phase 5's Tick wires the call.)
+- [x] Shared `UnitCard.build(unit, on_choose?, label?)` builder so the same card renders identically across chooser / roster / later screens.
+- [x] `NamePool.random_name()` (32 first names × 25 surnames) for procedural Knight/Squire names.
 
 **Done when:** new run produces 1 Knight + 3 Squires inside the documented stat ranges, the chosen Knight has the class bonus, and the roster view renders correctly.
+
+**Notes**
+- "Small flat bonus" for the Knight class (GDD §9) was implemented as `+1` to every visible stat, clamped at 20. Tunable via `RosterGenerator.KNIGHT_FLAT_BONUS`.
+- The title screen seeds the run via `randi()`. World gen, Knight rolls, and Squire rolls all consume the same seeded `RNG` autoload so the whole starting roster is reproducible for a given seed.
 
 ---
 
@@ -169,6 +175,7 @@ The single source of truth for *what's built, what's in flight, and what's queue
 
 *Newest entry first. Add a dated line each session that ships code.*
 
+- **2026-05-14** — Phase 3 complete. Title screen → Knight chooser → Roster view is wired end-to-end. `RosterGenerator` rolls 3 Knight candidates (stats 7–14 +1 flat, PA 100–180) and 3 starting Squires (stats 4–10, PA 60–140) using the seeded RNG, so the whole starting roster is reproducible. `UnitCard.build` is a shared builder used by both chooser and roster; PA stays hidden per GDD §10. `NamePool` provides 32×25 = 800 unique procedural names. `Determination.roll_for_units` honours the PA cap and skips expedition units — Phase 5's Tick will call it on weeks divisible by 4. **Next up:** Phase 4 (TileMap world map + Planning screen for at-home tasks, expeditions, and Away-week choice).
 - **2026-05-14** — Phase 2 complete. `GameState` now tracks the run end-to-end (world, roster, resources, tournament streak, current event). `PhaseMachine` (lightweight RefCounted held on GameState) drives the Planning → Tick → Pre-Battle → Resolution cycle and emits `phase_changed` through `EventBus`. `Calendar`, `EventKind`, and `EventRoller` carry the weekly-clock and event-pick logic. Dev scene `scenes/dev/event_roll_test.tscn` (F6) simulates 50 weeks against a pinned seed and validates the tournament + Grand override rules. `main.gd` now prints the phase label so booting the game shows the wiring is live. **Next up:** Phase 3 (Title screen + Knight chooser + Roster view, then the every-4-weeks Determination roll).
 - **2026-05-14** — Phase 1 complete. Data classes landed under `scripts/data/`: `Stats`, `ResourceBundle`, `MapTile`, `Castle`, `Unit`, `World`, and the static `WorldGenerator`. `Stats.try_increment` enforces both the 20 cap and the hidden PA cap, so future Train/Determination/Champion's Duel rewards all route through one place. `WorldGenerator.generate(seed)` is deterministic — same seed in, identical world (terrain, knowledge mask, castles, reward bundles) out. Dev scene `scenes/dev/world_dump.tscn` (F6) renders both grids, lists castles, runs all GDD §3/§4 sanity checks, and re-rolls the same seed for a determinism diff. **Next up:** Phase 2 (GameState wiring, weekly phase machine, event roller with tournament override).
 - **2026-05-14** — Repo scaffolded (`cd69208`). MVP GDD imported into `GDD.md`. Phase 0 complete: `project.godot`, autoloads (`GameState`, `EventBus`, `RNG`), `Main.tscn`, folder layout.

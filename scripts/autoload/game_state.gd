@@ -18,6 +18,10 @@ var world: World = null
 var tournament_streak: int = 0
 var current_event: int = -1   # EventKind; -1 means "no event rolled yet".
 
+# Transient: Knight candidates shown on the chooser screen. Cleared once one
+# is picked.
+var knight_candidates: Array[Unit] = []
+
 
 func _ready() -> void:
 	phase_machine = PhaseMachine.new()

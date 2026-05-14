@@ -29,20 +29,26 @@ LICENSE              Proprietary, all rights reserved
 project.godot        Godot 4 project config
 icon.svg             Placeholder app icon ("KM" mark)
 scenes/              Godot scenes (.tscn)
-  Main.tscn          Entry-point handshake scene
+  Main.tscn          Title screen (project's main_scene)
+  screens/           Player-facing screens
+    knight_chooser.tscn    Pick 1 of 3 starting Knights
+    roster_view.tscn       Roster overview (read-only in Phase 3)
   dev/               Dev-only scenes
     world_dump.tscn        Phase 1 world-gen verifier (F6 to run)
     event_roll_test.tscn   Phase 2 50-week event roller (F6 to run)
 scripts/             GDScript sources
-  main.gd            Main scene controller
+  main.gd            Title-screen controller
   autoload/          Singletons registered in project.godot
     game_state.gd    Run state (week, year, resources, roster, world)
     event_bus.gd     Cross-scene signal hub
     rng.gd           Seedable RandomNumberGenerator wrapper
   data/              Game data classes (class_name): Unit, Stats,
                      ResourceBundle, MapTile, Castle, World, WorldGenerator,
-                     EventKind
-  systems/           Stateless rules: Calendar, EventRoller, PhaseMachine
+                     EventKind, NamePool
+  systems/           Stateless rules: Calendar, EventRoller, PhaseMachine,
+                     RosterGenerator, Determination
+  ui/                Shared UI builders: UnitCard
+  screens/           Player-facing screen controllers
   dev/               Dev-only tooling (run with F6 in the editor)
 assets/              Art and audio
   textures/
