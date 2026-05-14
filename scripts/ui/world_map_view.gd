@@ -32,28 +32,64 @@ func _make_tile_button(tile: MapTile, selected: Vector2i) -> Button:
 	var is_known: bool = tile.knowledge == MapTile.Knowledge.EXPLORED
 	var has_active: bool = tile.active_expedition != null
 
+	var bg: Color
 	if not is_known:
 		btn.text = "?"
-		btn.modulate = Color(0.42, 0.42, 0.48)
+		bg = Color(0.22, 0.20, 0.18)
 	elif tile.castle != null:
 		btn.text = "C"
-		btn.modulate = Color(0.86, 0.42, 0.42)
+		bg = Color(0.62, 0.20, 0.20)
 	elif tile.terrain == MapTile.Terrain.TOWN:
 		btn.text = "@"
-		btn.modulate = Color(1.0, 0.85, 0.3)
+		bg = Color(0.85, 0.65, 0.22)
 	else:
 		btn.text = tile.terrain_code()
-		btn.modulate = _terrain_color(tile.terrain)
+		bg = _terrain_color(tile.terrain)
 
 	if has_active:
 		btn.text = "%s\n%dw" % [btn.text, tile.active_expedition.weeks_remaining]
-
 	if selected.x == tile.x and selected.y == tile.y:
-		btn.modulate = btn.modulate.lightened(0.35)
+		bg = bg.lightened(0.30)
+
+	# Apply tile-specific styles so the project theme's burgundy button bg
+	# doesn't tint the terrain. Buttons keep their normal click behaviour.
+	_apply_tile_style(btn, bg)
+	# Dark text reads cleanly on the warm tile palette.
+	var text_col := Color(0.12, 0.10, 0.08)
+	btn.add_theme_color_override("font_color", text_col)
+	btn.add_theme_color_override("font_hover_color", text_col)
+	btn.add_theme_color_override("font_pressed_color", text_col)
 
 	btn.tooltip_text = _tooltip_for(tile)
 	btn.pressed.connect(_on_tile_pressed.bind(tile.x, tile.y))
 	return btn
+
+
+# Three near-identical styleboxes (normal / hover / pressed) so the tile
+# colour stays stable through interaction. Hover lightens slightly.
+func _apply_tile_style(btn: Button, bg: Color) -> void:
+	btn.add_theme_stylebox_override("normal", _tile_stylebox(bg, 1.0))
+	btn.add_theme_stylebox_override("hover", _tile_stylebox(bg, 1.12))
+	btn.add_theme_stylebox_override("pressed", _tile_stylebox(bg, 0.85))
+	btn.add_theme_stylebox_override("focus", _tile_stylebox(bg, 1.0))
+
+
+func _tile_stylebox(bg: Color, brightness: float) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	var c: Color = bg
+	if brightness != 1.0:
+		c = c.lightened(brightness - 1.0) if brightness > 1.0 else c.darkened(1.0 - brightness)
+	sb.bg_color = c
+	sb.border_color = Color(0.08, 0.06, 0.04)
+	sb.border_width_left = 1
+	sb.border_width_right = 1
+	sb.border_width_top = 1
+	sb.border_width_bottom = 1
+	sb.corner_radius_top_left = 2
+	sb.corner_radius_top_right = 2
+	sb.corner_radius_bottom_left = 2
+	sb.corner_radius_bottom_right = 2
+	return sb
 
 
 func _terrain_color(t: int) -> Color:

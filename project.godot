@@ -30,13 +30,17 @@ RNG="*res://scripts/autoload/rng.gd"
 
 window/size/viewport_width=1280
 window/size/viewport_height=720
+window/size/mode=3
 window/size/window_width_override=1920
 window/size/window_height_override=1080
-window/size/mode=3
 window/stretch/mode="canvas_items"
-window/stretch/aspect="keep"
+
+[gui]
+
+theme/custom="res://theme/main_theme.tres"
 
 [rendering]
 
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+environment/defaults/default_clear_color=Color(0.11, 0.09, 0.07, 1)

@@ -252,6 +252,41 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 2
 
+[node name="Research" type="VBoxContainer" parent="Margin/VBox/Content"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="ResearchHeader" type="Label" parent="Margin/VBox/Content/Research"]
+layout_mode = 2
+text = "Research"
+theme_override_font_sizes/font_size = 22
+theme_override_colors/font_color = Color(0.83, 0.66, 0.35, 1)
+
+[node name="ResearchPanel" type="PanelContainer" parent="Margin/VBox/Content/Research"]
+layout_mode = 2
+
+[node name="ResearchMargin" type="MarginContainer" parent="Margin/VBox/Content/Research/ResearchPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_bottom = 14
+
+[node name="ResearchBody" type="VBoxContainer" parent="Margin/VBox/Content/Research/ResearchPanel/ResearchMargin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ResearchTitle" type="Label" parent="Margin/VBox/Content/Research/ResearchPanel/ResearchMargin/ResearchBody"]
+layout_mode = 2
+text = "Scrolls & Whetstones"
+theme_override_font_sizes/font_size = 18
+
+[node name="ResearchBlurb" type="Label" parent="Margin/VBox/Content/Research/ResearchPanel/ResearchMargin/ResearchBody"]
+layout_mode = 2
+text = "No tomes have been opened, no smithy upgrades commissioned. The Research hall stands ready for future iteration — perks, training schools, and equipment unlocks will live here."
+autowrap_mode = 3
+modulate = Color(0.78, 0.74, 0.60, 1)
+
 [node name="StatusLabel" type="Label" parent="Margin/VBox"]
 layout_mode = 2
 text = ""

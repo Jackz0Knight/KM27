@@ -16,7 +16,8 @@ const TAB_OVERVIEW: int = 0
 const TAB_TACTICS: int = 1
 const TAB_TOWNMAP: int = 2
 const TAB_CALENDAR: int = 3
-const TAB_NAMES: Array[String] = ["Overview", "Tactics", "Town & Map", "Calendar"]
+const TAB_RESEARCH: int = 4
+const TAB_NAMES: Array[String] = ["Overview", "Tactics", "Town & Map", "Calendar", "Research"]
 
 const SettingsPopup = preload("res://scripts/ui/settings_popup.gd")
 

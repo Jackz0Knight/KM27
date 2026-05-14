@@ -6,8 +6,8 @@ extends PanelContainer
 # optional — when set, clicking the icon (without dragging) opens that
 # unit's Knight Overview screen.
 
-const KNIGHT_COLOR: Color = Color(0.95, 0.75, 0.35, 1.0)     # warm gold
-const SQUIRE_COLOR: Color = Color(0.55, 0.7, 0.95, 1.0)      # cool blue
+const KNIGHT_COLOR: Color = Color(0.95, 0.75, 0.35, 1.0)     # warm gold — knighted
+const SQUIRE_COLOR: Color = Color(0.62, 0.58, 0.50, 1.0)     # aged pewter — squire
 const ICON_SIZE: Vector2 = Vector2(74, 74)
 
 var unit: Unit
