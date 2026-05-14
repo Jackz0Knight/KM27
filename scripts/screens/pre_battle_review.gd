@@ -181,6 +181,11 @@ func _refresh_roster() -> void:
 # ---------- setup pane (event-specific) ----------
 
 func _refresh_setup() -> void:
+	# Clear cached references — the children below get freed and we don't
+	# want to read stale Labels in `_update_forecast`.
+	_forecast_lbl = null
+	_forecast_slots_lbl = null
+	_forecast_participants = []
 	for child in setup_pane.get_children():
 		child.queue_free()
 
@@ -209,8 +214,14 @@ func _refresh_setup() -> void:
 			_build_simple_note("(No event resolved this week.)")
 
 
-# Generic formation editor used by Away / Home / Bandit Ambush. Empty slots
-# are allowed — unslotted participants still fight without the +2 bonus.
+var _forecast_lbl: Label = null
+var _forecast_slots_lbl: Label = null
+var _forecast_participants: Array = []
+
+
+# Drag-and-drop FormationEditor + live forecast. The editor mutates
+# GameState.formation in place; on `formation_changed` we re-run the
+# preview without rebuilding the editor (would lose visual state).
 func _build_formation_editor(participants: Array, blurb: String) -> void:
 	setup_header.text = "Formation Editor"
 	if participants.is_empty():
@@ -222,92 +233,47 @@ func _build_formation_editor(participants: Array, blurb: String) -> void:
 	intro.modulate = Color(0.78, 0.78, 0.78)
 	setup_pane.add_child(intro)
 
-	# Sanity: prune formation entries that aren't in the participant set anymore.
-	var allowed_ids: Array = []
+	var editor := FormationEditor.new()
+	setup_pane.add_child(editor)
+	# Typed-array contract: FormationEditor expects Array[Unit].
+	var typed_participants: Array[Unit] = []
 	for u in participants:
-		allowed_ids.append(u.id)
-	for slot_key in Combat.SLOTS:
-		if not allowed_ids.has(int(GameState.formation.get(slot_key, -1))):
-			GameState.formation[slot_key] = -1
+		typed_participants.append(u)
+	editor.setup(typed_participants, GameState.formation)
+	editor.formation_changed.connect(_on_formation_changed)
 
-	for slot_key in Combat.SLOTS:
-		setup_pane.add_child(_build_slot_row(slot_key, participants))
-
-	# Show a small forecast — sum of currently-assigned unit_power and a rough
-	# enemy power estimate. Helps the player gauge how close it'll be.
-	setup_pane.add_child(_build_forecast(participants))
-
-
-func _build_slot_row(slot_key: String, participants: Array) -> Control:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-
-	var label := Label.new()
-	label.text = Combat.SLOT_LABELS[slot_key]
-	label.custom_minimum_size = Vector2(220, 0)
-	row.add_child(label)
-
-	var picker := OptionButton.new()
-	picker.add_item("(empty)")
-	picker.set_item_metadata(0, -1)
-	for u in participants:
-		var marker: String = "  [match]" if Combat.is_slot_match(u, slot_key) else ""
-		var task_short: String = " (training)" if u.is_training() else (
-			" (defend)" if u.current_task == Unit.TASK_DEFEND else ""
-		)
-		picker.add_item("%s — %s%s%s" % [u.unit_name, u.class_label(), task_short, marker])
-		picker.set_item_metadata(picker.item_count - 1, u.id)
-
-	var current_id: int = int(GameState.formation.get(slot_key, -1))
-	for i in range(picker.item_count):
-		if picker.get_item_metadata(i) == current_id:
-			picker.select(i)
-			break
-
-	picker.item_selected.connect(_on_slot_picked.bind(slot_key, picker))
-	row.add_child(picker)
-	return row
+	_forecast_participants = participants
+	_forecast_lbl = Label.new()
+	setup_pane.add_child(_forecast_lbl)
+	_forecast_slots_lbl = Label.new()
+	_forecast_slots_lbl.modulate = Color(0.7, 0.7, 0.7)
+	setup_pane.add_child(_forecast_slots_lbl)
+	_update_forecast()
 
 
-func _on_slot_picked(idx: int, slot_key: String, picker: OptionButton) -> void:
-	var unit_id: int = int(picker.get_item_metadata(idx))
-	# Enforce one-slot-per-unit by clearing any other slot they were in.
-	if unit_id >= 0:
-		for other_slot in Combat.SLOTS:
-			if other_slot != slot_key and int(GameState.formation.get(other_slot, -1)) == unit_id:
-				GameState.formation[other_slot] = -1
-	GameState.formation[slot_key] = unit_id
-	_refresh_setup()
+func _on_formation_changed() -> void:
+	_update_forecast()
 
 
-func _build_forecast(participants: Array) -> Control:
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 2)
-
+func _update_forecast() -> void:
+	if _forecast_lbl == null or _forecast_participants.is_empty():
+		return
 	var enemy: int = _forecast_enemy_power()
 	var preview: Dictionary = Combat.resolve_formation(
-		participants, GameState.formation, enemy, _is_home_battle()
+		_forecast_participants, GameState.formation, enemy, _is_home_battle()
 	)
 	var verdict: String = "Win" if preview["won"] else "Loss"
-	var line := Label.new()
-	line.text = "Forecast: %d vs %d enemy (after intim. %d) → %s" % [
+	_forecast_lbl.text = "Forecast: %d vs %d enemy (after intim. %d) → %s" % [
 		preview["player_total"],
 		preview["enemy_power"],
 		preview["enemy_after_intimidation"],
 		verdict,
 	]
-	vbox.add_child(line)
-
-	var slot_summary := Label.new()
 	var assigned: int = 0
 	for slot_key in Combat.SLOTS:
 		if int(GameState.formation.get(slot_key, -1)) >= 0:
 			assigned += 1
-	slot_summary.text = "Slots filled: %d/4. (Empty slots = no +2 bonus, unit not slotted still fights.)" % assigned
-	slot_summary.modulate = Color(0.7, 0.7, 0.7)
-	vbox.add_child(slot_summary)
-
-	return vbox
+	_forecast_slots_lbl.text = "Slots filled: %d/4 — unslotted participants still fight, just without the +2 match bonus." % assigned
 
 
 func _forecast_enemy_power() -> int:

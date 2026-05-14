@@ -174,63 +174,19 @@ func _open_knight_overview(unit_id: int) -> void:
 # ---------- Tactics tab ----------
 
 func _refresh_tactics_tab() -> void:
-	_build_default_formation_pane(defense_pane, GameState.default_defense_formation)
-	_build_default_formation_pane(attack_pane, GameState.default_attack_formation)
+	_build_default_pane(defense_pane, GameState.default_defense_formation)
+	_build_default_pane(attack_pane, GameState.default_attack_formation)
 
 
-func _build_default_formation_pane(pane: VBoxContainer, default_dict: Dictionary) -> void:
+# Drag-and-drop FormationEditor backed by one of the GameState default
+# Dictionaries. The editor mutates the Dictionary in place; the next call
+# to Pre-Battle Review seeds the week's formation from it.
+func _build_default_pane(pane: VBoxContainer, default_dict: Dictionary) -> void:
 	for c in pane.get_children():
 		c.queue_free()
-
-	# Prune any slot-assigned unit ids no longer in the roster.
-	var live_ids: Array = []
-	for u in GameState.roster:
-		live_ids.append(u.id)
-	for slot_key in Combat.SLOTS:
-		if not live_ids.has(int(default_dict.get(slot_key, -1))):
-			default_dict[slot_key] = -1
-
-	for slot_key in Combat.SLOTS:
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
-
-		var lbl := Label.new()
-		lbl.text = Combat.SLOT_LABELS[slot_key]
-		lbl.custom_minimum_size = Vector2(220, 0)
-		row.add_child(lbl)
-
-		var picker := OptionButton.new()
-		picker.add_item("(empty)")
-		picker.set_item_metadata(0, -1)
-		for u in GameState.roster:
-			var marker: String = "  [match]" if Combat.is_slot_match(u, slot_key) else ""
-			picker.add_item("%s — %s%s" % [u.unit_name, u.class_label(), marker])
-			picker.set_item_metadata(picker.item_count - 1, u.id)
-
-		var current_id: int = int(default_dict.get(slot_key, -1))
-		for i in range(picker.item_count):
-			if int(picker.get_item_metadata(i)) == current_id:
-				picker.select(i)
-				break
-
-		picker.item_selected.connect(
-			_on_default_slot_picked.bind(slot_key, picker, default_dict)
-		)
-		row.add_child(picker)
-		pane.add_child(row)
-
-
-func _on_default_slot_picked(idx: int, slot_key: String, picker: OptionButton, default_dict: Dictionary) -> void:
-	var unit_id: int = int(picker.get_item_metadata(idx))
-	# Enforce one-slot-per-unit within this default's 4 slots.
-	if unit_id >= 0:
-		for other in Combat.SLOTS:
-			if other != slot_key and int(default_dict.get(other, -1)) == unit_id:
-				default_dict[other] = -1
-	default_dict[slot_key] = unit_id
-	# Refresh both default panes so cleared slots reflect.
-	_build_default_formation_pane(defense_pane, GameState.default_defense_formation)
-	_build_default_formation_pane(attack_pane, GameState.default_attack_formation)
+	var editor := FormationEditor.new()
+	pane.add_child(editor)
+	editor.setup(GameState.roster, default_dict)
 
 
 # ---------- Town & Map tab — assignments ----------
