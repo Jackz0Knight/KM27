@@ -55,4 +55,13 @@ func duplicate_bundle() -> ResourceBundle:
 
 
 func describe() -> String:
-	return "Wood:%d Fibres:%d Copper:%d" % [wood, fibres, copper_ore]
+	return "Logs:%d Plant Fibres:%d Copper Ore:%d" % [wood, fibres, copper_ore]
+
+
+# Map the legacy triple to new ResourceDB IDs for inventory delivery.
+func to_inventory_dict() -> Dictionary:
+	var out: Dictionary = {}
+	if wood > 0:      out["logs"] = wood
+	if fibres > 0:    out["plant_fibres"] = fibres
+	if copper_ore > 0: out["copper_ore"] = copper_ore
+	return out

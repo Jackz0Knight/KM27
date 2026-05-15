@@ -128,6 +128,29 @@ static func best_for_type(inventory: Dictionary, res_type: int) -> String:
 	return best_id
 
 
+# Returns a BBCode string for the persistent resource HUD.
+# Gold (gold), then best held resource per type with tier colour.
+static func resource_hud_bbcode(gold: int, inventory: Dictionary) -> String:
+	var parts: Array[String] = []
+	parts.append("[color=#FFD61A]Gold: %d[/color]" % gold)
+	var type_labels: Dictionary = {
+		ResType.FABRIC: "Fabric",
+		ResType.TIMBER: "Timber",
+		ResType.METAL:  "Metal",
+	}
+	for res_type: int in [ResType.FABRIC, ResType.TIMBER, ResType.METAL]:
+		var best_id: String = best_for_type(inventory, res_type)
+		if best_id == "":
+			parts.append("[color=#555555]— %s —[/color]" % type_labels[res_type])
+		else:
+			var entry: Dictionary = RESOURCES[best_id]
+			var tc: Color = color_for_tier(entry["tier"])
+			var hex: String = "#" + tc.to_html(false)
+			var amt: int = inventory.get(best_id, 0)
+			parts.append("[color=%s]%s[/color]: %d" % [hex, entry["name"], amt])
+	return "  ".join(parts)
+
+
 static func color_for_tier(tier: int) -> Color:
 	return TIER_COLORS.get(tier, Color.WHITE)
 

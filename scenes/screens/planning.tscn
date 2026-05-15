@@ -133,6 +133,19 @@ theme_override_constants/separation = 10
 layout_mode = 2
 theme_override_constants/separation = 10
 
+[node name="TacticsUpcoming" type="VBoxContainer" parent="Margin/VBox/Content/Tactics"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="UpcomingHeader" type="Label" parent="Margin/VBox/Content/Tactics/TacticsUpcoming"]
+layout_mode = 2
+text = "Situation Report"
+theme_override_font_sizes/font_size = 16
+
+[node name="UpcomingList" type="VBoxContainer" parent="Margin/VBox/Content/Tactics/TacticsUpcoming"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
 [node name="ModeTabs" type="TabBar" parent="Margin/VBox/Content/Tactics"]
 layout_mode = 2
 clip_tabs = false
@@ -317,3 +330,37 @@ theme_override_constants/separation = 2
 layout_mode = 2
 text = ""
 modulate = Color(0.85, 0.85, 0.7, 1)
+
+[node name="InfoOverlay" type="PanelContainer" parent="."]
+layout_mode = 1
+visible = false
+z_index = 100
+custom_minimum_size = Vector2(300, 0)
+
+[node name="OM" type="MarginContainer" parent="./InfoOverlay"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="OV" type="VBoxContainer" parent="./InfoOverlay/OM"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TitleRow" type="HBoxContainer" parent="./InfoOverlay/OM/OV"]
+layout_mode = 2
+
+[node name="OverlayTitle" type="Label" parent="./InfoOverlay/OM/OV/TitleRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 16
+
+[node name="OverlayClose" type="Button" parent="./InfoOverlay/OM/OV/TitleRow"]
+layout_mode = 2
+text = "✕"
+custom_minimum_size = Vector2(28, 28)
+
+[node name="OverlayBody" type="VBoxContainer" parent="./InfoOverlay/OM/OV"]
+layout_mode = 2
+theme_override_constants/separation = 4

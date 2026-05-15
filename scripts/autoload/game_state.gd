@@ -13,7 +13,6 @@ extends Node
 
 var week: int = 1
 var phase_machine: PhaseMachine = null
-var resources: ResourceBundle = null
 var roster: Array[Unit] = []
 var world: World = null
 var tournament_streak: int = 0
@@ -101,7 +100,6 @@ func gold_maintenance_cost() -> int:
 
 func _ready() -> void:
 	phase_machine = PhaseMachine.new()
-	resources = ResourceBundle.new(5, 5, 2)
 
 
 # Global hotkeys. F11 toggles fullscreen — the project launches in fullscreen
@@ -148,7 +146,6 @@ func start_run(seed_value: int) -> void:
 	world = WorldGenerator.generate(seed_value)
 	week = 1
 	tournament_streak = 0
-	resources = ResourceBundle.new(5, 5, 2)
 	roster.clear()
 	knight_candidates.clear()
 	starting_squires.clear()

@@ -305,11 +305,12 @@ static func _remove_castle(gs: Node, castle: Castle) -> void:
 		tile.castle = null
 
 
-# Reward delivery — push ResourceBundle into stores (GDD §6 "Reward Delivery").
-# Caravan reward is delivered later when the player picks an offer on the
-# Weekly Summary screen.
+# Reward delivery — push resources into GameState.inventory via the bundle's
+# inventory mapping. Caravan reward is delivered by the Weekly Summary picker.
 static func _apply_reward(gs: Node, result: Dictionary) -> void:
 	var reward: ResourceBundle = result.get("reward")
 	if reward == null:
 		return
-	gs.resources.add(reward)
+	var inv_delta: Dictionary = reward.to_inventory_dict()
+	for id: String in inv_delta:
+		gs.inventory[id] = gs.inventory.get(id, 0) + inv_delta[id]

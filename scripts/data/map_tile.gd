@@ -25,8 +25,8 @@ func _init(p_x: int = 0, p_y: int = 0, p_terrain: Terrain = Terrain.PLAINS) -> v
 # "" when the tile has no gather yield (Town, Village, Hills, Ocean).
 func gather_resource() -> String:
 	match terrain:
-		Terrain.FOREST: return "wood"
-		Terrain.PLAINS, Terrain.BEACH: return "fibres"
+		Terrain.FOREST: return "logs"
+		Terrain.PLAINS, Terrain.BEACH: return "plant_fibres"
 		Terrain.MOUNTAIN: return "copper_ore"
 		_: return ""
 
