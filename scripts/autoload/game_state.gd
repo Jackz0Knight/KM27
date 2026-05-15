@@ -93,9 +93,33 @@ var inventory: Dictionary = {}
 var researched: Array[String] = []
 var maintenance_debt: bool = false
 
+# Gold income sources. `weekly_stipend` is always active; others are set
+# temporarily when an event grants a recurring bonus then reset to 0.
+var gold_income_sources: Dictionary = {
+	"tournament_prize": 0,
+	"expedition_trade": 0,
+	"weekly_stipend": 10,
+}
+
+# Stub for future building/research upgrade costs.
+var upgrade_costs: Dictionary = {}
+
+# Confirm dialogs suppressed for this run (Feature 8).
+var suppressed_confirms: Array[String] = []
+
+# Items crafted at least once this run — used by crafting visibility (Feature 10).
+var crafted_ids: Array[String] = []
+
 
 func gold_maintenance_cost() -> int:
 	return roster.size() * 5
+
+
+func total_gold_income() -> int:
+	var total: int = 0
+	for v in gold_income_sources.values():
+		total += int(v)
+	return total
 
 
 func _ready() -> void:
@@ -160,6 +184,10 @@ func start_run(seed_value: int) -> void:
 	inventory = {}
 	researched.clear()
 	maintenance_debt = false
+	gold_income_sources = {"tournament_prize": 0, "expedition_trade": 0, "weekly_stipend": 10}
+	upgrade_costs = {}
+	suppressed_confirms.clear()
+	crafted_ids.clear()
 	default_defense_formation = {"blue": -1, "green": -1, "yellow": -1, "red": -1}
 	default_attack_formation = {"blue": -1, "green": -1, "yellow": -1, "red": -1}
 	_clear_pending_away()
