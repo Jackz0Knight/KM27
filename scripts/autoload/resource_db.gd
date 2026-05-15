@@ -1,4 +1,3 @@
-class_name ResourceDB
 extends Node
 
 # Resource database — full tree of raw materials and processed resources per
