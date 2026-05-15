@@ -100,9 +100,9 @@ func _status_line(unit: Unit) -> String:
 
 
 func _find_expedition_for(unit: Unit) -> Expedition:
-	for exp in GameState.expeditions:
-		if exp.id == unit.expedition_id:
-			return exp
+	for exped in GameState.expeditions:
+		if exped.id == unit.expedition_id:
+			return exped
 	return null
 
 

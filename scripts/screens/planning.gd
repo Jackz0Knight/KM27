@@ -600,7 +600,6 @@ func _can_gather() -> bool:
 func _on_explore() -> void:
 	if not _can_explore():
 		return
-	var tile: MapTile = GameState.world.get_tile(_selected.x, _selected.y)
 	var party_names: String = ", ".join(_expedition_party.map(func(uid: int) -> String:
 		var u := GameState.find_unit(uid)
 		return u.unit_name if u != null else "?"
@@ -824,8 +823,8 @@ func _refresh_crafting_tab() -> void:
 func _recipe_should_be_visible(id: String, entry: Dictionary) -> bool:
 	if GameState.crafted_ids.has(id):
 		return true
-	var recipe: Dictionary = entry.get("recipe", {})
-	if recipe == null:
+	var recipe = entry.get("recipe")   # untyped — may be null for gather-only resources
+	if recipe == null or not recipe is Dictionary:
 		return false
 	for input_id: String in recipe:
 		if GameState.inventory.get(input_id, 0) > 0:
