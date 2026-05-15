@@ -220,31 +220,31 @@ func at_home_units() -> Array[Unit]:
 # ---------- expeditions ----------
 
 func launch_expedition(kind: Expedition.Kind, target_x: int, target_y: int, unit_ids: Array[int]) -> Expedition:
-	var exp := Expedition.new(_next_expedition_id, kind, target_x, target_y, unit_ids)
+	var exped := Expedition.new(_next_expedition_id, kind, target_x, target_y, unit_ids)
 	_next_expedition_id += 1
-	expeditions.append(exp)
+	expeditions.append(exped)
 
 	for uid in unit_ids:
 		var u: Unit = find_unit(uid)
 		if u != null:
 			u.current_task = Unit.TASK_EXPEDITION
-			u.expedition_id = exp.id
+			u.expedition_id = exped.id
 
 	var tile: MapTile = world.get_tile(target_x, target_y)
 	if tile != null:
-		tile.active_expedition = exp
+		tile.active_expedition = exped
 
-	return exp
+	return exped
 
 
 # Removes an expedition from the active list and clears its tile + units.
 # Phase 5's Tick will call this when weeks_remaining hits 0.
-func complete_expedition(exp: Expedition) -> void:
-	expeditions.erase(exp)
-	var tile: MapTile = world.get_tile(exp.target_x, exp.target_y)
-	if tile != null and tile.active_expedition == exp:
+func complete_expedition(exped: Expedition) -> void:
+	expeditions.erase(exped)
+	var tile: MapTile = world.get_tile(exped.target_x, exped.target_y)
+	if tile != null and tile.active_expedition == exped:
 		tile.active_expedition = null
-	for uid in exp.unit_ids:
+	for uid in exped.unit_ids:
 		var u: Unit = find_unit(uid)
 		if u != null:
 			u.current_task = Unit.TASK_IDLE
