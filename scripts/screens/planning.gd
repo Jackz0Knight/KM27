@@ -1,69 +1,81 @@
 extends Control
 
-# Planning screen per GDD §5. Top-bar shell holds tabs + Advance Time + the
-# Settings cog so navigation is consistent across every tab and the primary
-# action sits in the same place. Below the bar, a TabContainer with hidden
-# tabs hosts the four panes (Overview / Tactics / Town & Map / Calendar).
+# Planning screen per GDD §5. Top-bar shell holds tabs + Calendar button +
+# Advance Time + the Settings cog so navigation is consistent across every tab
+# and the primary action sits in the same place. Below the bar, a TabContainer
+# with hidden tabs hosts the five panes:
 #
-# Overview — roster at a glance. Names link to the Knight Overview screen.
-# Tactics  — persistent Default Defense / Default Attack formations; Pre-Battle
-#            Review seeds the week's formation from these.
-# Town & Map — per-unit task picker, expedition launcher, away-week chooser,
-#            pan/zoomable world map.
-# Calendar — upcoming tournament + expedition return weeks, run history log.
+# Overview  — roster at a glance. Names link to the Knight Overview screen.
+# Tactics   — persistent Default Defense / Default Attack formations.
+# Map       — per-unit task picker, expedition launcher, away-week chooser,
+#             pan/zoomable world map.
+# Crafting  — manual recipe crafting by resource type (Fabric / Timber / Metal).
+# Research  — stub pane; perks and unlocks will live here in Phase 8+.
+#
+# Calendar  — accessible via the Calendar button in the top bar (not a main tab).
+#             Shows upcoming events and run history.
 
-const TAB_OVERVIEW: int = 0
-const TAB_TACTICS: int = 1
-const TAB_TOWNMAP: int = 2
-const TAB_CALENDAR: int = 3
-const TAB_RESEARCH: int = 4
-const TAB_NAMES: Array[String] = ["Overview", "Tactics", "Town & Map", "Calendar", "Research"]
+const TAB_OVERVIEW:  int = 0
+const TAB_TACTICS:   int = 1
+const TAB_MAP:       int = 2
+const TAB_CRAFTING:  int = 3
+const TAB_RESEARCH:  int = 4
+const TAB_CALENDAR_IDX: int = 5  # Content child index; driven by CalendarBtn
+const TAB_NAMES: Array[String] = ["Overview", "Tactics", "Map", "Crafting", "Research"]
 
 const SettingsPopup = preload("res://scripts/ui/settings_popup.gd")
 
-@onready var tabs: TabBar = $Margin/VBox/TopBar/Tabs
-@onready var advance_btn: Button = $Margin/VBox/TopBar/AdvanceBtn
-@onready var settings_btn: Button = $Margin/VBox/TopBar/SettingsBtn
-@onready var context_lbl: Label = $Margin/VBox/ContextLabel
-@onready var resources_lbl: Label = $Margin/VBox/ResourcesLabel
-@onready var intro_panel: PanelContainer = $Margin/VBox/IntroPanel
-@onready var intro_dismiss_btn: Button = $Margin/VBox/IntroPanel/IntroMargin/IntroVBox/IntroDismiss
-@onready var content: TabContainer = $Margin/VBox/Content
-@onready var status_lbl: Label = $Margin/VBox/StatusLabel
+@onready var tabs: TabBar             = $Margin/VBox/TopBar/Tabs
+@onready var calendar_btn: Button     = $Margin/VBox/TopBar/CalendarBtn
+@onready var advance_btn: Button      = $Margin/VBox/TopBar/AdvanceBtn
+@onready var settings_btn: Button     = $Margin/VBox/TopBar/SettingsBtn
+@onready var context_lbl: Label       = $Margin/VBox/ContextLabel
+@onready var resources_lbl: RichTextLabel = $Margin/VBox/ResourcesLabel
+@onready var intro_panel: PanelContainer  = $Margin/VBox/IntroPanel
+@onready var intro_dismiss_btn: Button    = $Margin/VBox/IntroPanel/IntroMargin/IntroVBox/IntroDismiss
+@onready var content: TabContainer    = $Margin/VBox/Content
+@onready var status_lbl: Label        = $Margin/VBox/StatusLabel
 
 # Overview tab.
 @onready var roster_cards: VBoxContainer = $Margin/VBox/Content/Overview/RosterScroll/RosterCards
 
 # Tactics tab.
 @onready var tactics_mode_tabs: TabBar = $Margin/VBox/Content/Tactics/ModeTabs
-@onready var tactics_hint: Label = $Margin/VBox/Content/Tactics/TacticsHint
+@onready var tactics_hint: Label       = $Margin/VBox/Content/Tactics/TacticsHint
 @onready var editor_pane: VBoxContainer = $Margin/VBox/Content/Tactics/EditorPane
 
 const TACTICS_DEFENSE: int = 0
-const TACTICS_ATTACK: int = 1
+const TACTICS_ATTACK:  int = 1
 var _tactics_mode: int = TACTICS_DEFENSE
 
-# Town & Map tab.
-@onready var unit_list: VBoxContainer = $Margin/VBox/Content/TownMap/LeftPane/UnitScroll/UnitList
+# Map tab (node is still named TownMap in the scene tree).
+@onready var unit_list: VBoxContainer  = $Margin/VBox/Content/TownMap/LeftPane/UnitScroll/UnitList
 @onready var away_section: VBoxContainer = $Margin/VBox/Content/TownMap/LeftPane/AwaySection
-@onready var map_viewport: Panel = $Margin/VBox/Content/TownMap/RightPane/MapViewport
-@onready var map_canvas: Control = $Margin/VBox/Content/TownMap/RightPane/MapViewport/MapCanvas
-@onready var selection_lbl: Label = $Margin/VBox/Content/TownMap/RightPane/SelectionInfo
-@onready var explore_btn: Button = $Margin/VBox/Content/TownMap/RightPane/Actions/ExploreBtn
-@onready var gather_btn: Button = $Margin/VBox/Content/TownMap/RightPane/Actions/GatherBtn
-@onready var reset_map_btn: Button = $Margin/VBox/Content/TownMap/RightPane/Actions/ResetMapBtn
+@onready var map_viewport: Panel       = $Margin/VBox/Content/TownMap/RightPane/MapViewport
+@onready var map_canvas: Control       = $Margin/VBox/Content/TownMap/RightPane/MapViewport/MapCanvas
+@onready var selection_lbl: Label      = $Margin/VBox/Content/TownMap/RightPane/SelectionInfo
+@onready var explore_btn: Button       = $Margin/VBox/Content/TownMap/RightPane/Actions/ExploreBtn
+@onready var gather_btn: Button        = $Margin/VBox/Content/TownMap/RightPane/Actions/GatherBtn
+@onready var reset_map_btn: Button     = $Margin/VBox/Content/TownMap/RightPane/Actions/ResetMapBtn
 @onready var expedition_list: VBoxContainer = $Margin/VBox/Content/TownMap/RightPane/ExpeditionList
 
-# Calendar tab.
-@onready var upcoming_list: VBoxContainer = $Margin/VBox/Content/Calendar/UpcomingList
-@onready var history_list: VBoxContainer = $Margin/VBox/Content/Calendar/HistoryScroll/HistoryList
+# Crafting tab.
+@onready var crafting_vbox: VBoxContainer = $Margin/VBox/Content/Crafting/CraftingScroll/CraftingVBox
 
-var _map_panzoom: Node = null   # MapPanZoom instance
+# Calendar pane.
+@onready var upcoming_list: VBoxContainer = $Margin/VBox/Content/Calendar/UpcomingList
+@onready var history_list: VBoxContainer  = $Margin/VBox/Content/Calendar/HistoryScroll/HistoryList
+
+var _map_panzoom: Node = null
 var _selected: Vector2i = Vector2i(-1, -1)
 
 # Pending plan, committed when Advance Time is pressed.
 var _pending_tasks: Dictionary = {}
 var _expedition_party: Array[int] = []
+
+# Tracks whether the Calendar pane is currently showing (driven by CalendarBtn).
+var _calendar_active: bool = false
+var _last_main_tab: int = TAB_MAP
 
 
 func _ready() -> void:
@@ -79,6 +91,7 @@ func _ready() -> void:
 	_build_map_panzoom()
 
 	advance_btn.pressed.connect(_on_advance)
+	calendar_btn.pressed.connect(_on_calendar_btn)
 	settings_btn.pressed.connect(_on_settings)
 	explore_btn.pressed.connect(_on_explore)
 	gather_btn.pressed.connect(_on_gather)
@@ -91,14 +104,12 @@ func _ready() -> void:
 
 
 func _build_tabs() -> void:
-	for name in TAB_NAMES:
-		tabs.add_tab(name)
-	tabs.current_tab = TAB_TOWNMAP
-	content.current_tab = TAB_TOWNMAP
+	for tab_name in TAB_NAMES:
+		tabs.add_tab(tab_name)
+	tabs.current_tab = TAB_MAP
+	content.current_tab = TAB_MAP
 	tabs.tab_changed.connect(_on_tab_changed)
 
-	# Tactics sub-tabs (Defense / Attack). Only one FormationEditor is mounted
-	# at a time so the screen stays compact.
 	tactics_mode_tabs.add_tab("Defense")
 	tactics_mode_tabs.add_tab("Attack")
 	tactics_mode_tabs.current_tab = _tactics_mode
@@ -113,11 +124,23 @@ func _build_map_panzoom() -> void:
 
 
 func _on_tab_changed(idx: int) -> void:
+	_calendar_active = false
+	_last_main_tab = idx
+	calendar_btn.modulate = Color.WHITE
 	content.current_tab = idx
-	if idx == TAB_TOWNMAP:
-		# Recenter the map every time we re-enter the Town & Map tab.
+	if idx == TAB_MAP:
 		if _map_panzoom != null:
 			_map_panzoom.center_on_town()
+
+
+func _on_calendar_btn() -> void:
+	_calendar_active = not _calendar_active
+	if _calendar_active:
+		content.current_tab = TAB_CALENDAR_IDX
+		calendar_btn.modulate = Color(0.7, 1.0, 0.7)
+	else:
+		content.current_tab = _last_main_tab
+		calendar_btn.modulate = Color.WHITE
 
 
 func _default_pending_tasks() -> void:
@@ -129,7 +152,6 @@ func _default_pending_tasks() -> void:
 
 
 func _show_intro_if_first_week() -> void:
-	# Show the thematic intro only on the very first Planning render of a run.
 	if GameState.week == 1 and not GameState.intro_shown_for_run:
 		intro_panel.visible = true
 
@@ -149,8 +171,11 @@ func _refresh_all() -> void:
 	_refresh_selection()
 	_refresh_expeditions()
 	_refresh_action_buttons()
+	_refresh_crafting_tab()
 	_refresh_calendar_tab()
 
+
+# ---------- Header ----------
 
 func _refresh_header() -> void:
 	var event_label: String = EventKind.label(GameState.current_event)
@@ -162,8 +187,29 @@ func _refresh_header() -> void:
 		GameState.current_week_of_year(),
 		event_label,
 	]
-	resources_lbl.text = "Stores — %s" % GameState.resources.describe()
 	status_lbl.text = ""
+
+	# Resource HUD: Gold + best held resource per type (colour-coded by tier).
+	var parts: Array[String] = []
+	parts.append("[color=#FFD61A]Gold: %d[/color]" % GameState.gold)
+
+	var type_labels: Dictionary = {
+		ResourceDB.ResType.FABRIC: "Fabric",
+		ResourceDB.ResType.TIMBER: "Timber",
+		ResourceDB.ResType.METAL:  "Metal",
+	}
+	for res_type in [ResourceDB.ResType.FABRIC, ResourceDB.ResType.TIMBER, ResourceDB.ResType.METAL]:
+		var best_id: String = ResourceDB.best_for_type(GameState.inventory, res_type)
+		if best_id == "":
+			parts.append("[color=#666666]— %s —[/color]" % type_labels[res_type])
+		else:
+			var entry: Dictionary = ResourceDB.RESOURCES[best_id]
+			var tc: Color = ResourceDB.color_for_tier(entry["tier"])
+			var hex: String = "#" + tc.to_html(false)
+			var amt: int = GameState.inventory.get(best_id, 0)
+			parts.append("[color=%s]%s[/color]: %d" % [hex, entry["name"], amt])
+
+	resources_lbl.parse_bbcode("  ".join(parts))
 
 
 # ---------- Overview tab ----------
@@ -191,9 +237,6 @@ func _on_tactics_mode_changed(idx: int) -> void:
 	_refresh_tactics_tab()
 
 
-# Mounts a single FormationEditor bound to whichever default Dict the
-# Defense / Attack sub-tab is on. Pre-Battle Review seeds the week's
-# formation from the relevant one at battle time.
 func _refresh_tactics_tab() -> void:
 	for c in editor_pane.get_children():
 		c.queue_free()
@@ -213,7 +256,7 @@ func _refresh_tactics_tab() -> void:
 	editor.setup(GameState.roster, dict)
 
 
-# ---------- Town & Map tab — assignments ----------
+# ---------- Map tab — assignments ----------
 
 func _refresh_unit_list() -> void:
 	for child in unit_list.get_children():
@@ -318,7 +361,7 @@ func _on_away_party_toggled(pressed: bool, unit_id: int) -> void:
 	_refresh_away_section()
 
 
-# ---------- Town & Map tab — away-week options ----------
+# ---------- Map tab — away-week options ----------
 
 func _refresh_away_section() -> void:
 	for child in away_section.get_children():
@@ -406,7 +449,7 @@ func _explored_castles() -> Array:
 	return out
 
 
-# ---------- Town & Map tab — map + expedition launch ----------
+# ---------- Map tab — map + expedition launch ----------
 
 func _refresh_map() -> void:
 	if _map_panzoom != null:
@@ -453,27 +496,19 @@ func _refresh_action_buttons() -> void:
 
 
 func _can_explore() -> bool:
-	if _selected.x < 0:
-		return false
-	if _expedition_party.is_empty():
+	if _selected.x < 0 or _expedition_party.is_empty():
 		return false
 	var tile: MapTile = GameState.world.get_tile(_selected.x, _selected.y)
-	if tile == null:
-		return false
-	if tile.active_expedition != null:
+	if tile == null or tile.active_expedition != null:
 		return false
 	return tile.knowledge == MapTile.Knowledge.UNKNOWN
 
 
 func _can_gather() -> bool:
-	if _selected.x < 0:
-		return false
-	if _expedition_party.is_empty():
+	if _selected.x < 0 or _expedition_party.is_empty():
 		return false
 	var tile: MapTile = GameState.world.get_tile(_selected.x, _selected.y)
-	if tile == null:
-		return false
-	if tile.active_expedition != null:
+	if tile == null or tile.active_expedition != null:
 		return false
 	if tile.knowledge != MapTile.Knowledge.EXPLORED:
 		return false
@@ -533,7 +568,114 @@ func _find_expedition_for(unit: Unit) -> Expedition:
 	return null
 
 
-# ---------- Calendar tab ----------
+# ---------- Crafting tab ----------
+
+func _refresh_crafting_tab() -> void:
+	for c in crafting_vbox.get_children():
+		c.queue_free()
+
+	# Raw materials stockpile.
+	var raw_header := Label.new()
+	raw_header.text = "Raw Materials"
+	raw_header.add_theme_font_size_override("font_size", 16)
+	crafting_vbox.add_child(raw_header)
+
+	var raw_grid := GridContainer.new()
+	raw_grid.columns = 4
+	raw_grid.add_theme_constant_override("h_separation", 20)
+	raw_grid.add_theme_constant_override("v_separation", 2)
+	crafting_vbox.add_child(raw_grid)
+
+	for id: String in ResourceDB.RESOURCES:
+		var entry: Dictionary = ResourceDB.RESOURCES[id]
+		if entry.has("type"):
+			continue  # Skip processed resources — only raw materials here.
+		var amt: int = GameState.inventory.get(id, 0)
+		var lbl := Label.new()
+		lbl.text = "%s: %d" % [entry["name"], amt]
+		if amt == 0:
+			lbl.modulate = Color(0.45, 0.45, 0.45)
+		raw_grid.add_child(lbl)
+
+	var sep := HSeparator.new()
+	crafting_vbox.add_child(sep)
+
+	# Recipes grouped by resource type.
+	var type_labels: Dictionary = {
+		ResourceDB.ResType.FABRIC: "Fabric",
+		ResourceDB.ResType.TIMBER: "Timber",
+		ResourceDB.ResType.METAL:  "Metal",
+	}
+	for res_type in [ResourceDB.ResType.FABRIC, ResourceDB.ResType.TIMBER, ResourceDB.ResType.METAL]:
+		var type_hdr := Label.new()
+		type_hdr.text = type_labels[res_type]
+		type_hdr.add_theme_font_size_override("font_size", 16)
+		crafting_vbox.add_child(type_hdr)
+
+		var any_shown: bool = false
+		for id: String in ResourceDB.RESOURCES:
+			var entry: Dictionary = ResourceDB.RESOURCES[id]
+			if not entry.has("type") or entry["type"] != res_type:
+				continue
+			if not ResourceDB.is_craftable(id, GameState.researched):
+				continue
+			any_shown = true
+
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 10)
+			crafting_vbox.add_child(row)
+
+			# Tier-coloured resource name.
+			var name_lbl := Label.new()
+			name_lbl.text = entry["name"]
+			name_lbl.add_theme_color_override("font_color", ResourceDB.color_for_tier(entry["tier"]))
+			name_lbl.custom_minimum_size = Vector2(140, 0)
+			row.add_child(name_lbl)
+
+			# Recipe inputs with current stock counts.
+			var recipe: Dictionary = entry["recipe"]
+			var recipe_parts: PackedStringArray = PackedStringArray()
+			for input_id: String in recipe:
+				var input_entry: Dictionary = ResourceDB.RESOURCES.get(input_id, {})
+				var input_name: String = input_entry.get("name", input_id)
+				var have: int = GameState.inventory.get(input_id, 0)
+				var need: int = recipe[input_id]
+				recipe_parts.append("%s ×%d (have %d)" % [input_name, need, have])
+			var recipe_lbl := Label.new()
+			recipe_lbl.text = " + ".join(recipe_parts)
+			recipe_lbl.modulate = Color(0.75, 0.75, 0.75)
+			recipe_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			row.add_child(recipe_lbl)
+
+			# Craft button — greyed out when inputs are missing.
+			var craft_btn := Button.new()
+			craft_btn.text = "Craft"
+			craft_btn.disabled = not ResourceDB.can_afford(id, GameState.inventory)
+			craft_btn.pressed.connect(_on_craft.bind(id))
+			row.add_child(craft_btn)
+
+		if not any_shown:
+			var none_lbl := Label.new()
+			none_lbl.text = "  No recipes available."
+			none_lbl.modulate = Color(0.45, 0.45, 0.45)
+			crafting_vbox.add_child(none_lbl)
+
+
+func _on_craft(resource_id: String) -> void:
+	if not ResourceDB.can_afford(resource_id, GameState.inventory):
+		return
+	var entry: Dictionary = ResourceDB.RESOURCES.get(resource_id, {})
+	if entry.is_empty():
+		return
+	for input_id: String in entry["recipe"]:
+		GameState.inventory[input_id] = GameState.inventory.get(input_id, 0) - entry["recipe"][input_id]
+	GameState.inventory[resource_id] = GameState.inventory.get(resource_id, 0) + 1
+	status_lbl.text = "Crafted: %s" % entry["name"]
+	_refresh_crafting_tab()
+	_refresh_header()
+
+
+# ---------- Calendar pane ----------
 
 func _refresh_calendar_tab() -> void:
 	for c in upcoming_list.get_children():
@@ -598,7 +740,7 @@ func _next_tournament_week() -> int:
 	return n
 
 
-# ---------- advance time + settings ----------
+# ---------- Advance time + settings ----------
 
 func _on_advance() -> void:
 	for u in GameState.roster:

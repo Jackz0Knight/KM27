@@ -25,6 +25,7 @@ config/icon="res://icon.svg"
 GameState="*res://scripts/autoload/game_state.gd"
 EventBus="*res://scripts/autoload/event_bus.gd"
 RNG="*res://scripts/autoload/rng.gd"
+ResourceDB="*res://scripts/autoload/resource_db.gd"
 
 [display]
 

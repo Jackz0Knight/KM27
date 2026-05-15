@@ -84,6 +84,20 @@ var focused_unit_id: int = -1
 # week's Planning render. Cleared by start_run so the next run shows it again.
 var intro_shown_for_run: bool = false
 
+# Resource system (GDD §14 expansion).
+# gold: weekly maintenance currency (each unit costs 5 gold / week).
+# inventory: unified store for all resource IDs — raw materials and processed.
+# researched: list of unlocked research keys (stub; expanded in Phase 8+).
+# maintenance_debt: set true if a week's tick couldn't cover full gold cost.
+var gold: int = 100
+var inventory: Dictionary = {}
+var researched: Array[String] = []
+var maintenance_debt: bool = false
+
+
+func gold_maintenance_cost() -> int:
+	return roster.size() * 5
+
 
 func _ready() -> void:
 	phase_machine = PhaseMachine.new()
@@ -145,6 +159,10 @@ func start_run(seed_value: int) -> void:
 	run_history.clear()
 	focused_unit_id = -1
 	intro_shown_for_run = false
+	gold = 100
+	inventory = {}
+	researched.clear()
+	maintenance_debt = false
 	default_defense_formation = {"blue": -1, "green": -1, "yellow": -1, "red": -1}
 	default_attack_formation = {"blue": -1, "green": -1, "yellow": -1, "red": -1}
 	_clear_pending_away()
