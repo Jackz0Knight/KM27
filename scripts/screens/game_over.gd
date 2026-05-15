@@ -25,7 +25,7 @@ func _render() -> void:
 	])
 	_add("Tournaments won (streak): %d" % GameState.tournament_streak)
 	_add("Castles taken: %d" % _castles_taken())
-	_add("Stores at end: %s" % GameState.resources.describe())
+	_add("Stores at end: Gold %d · %s" % [GameState.gold, _describe_inventory()])
 
 	# Run final breakdown of the last battle.
 	if r.get("fought", false):
@@ -46,6 +46,18 @@ func _add(text: String) -> void:
 	lbl.text = text
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	stats_pane.add_child(lbl)
+
+
+func _describe_inventory() -> String:
+	var parts: Array[String] = []
+	for id: String in GameState.inventory:
+		var amt: int = GameState.inventory[id]
+		if amt > 0:
+			var entry: Dictionary = ResourceDB.RESOURCES.get(id, {})
+			parts.append("%s×%d" % [entry.get("name", id), amt])
+	if parts.is_empty():
+		return "nothing"
+	return ", ".join(parts)
 
 
 func _on_new_run() -> void:

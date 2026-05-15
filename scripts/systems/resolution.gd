@@ -65,6 +65,8 @@ static func _blank_result(gs: Node) -> Dictionary:
 		"is_game_over": false,
 		"is_run_win": false,
 		"notes": [],
+		"injuries": [],
+		"tournament_gold": 0,
 	}
 
 
@@ -95,6 +97,16 @@ static func _resolve_away(gs: Node, result: Dictionary) -> void:
 
 	var combat: Dictionary = Combat.resolve_formation(party, gs.formation, enemy, false)
 	_fill_combat(result, combat)
+
+	var bracket: int = OutcomeBracket.bracket_for(combat["player_total"], combat["enemy_after_intimidation"])
+	var injuries: Array[Dictionary] = OutcomeBracket.maybe_apply_injuries(party, bracket)
+	if not injuries.is_empty():
+		result["injuries"] = injuries
+		for inj in injuries:
+			result["notes"].append("%s injured: %s (%dw)" % [
+				gs.find_unit(inj["unit_id"]).unit_name if gs.find_unit(inj["unit_id"]) != null else "?",
+				inj["stat"].capitalize(), inj["weeks_remaining"],
+			])
 
 	if combat["won"]:
 		if gs.pending_away_mode == "assault":
@@ -127,6 +139,11 @@ static func _resolve_home(gs: Node, result: Dictionary) -> void:
 
 	var combat: Dictionary = Combat.resolve_formation(party, gs.formation, enemy, true)
 	_fill_combat(result, combat)
+
+	var bracket: int = OutcomeBracket.bracket_for(combat["player_total"], combat["enemy_after_intimidation"])
+	var injuries: Array[Dictionary] = OutcomeBracket.maybe_apply_injuries(party, bracket)
+	if not injuries.is_empty():
+		result["injuries"] = injuries
 
 	if combat["won"]:
 		result["reward"] = Combat.roll_home_win_reward(gs.week)
@@ -165,6 +182,12 @@ static func _resolve_bandit_ambush(gs: Node, result: Dictionary) -> void:
 
 	var combat: Dictionary = Combat.resolve_formation(party, gs.formation, enemy, true)
 	_fill_combat(result, combat)
+
+	var bracket: int = OutcomeBracket.bracket_for(combat["player_total"], combat["enemy_after_intimidation"])
+	var injuries: Array[Dictionary] = OutcomeBracket.maybe_apply_injuries(party, bracket)
+	if not injuries.is_empty():
+		result["injuries"] = injuries
+
 	if combat["won"]:
 		result["reward"] = Combat.roll_bandit_ambush_reward(gs.week)
 	else:
@@ -263,12 +286,19 @@ static func _resolve_tournament(gs: Node, result: Dictionary, is_grand: bool) ->
 		if is_grand:
 			result["is_run_win"] = true
 			result["notes"].append("Grand Tournament won — the realm is yours!")
-			# Streak doesn't matter after a win; reset for hygiene.
 			gs.tournament_streak = 0
+			var prize: int = 50 + (Calendar.tournament_number(gs.week) * 25)
+			gs.gold += prize
+			result["tournament_gold"] = prize
+			result["notes"].append("Grand Tournament prize: +%d gold." % prize)
 		else:
 			gs.tournament_streak += 1
 			result["notes"].append("Tournament won — streak now %d." % gs.tournament_streak)
 			result["reward"] = Combat.roll_tournament_reward(gs.week, participants)
+			var prize: int = 50 + (Calendar.tournament_number(gs.week) * 25)
+			gs.gold += prize
+			result["tournament_gold"] = prize
+			result["notes"].append("Tournament prize: +%d gold." % prize)
 	else:
 		gs.tournament_streak = 0
 		if is_grand:

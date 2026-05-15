@@ -337,17 +337,25 @@ func _update_forecast() -> void:
 		_forecast_participants, GameState.formation, enemy, _is_home_battle()
 	)
 	var verdict: String = "Win" if preview["won"] else "Loss"
-	_forecast_lbl.text = "Forecast: %d vs %d enemy (after intim. %d) → %s" % [
+	var bracket_color: Color = OutcomeBracket.color_for(preview["player_total"], preview["enemy_after_intimidation"])
+	var bracket_label: String = OutcomeBracket.label_for(preview["player_total"], preview["enemy_after_intimidation"])
+	_forecast_lbl.text = "Power: %d  vs  %d enemy (after intim. %d)  →  %s" % [
 		preview["player_total"],
 		preview["enemy_power"],
 		preview["enemy_after_intimidation"],
 		verdict,
 	]
-	var assigned: int = 0
+	_forecast_lbl.modulate = bracket_color
+	_forecast_slots_lbl.text = "%s  ·  Slots: %d/4 filled" % [bracket_label, _count_filled_slots()]
+	_forecast_slots_lbl.modulate = bracket_color
+
+
+func _count_filled_slots() -> int:
+	var count: int = 0
 	for slot_key in Combat.SLOTS:
 		if int(GameState.formation.get(slot_key, -1)) >= 0:
-			assigned += 1
-	_forecast_slots_lbl.text = "Slots filled: %d/4 — unslotted participants still fight without the +2 match bonus." % assigned
+			count += 1
+	return count
 
 
 func _is_home_battle() -> bool:
