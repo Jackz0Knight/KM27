@@ -29,14 +29,39 @@ static func apply(gs: Node) -> Dictionary:
 		"expedition_returns": [],
 		"gold_deducted": 0,
 		"maintenance_debt": false,
+		"gold_income": 0,
+		"injury_recoveries": [],
 	}
+	_apply_injury_tick(gs, results)
 	_apply_training(gs, results)
 	_apply_expedition_returns(gs, results)
 	if Determination.should_trigger(gs.week):
 		results["determination"] = Determination.roll_for_units(gs.roster)
+	_apply_gold_income(gs, results)
 	_apply_gold_maintenance(gs, results)
 	gs.last_tick_results = results
 	return results
+
+
+static func _apply_gold_income(gs: Node, results: Dictionary) -> void:
+	var income: int = gs.total_gold_income()
+	gs.gold += income
+	results["gold_income"] = income
+
+
+static func _apply_injury_tick(gs: Node, results: Dictionary) -> void:
+	for u in gs.roster:
+		var healed: Array[String] = []
+		var still_injured: Array = []
+		for inj in u.injuries:
+			inj["weeks_remaining"] -= 1
+			if inj["weeks_remaining"] <= 0:
+				healed.append(inj["stat"])
+			else:
+				still_injured.append(inj)
+		u.injuries = still_injured
+		for stat in healed:
+			results["injury_recoveries"].append({"unit_id": u.id, "stat": stat})
 
 
 static func _apply_gold_maintenance(gs: Node, results: Dictionary) -> void:

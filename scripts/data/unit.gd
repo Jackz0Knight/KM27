@@ -24,6 +24,8 @@ var stats: Stats = null
 var potential_ability: int = 100
 var current_task: String = TASK_IDLE
 var expedition_id: int = -1
+# Each entry: {"stat": String, "weeks_remaining": int}. Decremented by Tick.
+var injuries: Array = []
 
 
 func _init(
@@ -64,6 +66,26 @@ func class_label() -> String:
 		UnitClass.KNIGHT: return "Knight"
 		UnitClass.SQUIRE: return "Squire"
 	return "Unit"
+
+
+func is_injured() -> bool:
+	return not injuries.is_empty()
+
+
+func injured_stats() -> Array[String]:
+	var out: Array[String] = []
+	for inj in injuries:
+		out.append(inj["stat"])
+	return out
+
+
+# Apply a temporary −1 injury to a random stat for 1–2 weeks.
+func apply_random_injury() -> Dictionary:
+	var roll: int = RNG.randi_range(0, Stats.STAT_KEYS.size() - 1)
+	var stat: String = Stats.STAT_KEYS[roll]
+	var duration: int = RNG.randi_range(1, 2)
+	injuries.append({"stat": stat, "weeks_remaining": duration})
+	return {"stat": stat, "weeks_remaining": duration}
 
 
 func describe() -> String:

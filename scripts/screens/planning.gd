@@ -193,12 +193,45 @@ func _refresh_header() -> void:
 func _refresh_overview_tab() -> void:
 	for c in roster_cards.get_children():
 		c.queue_free()
+
+	# Cashflow panel
+	var cashflow_rtl := RichTextLabel.new()
+	cashflow_rtl.bbcode_enabled = true
+	cashflow_rtl.fit_content = true
+	cashflow_rtl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cashflow_rtl.parse_bbcode(_cashflow_bbcode())
+	roster_cards.add_child(cashflow_rtl)
+
+	var sep := HSeparator.new()
+	roster_cards.add_child(sep)
+
 	for u in GameState.roster:
 		var card: Control = UnitCard.build(
 			u, Callable(), "", _open_knight_overview.bind(u.id)
 		)
 		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		roster_cards.add_child(card)
+
+
+func _cashflow_bbcode() -> String:
+	var income: int = GameState.total_gold_income()
+	var upkeep: int = GameState.gold_maintenance_cost()
+	var net: int = income - upkeep
+	var projected_4: int = GameState.gold + (net * 4)
+	var net_color: String = "#50E050" if net >= 0 else "#E05050"
+	var lines: Array[String] = []
+	lines.append("[color=#FFD61A]Gold: %d[/color]" % GameState.gold)
+	lines.append("[color=#888888]─────────────────[/color]")
+	for src in GameState.gold_income_sources:
+		var v: int = int(GameState.gold_income_sources[src])
+		if v != 0:
+			var label: String = src.replace("_", " ").capitalize()
+			lines.append("[color=#50E050]Income:   +%d/wk  (%s)[/color]" % [v, label])
+	lines.append("[color=#E05050]Upkeep:   −%d/wk  (%d units × 5)[/color]" % [upkeep, GameState.roster.size()])
+	lines.append("[color=%s]Net:      %s%d/wk[/color]" % [net_color, "+" if net >= 0 else "", net])
+	lines.append("[color=#888888]─────────────────[/color]")
+	lines.append("[color=#BBBBBB]Projected (4 wks): %d[/color]" % projected_4)
+	return "\n".join(lines)
 
 
 func _open_knight_overview(unit_id: int) -> void:
@@ -342,6 +375,7 @@ func _build_unit_row(u: Unit) -> Control:
 
 	var task_picker := OptionButton.new()
 	task_picker.add_item("Defend")
+	task_picker.tooltip_text = "Defend: full combat power at home. Train: +1 to the chosen stat next Tick."
 	var train_start: int = task_picker.item_count
 	for stat_key in Stats.STAT_KEYS:
 		task_picker.add_item("Train %s (now %d)" % [stat_key.capitalize(), u.stats.get_value(stat_key)])
@@ -564,13 +598,35 @@ func _can_gather() -> bool:
 
 
 func _on_explore() -> void:
-	if _can_explore():
-		_launch(Expedition.Kind.EXPLORE)
+	if not _can_explore():
+		return
+	var tile: MapTile = GameState.world.get_tile(_selected.x, _selected.y)
+	var party_names: String = ", ".join(_expedition_party.map(func(uid: int) -> String:
+		var u := GameState.find_unit(uid)
+		return u.unit_name if u != null else "?"
+	))
+	ConfirmDialogUtil.ask(
+		self, "launch_expedition",
+		"Launch Explore expedition to (%d,%d)?\nParty: %s" % [_selected.x, _selected.y, party_names],
+		func(): _launch(Expedition.Kind.EXPLORE),
+	)
 
 
 func _on_gather() -> void:
-	if _can_gather():
-		_launch(Expedition.Kind.GATHER)
+	if not _can_gather():
+		return
+	var tile: MapTile = GameState.world.get_tile(_selected.x, _selected.y)
+	var res_key: String = tile.gather_resource() if tile != null else ""
+	var res_name: String = ResourceDB.RESOURCES.get(res_key, {}).get("name", res_key)
+	var party_names: String = ", ".join(_expedition_party.map(func(uid: int) -> String:
+		var u := GameState.find_unit(uid)
+		return u.unit_name if u != null else "?"
+	))
+	ConfirmDialogUtil.ask(
+		self, "launch_expedition",
+		"Launch Gather expedition for %s at (%d,%d)?\nParty: %s" % [res_name, _selected.x, _selected.y, party_names],
+		func(): _launch(Expedition.Kind.GATHER),
+	)
 
 
 func _launch(kind: Expedition.Kind) -> void:
@@ -602,9 +658,41 @@ func _refresh_expeditions() -> void:
 		expedition_list.add_child(none_lbl)
 		return
 	for exped in GameState.expeditions:
-		var lbl := Label.new()
-		lbl.text = "  • #%d %s" % [exped.id, exped.describe()]
-		expedition_list.add_child(lbl)
+		var container := VBoxContainer.new()
+		container.add_theme_constant_override("separation", 2)
+		expedition_list.add_child(container)
+
+		var header_lbl := Label.new()
+		header_lbl.text = "  • #%d %s" % [exped.id, exped.describe()]
+		container.add_child(header_lbl)
+
+		# Return week forecast
+		var return_week: int = GameState.week + exped.weeks_remaining
+		var ret_lbl := Label.new()
+		ret_lbl.text = "      Returns: Week %d" % return_week
+		ret_lbl.modulate = Color(0.65, 0.75, 0.95)
+		container.add_child(ret_lbl)
+
+		# Yield preview for GATHER expeditions
+		if exped.kind == Expedition.Kind.GATHER:
+			var tile: MapTile = GameState.world.get_tile(exped.target_x, exped.target_y)
+			if tile != null:
+				var res_key: String = tile.gather_resource()
+				if res_key != "":
+					var party_strength: int = 0
+					for uid in exped.unit_ids:
+						var u: Unit = GameState.find_unit(uid)
+						if u != null:
+							party_strength += u.stats.strength
+					var est_amount: int = roundi(
+						float(Expedition.GATHER_BASE_YIELD) * (1.0 + float(party_strength) / 30.0)
+					)
+					var entry: Dictionary = ResourceDB.RESOURCES.get(res_key, {})
+					var res_name: String = entry.get("name", res_key)
+					var yield_lbl := Label.new()
+					yield_lbl.text = "      Est. yield: ~%d %s" % [est_amount, res_name]
+					yield_lbl.modulate = Color(0.70, 0.88, 0.60)
+					container.add_child(yield_lbl)
 
 
 func _find_expedition_for(unit: Unit) -> Expedition:
@@ -671,40 +759,58 @@ func _refresh_crafting_tab() -> void:
 			if not entry.has("type") or entry["type"] != res_type:
 				continue
 			if not ResourceDB.is_craftable(id, GameState.researched):
-				continue
+				# Hidden if: research locked AND no inputs AND never crafted
+				if not _recipe_should_be_visible(id, entry):
+					continue
 			any_shown = true
 
+			var is_craftable_now: bool = ResourceDB.is_craftable(id, GameState.researched)
 			var row := HBoxContainer.new()
 			row.add_theme_constant_override("separation", 10)
+			if not is_craftable_now:
+				row.modulate = Color(0.50, 0.50, 0.50)
 			crafting_vbox.add_child(row)
 
 			# Clickable tier-coloured name → info popup.
 			var name_btn := LinkButton.new()
 			name_btn.text = entry["name"]
-			name_btn.add_theme_color_override("font_color", ResourceDB.color_for_tier(entry["tier"]))
+			name_btn.add_theme_color_override(
+				"font_color",
+				ResourceDB.color_for_tier(entry["tier"]) if is_craftable_now else Color(0.45, 0.45, 0.45),
+			)
 			name_btn.custom_minimum_size = Vector2(140, 0)
 			name_btn.pressed.connect(_show_resource_popup.bind(id))
 			row.add_child(name_btn)
 
-			# Recipe inputs with current stock.
-			var recipe: Dictionary = entry["recipe"]
-			var recipe_parts: PackedStringArray = PackedStringArray()
-			for input_id: String in recipe:
-				var input_entry: Dictionary = ResourceDB.RESOURCES.get(input_id, {})
-				var input_name: String = input_entry.get("name", input_id)
-				var have: int = GameState.inventory.get(input_id, 0)
-				recipe_parts.append("%s ×%d (have %d)" % [input_name, recipe[input_id], have])
-			var recipe_lbl := Label.new()
-			recipe_lbl.text = " + ".join(recipe_parts)
-			recipe_lbl.modulate = Color(0.72, 0.72, 0.72)
-			recipe_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			row.add_child(recipe_lbl)
+			# Research gate indicator
+			if not is_craftable_now:
+				var gate = entry.get("research", "")
+				var gate_str: String = str(gate).replace("_", " ").capitalize() if gate != null else ""
+				var gate_lbl := Label.new()
+				gate_lbl.text = "🔒 Requires: %s" % gate_str
+				gate_lbl.modulate = Color(0.65, 0.55, 0.35)
+				gate_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				row.add_child(gate_lbl)
+			else:
+				# Recipe inputs with current stock.
+				var recipe: Dictionary = entry["recipe"]
+				var recipe_parts: PackedStringArray = PackedStringArray()
+				for input_id: String in recipe:
+					var input_entry: Dictionary = ResourceDB.RESOURCES.get(input_id, {})
+					var input_name: String = input_entry.get("name", input_id)
+					var have: int = GameState.inventory.get(input_id, 0)
+					recipe_parts.append("%s ×%d (have %d)" % [input_name, recipe[input_id], have])
+				var recipe_lbl := Label.new()
+				recipe_lbl.text = " + ".join(recipe_parts)
+				recipe_lbl.modulate = Color(0.72, 0.72, 0.72)
+				recipe_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				row.add_child(recipe_lbl)
 
-			var craft_btn := Button.new()
-			craft_btn.text = "Craft"
-			craft_btn.disabled = not ResourceDB.can_afford(id, GameState.inventory)
-			craft_btn.pressed.connect(_on_craft.bind(id))
-			row.add_child(craft_btn)
+				var craft_btn := Button.new()
+				craft_btn.text = "Craft"
+				craft_btn.disabled = not ResourceDB.can_afford(id, GameState.inventory)
+				craft_btn.pressed.connect(_on_craft.bind(id))
+				row.add_child(craft_btn)
 
 		if not any_shown:
 			var none_lbl := Label.new()
@@ -713,15 +819,53 @@ func _refresh_crafting_tab() -> void:
 			crafting_vbox.add_child(none_lbl)
 
 
+# Returns true if a recipe should be visible even when not yet craftable.
+# Visible when: player has any ingredient OR has crafted this before.
+func _recipe_should_be_visible(id: String, entry: Dictionary) -> bool:
+	if GameState.crafted_ids.has(id):
+		return true
+	var recipe: Dictionary = entry.get("recipe", {})
+	if recipe == null:
+		return false
+	for input_id: String in recipe:
+		if GameState.inventory.get(input_id, 0) > 0:
+			return true
+	return false
+
+
 func _on_craft(resource_id: String) -> void:
 	if not ResourceDB.can_afford(resource_id, GameState.inventory):
 		return
 	var entry: Dictionary = ResourceDB.RESOURCES.get(resource_id, {})
 	if entry.is_empty():
 		return
+
+	# Check if this would consume the last of any material.
+	var last_material_warning: bool = false
+	for input_id: String in entry.get("recipe", {}):
+		var have: int = GameState.inventory.get(input_id, 0)
+		var need: int = int(entry["recipe"][input_id])
+		if have - need <= 0:
+			last_material_warning = true
+			break
+
+	if last_material_warning:
+		ConfirmDialogUtil.ask(
+			self, "craft_last_material",
+			"Crafting %s will use your last supply of an ingredient.\nProceed?" % entry["name"],
+			func(): _do_craft(resource_id),
+		)
+	else:
+		_do_craft(resource_id)
+
+
+func _do_craft(resource_id: String) -> void:
+	var entry: Dictionary = ResourceDB.RESOURCES.get(resource_id, {})
 	for input_id: String in entry["recipe"]:
 		GameState.inventory[input_id] = GameState.inventory.get(input_id, 0) - entry["recipe"][input_id]
 	GameState.inventory[resource_id] = GameState.inventory.get(resource_id, 0) + 1
+	if not GameState.crafted_ids.has(resource_id):
+		GameState.crafted_ids.append(resource_id)
 	status_lbl.text = "Crafted: %s" % entry["name"]
 	_refresh_crafting_tab()
 	_refresh_header()
@@ -867,6 +1011,14 @@ func _next_tournament_week() -> int:
 # ---------- Advance time + settings ----------
 
 func _on_advance() -> void:
+	ConfirmDialogUtil.ask(
+		self, "advance_time",
+		"Advance to next week?\n\nWeek %d — %s" % [GameState.week, _current_event_full_label()],
+		_do_advance,
+	)
+
+
+func _do_advance() -> void:
 	for u in GameState.roster:
 		if u.is_on_expedition():
 			continue
@@ -874,6 +1026,8 @@ func _on_advance() -> void:
 			u.current_task = _pending_tasks[u.id]
 		else:
 			u.current_task = Unit.TASK_DEFEND
+
+	SaveManager.save_game()
 
 	GameState.phase_machine.transition(PhaseMachine.Phase.TICK)
 	Tick.apply(GameState)

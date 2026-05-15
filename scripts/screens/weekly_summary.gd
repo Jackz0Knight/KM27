@@ -1,17 +1,7 @@
 extends Control
 
-# Phase 6/7 Weekly Summary per GDD §5. Last screen before the next week
-# begins. Renders:
-#   • Event outcome (one-line verdict).
-#   • Rewards landed in the stores this week.
-#   • Merchant Caravan picker (when applicable; commits a bundle when picked).
-#   • Stat changes (training + Determination + Duel reward).
-#   • Expedition returns (from last_tick_results).
-#   • Tournament streak update line.
-# Routes:
-#   • Home Battle loss → game_over.tscn
-#   • Grand Tournament win → run_win.tscn
-#   • Otherwise → planning.tscn (after wrap_week + roll).
+# Phase 6/7 Weekly Summary per GDD §5. Events reveal sequentially with
+# short fade-in delays, grouped: Training → Expeditions → Battle → Resources → Gold.
 
 @onready var header_lbl: Label = $Margin/VBox/Header
 @onready var resources_lbl: RichTextLabel = $Margin/VBox/Resources
@@ -27,6 +17,13 @@ extends Control
 
 const SettingsPopup = preload("res://scripts/ui/settings_popup.gd")
 
+# Sections that animate in one by one.
+var _anim_sections: Array[Control] = []
+var _anim_timer: float = 0.0
+var _anim_idx: int = 0
+var _anim_done: bool = false
+const SECTION_DELAY: float = 0.4
+
 
 func _ready() -> void:
 	if not GameState.has_active_run():
@@ -35,10 +32,54 @@ func _ready() -> void:
 
 	next_btn.pressed.connect(_on_next)
 	settings_btn.pressed.connect(_on_settings)
-	_render()
+
+	# Render content into the nodes first (hidden).
+	_render_content()
+
+	# Collect the sections we'll animate in.
+	_anim_sections = [
+		outcome_lbl,
+		rewards_list,
+		deltas_list,
+		returns_list,
+		caravan_pane,
+		streak_lbl,
+	]
+
+	# Hide all sections initially.
+	for sec in _anim_sections:
+		sec.modulate.a = 0.0
+
+	# Disable Next until animation is done.
+	next_btn.disabled = true
+	_anim_timer = 0.3   # brief initial pause
+	_anim_idx = 0
+	_anim_done = false
 
 
-func _render() -> void:
+func _process(delta: float) -> void:
+	if _anim_done:
+		return
+	_anim_timer -= delta
+	if _anim_timer > 0.0:
+		return
+
+	if _anim_idx < _anim_sections.size():
+		var sec: Control = _anim_sections[_anim_idx]
+		# Only animate sections that have content (skip invisible/empty ones).
+		var tween: Tween = create_tween()
+		tween.tween_property(sec, "modulate:a", 1.0, 0.25)
+		_anim_idx += 1
+		_anim_timer = SECTION_DELAY
+	else:
+		_anim_done = true
+		set_process(false)
+		# Re-enable Next now that everything is visible.
+		_refresh_next_button(GameState.last_battle_result)
+		resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory))
+
+
+func _render_content() -> void:
 	var r: Dictionary = GameState.last_battle_result
 	var label: String = r.get("event_label", "—")
 	if r.get("sub_event", "") != "":
@@ -52,36 +93,43 @@ func _render() -> void:
 	_render_deltas()
 	_render_returns()
 	_render_streak(r)
+	# Next button state set after animation.
+	next_btn.text = "Please wait…"
+
+
+func _render(r: Dictionary = GameState.last_battle_result) -> void:
+	_render_content()
 	_refresh_next_button(r)
+	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory))
 
 
 func _render_outcome(r: Dictionary) -> void:
 	if r.is_empty():
 		outcome_lbl.text = "Nothing happened this week."
-		outcome_lbl.modulate = Color(0.78, 0.78, 0.78)
+		outcome_lbl.modulate = Color(0.78, 0.78, 0.78, 0.0)
 		return
 
 	if r.get("is_game_over", false):
 		outcome_lbl.text = "✗ Homestead breached — your run ends."
-		outcome_lbl.modulate = Color(0.95, 0.5, 0.5)
+		outcome_lbl.modulate = Color(0.95, 0.5, 0.5, 0.0)
 		return
 
 	if r.get("is_run_win", false):
 		outcome_lbl.text = "★ Grand Tournament won — the realm is yours!"
-		outcome_lbl.modulate = Color(1.0, 0.85, 0.4)
+		outcome_lbl.modulate = Color(1.0, 0.85, 0.4, 0.0)
 		return
 
 	if not r.get("fought", false):
 		outcome_lbl.text = "%s — no battle this week." % EventKind.label(r["event_kind"])
-		outcome_lbl.modulate = Color(0.78, 0.78, 0.78)
+		outcome_lbl.modulate = Color(0.78, 0.78, 0.78, 0.0)
 		return
 
 	if r["won"]:
 		outcome_lbl.text = "✓ Won %s — %d vs %d enemy." % [label_for(r), r["player_total"], r["enemy_total"]]
-		outcome_lbl.modulate = Color(0.6, 0.95, 0.6)
+		outcome_lbl.modulate = Color(0.6, 0.95, 0.6, 0.0)
 	else:
 		outcome_lbl.text = "✗ Lost %s — %d vs %d enemy." % [label_for(r), r["player_total"], r["enemy_total"]]
-		outcome_lbl.modulate = Color(0.95, 0.6, 0.6)
+		outcome_lbl.modulate = Color(0.95, 0.6, 0.6, 0.0)
 
 
 func label_for(r: Dictionary) -> String:
@@ -101,6 +149,13 @@ func _render_rewards(r: Dictionary) -> void:
 		lbl.modulate = Color(0.7, 0.95, 0.7)
 		rewards_list.add_child(lbl)
 
+	var tournament_gold: int = int(r.get("tournament_gold", 0))
+	if tournament_gold > 0:
+		var lbl := Label.new()
+		lbl.text = "+ %d gold (tournament prize)" % tournament_gold
+		lbl.modulate = Color(1.0, 0.85, 0.4)
+		rewards_list.add_child(lbl)
+
 	var castle: Castle = r.get("castle_taken")
 	if castle != null:
 		var lbl := Label.new()
@@ -108,7 +163,6 @@ func _render_rewards(r: Dictionary) -> void:
 		lbl.modulate = Color(0.85, 0.85, 0.6)
 		rewards_list.add_child(lbl)
 
-	# Duel reward already applied during Resolution; surface the stat change.
 	if r.get("sub_event", "") == "champion_duel" and r.get("won", false):
 		var champ: Unit = GameState.find_unit(r["duel_unit_id"])
 		var stat: String = r.get("duel_stat", "")
@@ -119,6 +173,15 @@ func _render_rewards(r: Dictionary) -> void:
 		else:
 			lbl.text = "Duel won but no stat growth (cap or no pick)."
 			lbl.modulate = Color(0.85, 0.85, 0.6)
+		rewards_list.add_child(lbl)
+
+	# Injury report
+	for inj in r.get("injuries", []):
+		var u: Unit = GameState.find_unit(inj["unit_id"])
+		var uname: String = u.unit_name if u != null else "?"
+		var lbl := Label.new()
+		lbl.text = "⚠ %s — injured %s (%dw recovery)" % [uname, inj["stat"].capitalize(), inj["weeks_remaining"]]
+		lbl.modulate = Color(0.95, 0.55, 0.25)
 		rewards_list.add_child(lbl)
 
 	if rewards_list.get_child_count() == 0:
@@ -170,42 +233,89 @@ func _on_caravan_pick(idx: int) -> void:
 func _render_deltas() -> void:
 	for c in deltas_list.get_children():
 		c.queue_free()
-	var any: bool = false
 
+	var rtl := RichTextLabel.new()
+	rtl.bbcode_enabled = true
+	rtl.fit_content = true
+	rtl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rtl.parse_bbcode(_build_delta_bbcode())
+	deltas_list.add_child(rtl)
+
+
+func _build_delta_bbcode() -> String:
 	var t: Dictionary = GameState.last_tick_results
-	for entry in t.get("training", []):
-		var u: Unit = GameState.find_unit(entry["unit_id"])
-		var name: String = u.unit_name if u != null else "?"
-		var lbl := Label.new()
-		if entry["applied"]:
-			lbl.text = "  • %s: %s %d → %d" % [
-				name, String(entry["stat"]).capitalize(), entry["before"], entry["after"],
-			]
-			lbl.modulate = Color(0.7, 0.95, 0.7)
-		else:
-			lbl.text = "  • %s: %s capped (no growth)" % [name, String(entry["stat"]).capitalize()]
-			lbl.modulate = Color(0.85, 0.85, 0.6)
-		deltas_list.add_child(lbl)
-		any = true
-		if entry.get("bonus_stat", "") != "":
-			var bonus_lbl := Label.new()
-			bonus_lbl.text = "      ↳ +1 %s bonus (Determination)" % String(entry["bonus_stat"]).capitalize()
-			bonus_lbl.modulate = Color(0.6, 0.85, 0.6)
-			deltas_list.add_child(bonus_lbl)
+	var lines: Array[String] = []
+	const GREEN: String = "#50E050"
+	const AMBER: String = "#D9B84C"
+	const RED:   String = "#E05050"
+	const CYAN:  String = "#55CCCC"
+	const GREY:  String = "#888888"
+	const DIV:   String = "[color=#555555]────────────────────────[/color]"
 
-	for entry in t.get("determination", []):
-		var u: Unit = entry["unit"]
-		var lbl := Label.new()
-		lbl.text = "  • %s: +1 %s (Determination)" % [u.unit_name, String(entry["stat"]).capitalize()]
-		lbl.modulate = Color(0.7, 0.95, 0.7)
-		deltas_list.add_child(lbl)
-		any = true
+	# Training
+	var training: Array = t.get("training", [])
+	if not training.is_empty():
+		lines.append("[color=%s]── TRAINING[/color]" % AMBER)
+		for entry in training:
+			var u: Unit = GameState.find_unit(entry["unit_id"])
+			var uname: String = "%-14s" % (u.unit_name if u != null else "?")
+			var stat_name: String = "%-14s" % String(entry["stat"]).capitalize()
+			if entry["applied"]:
+				lines.append("[color=%s]%s %s %d → %d  ▲[/color]" % [GREEN, uname, stat_name, entry["before"], entry["after"]])
+			else:
+				lines.append("[color=%s]%s %s %d    (capped)[/color]" % [GREY, uname, stat_name, entry["after"]])
+			if entry.get("bonus_stat", "") != "":
+				lines.append("[color=%s]      ↳ +1 %s bonus (Determination)  ▲[/color]" % [GREEN, String(entry["bonus_stat"]).capitalize()])
+		lines.append(DIV)
 
-	if not any:
-		var none := Label.new()
-		none.text = "—"
-		none.modulate = Color(0.6, 0.6, 0.6)
-		deltas_list.add_child(none)
+	# Determination
+	var det: Array = t.get("determination", [])
+	if not det.is_empty():
+		lines.append("[color=%s]── DETERMINATION[/color]" % AMBER)
+		for entry in det:
+			var u: Unit = entry["unit"]
+			lines.append("[color=%s]%s  +1 %s  ▲[/color]" % [GREEN, u.unit_name, String(entry["stat"]).capitalize()])
+		lines.append(DIV)
+
+	# Expedition returns
+	var returns: Array = t.get("expedition_returns", [])
+	if not returns.is_empty():
+		lines.append("[color=%s]── RESOURCES[/color]" % AMBER)
+		for r in returns:
+			if r["kind"] == Expedition.Kind.GATHER and r["yield_amount"] > 0:
+				var entry: Dictionary = ResourceDB.RESOURCES.get(r["yield_resource"], {})
+				var res_name: String = entry.get("name", r["yield_resource"])
+				lines.append("[color=%s]%-16s +%d    (Expedition)[/color]" % [GREEN, res_name, r["yield_amount"]])
+		lines.append(DIV)
+
+	# Gold
+	var gold_income: int = int(t.get("gold_income", 0))
+	var gold_cost: int = int(t.get("gold_deducted", 0))
+	var gold_net: int = gold_income - gold_cost
+	var debt: bool = t.get("maintenance_debt", false)
+	lines.append("[color=%s]── GOLD[/color]" % AMBER)
+	if gold_income > 0:
+		lines.append("[color=%s]%-16s +%d/wk  (Stipend & income)[/color]" % [GREEN, "Income:", gold_income])
+	lines.append("[color=%s]%-16s −%d/wk  (%d units × 5)%s[/color]" % [
+		RED, "Upkeep:", gold_cost, GameState.roster.size(), "  ⚠ DEBT" if debt else "",
+	])
+	var net_color: String = GREEN if gold_net >= 0 else RED
+	lines.append("[color=%s]%-16s %s%d/wk[/color]" % [net_color, "Net:", "+" if gold_net >= 0 else "", gold_net])
+
+	# Injury recoveries
+	var recoveries: Array = t.get("injury_recoveries", [])
+	if not recoveries.is_empty():
+		lines.append(DIV)
+		lines.append("[color=%s]── RECOVERIES[/color]" % AMBER)
+		for entry in recoveries:
+			var u: Unit = GameState.find_unit(entry["unit_id"])
+			var uname: String = u.unit_name if u != null else "?"
+			lines.append("[color=%s]%s  %s injury healed[/color]" % [CYAN, uname, entry["stat"].capitalize()])
+
+	if lines.is_empty():
+		return "[color=%s]—[/color]" % GREY
+
+	return "\n".join(lines)
 
 
 func _render_returns() -> void:
@@ -229,7 +339,8 @@ func _render_returns() -> void:
 			elif r["revealed_terrain"] != "":
 				bits.append("revealed %s" % r["revealed_terrain"])
 		elif r["kind"] == Expedition.Kind.GATHER and r["yield_amount"] > 0:
-			bits.append("+%d %s" % [r["yield_amount"], r["yield_resource"]])
+			var entry: Dictionary = ResourceDB.RESOURCES.get(r["yield_resource"], {})
+			bits.append("+%d %s" % [r["yield_amount"], entry.get("name", r["yield_resource"])])
 		var lbl := Label.new()
 		lbl.text = "  • " + (" — ".join(bits))
 		returns_list.add_child(lbl)
@@ -238,15 +349,15 @@ func _render_returns() -> void:
 func _render_streak(r: Dictionary) -> void:
 	if EventKind.is_tournament(r.get("event_kind", -1)):
 		streak_lbl.text = "Tournament streak: %d" % GameState.tournament_streak
-		streak_lbl.modulate = Color(1.0, 0.85, 0.4) if GameState.tournament_streak > 0 else Color(0.85, 0.85, 0.85)
+		streak_lbl.modulate = Color(1.0, 0.85, 0.4, 0.0) if GameState.tournament_streak > 0 else Color(0.85, 0.85, 0.85, 0.0)
 	else:
 		streak_lbl.text = ""
+		streak_lbl.modulate.a = 0.0
 
 
 # ---------- next button + routing ----------
 
 func _refresh_next_button(r: Dictionary) -> void:
-	# Caravan choice is required before Next Week becomes available.
 	if r.get("sub_event", "") == "merchant_caravan" and GameState.merchant_pick < 0:
 		next_btn.disabled = true
 		next_btn.text = "Pick a bundle first"
@@ -262,22 +373,35 @@ func _refresh_next_button(r: Dictionary) -> void:
 
 
 func _on_next() -> void:
-	# Snapshot the resolved week into the history log BEFORE we clear buffers.
 	GameState.append_history_entry()
 
 	var r: Dictionary = GameState.last_battle_result
 	if r.get("is_game_over", false):
+		_record_completed_run("lost")
 		get_tree().change_scene_to_file("res://scenes/screens/game_over.tscn")
 		return
 	if r.get("is_run_win", false):
+		_record_completed_run("won")
 		get_tree().change_scene_to_file("res://scenes/screens/run_win.tscn")
 		return
 
-	# Normal week wrap: bump week, clear buffers, roll next event, back to Planning.
 	GameState.wrap_week()
 	GameState.phase_machine.transition(PhaseMachine.Phase.PLANNING)
 	GameState.roll_current_event()
 	get_tree().change_scene_to_file("res://scenes/screens/planning.tscn")
+
+
+func _record_completed_run(outcome: String) -> void:
+	var entry: Dictionary = {
+		"run_number": SaveManager.run_history.size() + 1,
+		"seed": 0,
+		"weeks_survived": GameState.week,
+		"outcome": outcome,
+		"date": Time.get_date_string_from_system(),
+		"tournament_streak": GameState.tournament_streak,
+	}
+	SaveManager.append_run_history(entry)
+	SaveManager.delete_save()
 
 
 func _on_settings() -> void:
