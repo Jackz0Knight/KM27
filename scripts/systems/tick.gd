@@ -27,13 +27,27 @@ static func apply(gs: Node) -> Dictionary:
 		"training": [],
 		"determination": [],
 		"expedition_returns": [],
+		"gold_deducted": 0,
+		"maintenance_debt": false,
 	}
 	_apply_training(gs, results)
 	_apply_expedition_returns(gs, results)
 	if Determination.should_trigger(gs.week):
 		results["determination"] = Determination.roll_for_units(gs.roster)
+	_apply_gold_maintenance(gs, results)
 	gs.last_tick_results = results
 	return results
+
+
+static func _apply_gold_maintenance(gs: Node, results: Dictionary) -> void:
+	var cost: int = gs.gold_maintenance_cost()
+	results["gold_deducted"] = cost
+	if gs.gold >= cost:
+		gs.gold -= cost
+	else:
+		results["maintenance_debt"] = true
+		gs.maintenance_debt = true
+		gs.gold = 0
 
 
 # Training: +1 to the target stat for every at-home unit on "train:<stat>",

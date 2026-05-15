@@ -40,6 +40,11 @@ scrolling_enabled = false
 layout_mode = 2
 size_flags_horizontal = 3
 
+[node name="CalendarBtn" type="Button" parent="Margin/VBox/TopBar"]
+layout_mode = 2
+text = "📅 Calendar"
+custom_minimum_size = Vector2(110, 40)
+
 [node name="AdvanceBtn" type="Button" parent="Margin/VBox/TopBar"]
 layout_mode = 2
 text = "Advance Time →"
@@ -56,10 +61,12 @@ layout_mode = 2
 text = "Year ?, Week ? — Event ?"
 theme_override_font_sizes/font_size = 18
 
-[node name="ResourcesLabel" type="Label" parent="Margin/VBox"]
+[node name="ResourcesLabel" type="RichTextLabel" parent="Margin/VBox"]
 layout_mode = 2
-text = "Stores — ?"
-modulate = Color(0.78, 0.78, 0.78, 1)
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+custom_minimum_size = Vector2(0, 24)
 
 [node name="IntroPanel" type="PanelContainer" parent="Margin/VBox"]
 layout_mode = 2
@@ -225,32 +232,24 @@ theme_override_font_sizes/font_size = 18
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="Calendar" type="VBoxContainer" parent="Margin/VBox/Content"]
+[node name="Crafting" type="VBoxContainer" parent="Margin/VBox/Content"]
 layout_mode = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 10
 
-[node name="UpcomingHeader" type="Label" parent="Margin/VBox/Content/Calendar"]
+[node name="CraftingHeader" type="Label" parent="Margin/VBox/Content/Crafting"]
 layout_mode = 2
-text = "Upcoming"
-theme_override_font_sizes/font_size = 18
+text = "Crafting"
+theme_override_font_sizes/font_size = 22
+theme_override_colors/font_color = Color(0.83, 0.66, 0.35, 1)
 
-[node name="UpcomingList" type="VBoxContainer" parent="Margin/VBox/Content/Calendar"]
-layout_mode = 2
-theme_override_constants/separation = 2
-
-[node name="HistoryHeader" type="Label" parent="Margin/VBox/Content/Calendar"]
-layout_mode = 2
-text = "History"
-theme_override_font_sizes/font_size = 18
-
-[node name="HistoryScroll" type="ScrollContainer" parent="Margin/VBox/Content/Calendar"]
+[node name="CraftingScroll" type="ScrollContainer" parent="Margin/VBox/Content/Crafting"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="HistoryList" type="VBoxContainer" parent="Margin/VBox/Content/Calendar/HistoryScroll"]
+[node name="CraftingVBox" type="VBoxContainer" parent="Margin/VBox/Content/Crafting/CraftingScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 2
+theme_override_constants/separation = 8
 
 [node name="Research" type="VBoxContainer" parent="Margin/VBox/Content"]
 layout_mode = 2
@@ -286,6 +285,33 @@ layout_mode = 2
 text = "No tomes have been opened, no smithy upgrades commissioned. The Research hall stands ready for future iteration — perks, training schools, and equipment unlocks will live here."
 autowrap_mode = 3
 modulate = Color(0.78, 0.74, 0.60, 1)
+
+[node name="Calendar" type="VBoxContainer" parent="Margin/VBox/Content"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="UpcomingHeader" type="Label" parent="Margin/VBox/Content/Calendar"]
+layout_mode = 2
+text = "Upcoming"
+theme_override_font_sizes/font_size = 18
+
+[node name="UpcomingList" type="VBoxContainer" parent="Margin/VBox/Content/Calendar"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="HistoryHeader" type="Label" parent="Margin/VBox/Content/Calendar"]
+layout_mode = 2
+text = "History"
+theme_override_font_sizes/font_size = 18
+
+[node name="HistoryScroll" type="ScrollContainer" parent="Margin/VBox/Content/Calendar"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="HistoryList" type="VBoxContainer" parent="Margin/VBox/Content/Calendar/HistoryScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
 
 [node name="StatusLabel" type="Label" parent="Margin/VBox"]
 layout_mode = 2
