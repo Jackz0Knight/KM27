@@ -1,0 +1,293 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/screens/planning.gd" id="1_plan"]
+
+[node name="Planning" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_plan")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="TopBar" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Tabs" type="TabBar" parent="Margin/VBox/TopBar"]
+layout_mode = 2
+clip_tabs = false
+scrolling_enabled = false
+
+[node name="Spacer" type="Control" parent="Margin/VBox/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="AdvanceBtn" type="Button" parent="Margin/VBox/TopBar"]
+layout_mode = 2
+text = "Advance Time →"
+custom_minimum_size = Vector2(190, 40)
+
+[node name="SettingsBtn" type="Button" parent="Margin/VBox/TopBar"]
+layout_mode = 2
+text = "⚙"
+custom_minimum_size = Vector2(44, 40)
+theme_override_font_sizes/font_size = 22
+
+[node name="ContextLabel" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+text = "Year ?, Week ? — Event ?"
+theme_override_font_sizes/font_size = 18
+
+[node name="ResourcesLabel" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+text = "Stores — ?"
+modulate = Color(0.78, 0.78, 0.78, 1)
+
+[node name="IntroPanel" type="PanelContainer" parent="Margin/VBox"]
+layout_mode = 2
+visible = false
+
+[node name="IntroMargin" type="MarginContainer" parent="Margin/VBox/IntroPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_bottom = 14
+
+[node name="IntroVBox" type="VBoxContainer" parent="Margin/VBox/IntroPanel/IntroMargin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="IntroTitle" type="Label" parent="Margin/VBox/IntroPanel/IntroMargin/IntroVBox"]
+layout_mode = 2
+text = "Your Journey Begins…"
+theme_override_font_sizes/font_size = 24
+theme_override_colors/font_color = Color(1, 0.84, 0.42, 1)
+
+[node name="IntroBody" type="Label" parent="Margin/VBox/IntroPanel/IntroMargin/IntroVBox"]
+layout_mode = 2
+text = "Spring of 1627. Your household holds the centre tile of a quiet realm. The Squires are at hand and your chosen Knight has taken the field. Send scouts to learn the land, train your hand for the duel, and steel yourselves — the tournaments will not wait."
+autowrap_mode = 3
+modulate = Color(0.88, 0.88, 0.88, 1)
+
+[node name="IntroDismiss" type="Button" parent="Margin/VBox/IntroPanel/IntroMargin/IntroVBox"]
+layout_mode = 2
+text = "Begin"
+custom_minimum_size = Vector2(120, 32)
+size_flags_horizontal = 4
+
+[node name="Content" type="TabContainer" parent="Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+tabs_visible = false
+
+[node name="Overview" type="VBoxContainer" parent="Margin/VBox/Content"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="OverviewHeader" type="Label" parent="Margin/VBox/Content/Overview"]
+layout_mode = 2
+text = "Roster"
+theme_override_font_sizes/font_size = 18
+
+[node name="OverviewHint" type="Label" parent="Margin/VBox/Content/Overview"]
+layout_mode = 2
+text = "Click a name to open the Knight's full overview."
+modulate = Color(0.72, 0.72, 0.72, 1)
+
+[node name="RosterScroll" type="ScrollContainer" parent="Margin/VBox/Content/Overview"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="RosterCards" type="VBoxContainer" parent="Margin/VBox/Content/Overview/RosterScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="Tactics" type="VBoxContainer" parent="Margin/VBox/Content"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="ModeTabs" type="TabBar" parent="Margin/VBox/Content/Tactics"]
+layout_mode = 2
+clip_tabs = false
+scrolling_enabled = false
+
+[node name="TacticsHint" type="Label" parent="Margin/VBox/Content/Tactics"]
+layout_mode = 2
+text = "Pre-Battle Review auto-applies this; override there for one-off battles."
+modulate = Color(0.72, 0.72, 0.72, 1)
+
+[node name="EditorPane" type="VBoxContainer" parent="Margin/VBox/Content/Tactics"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="TownMap" type="HBoxContainer" parent="Margin/VBox/Content"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="LeftPane" type="VBoxContainer" parent="Margin/VBox/Content/TownMap"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="AssignmentHeader" type="Label" parent="Margin/VBox/Content/TownMap/LeftPane"]
+layout_mode = 2
+text = "Assignments"
+theme_override_font_sizes/font_size = 18
+
+[node name="UnitScroll" type="ScrollContainer" parent="Margin/VBox/Content/TownMap/LeftPane"]
+layout_mode = 2
+size_flags_vertical = 3
+custom_minimum_size = Vector2(0, 320)
+
+[node name="UnitList" type="VBoxContainer" parent="Margin/VBox/Content/TownMap/LeftPane/UnitScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="AwaySection" type="VBoxContainer" parent="Margin/VBox/Content/TownMap/LeftPane"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="RightPane" type="VBoxContainer" parent="Margin/VBox/Content/TownMap"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="MapHeader" type="Label" parent="Margin/VBox/Content/TownMap/RightPane"]
+layout_mode = 2
+text = "World Map (drag to pan, scroll to zoom)"
+theme_override_font_sizes/font_size = 18
+
+[node name="MapViewport" type="Panel" parent="Margin/VBox/Content/TownMap/RightPane"]
+custom_minimum_size = Vector2(560, 360)
+layout_mode = 2
+clip_contents = true
+
+[node name="MapCanvas" type="Control" parent="Margin/VBox/Content/TownMap/RightPane/MapViewport"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="SelectionInfo" type="Label" parent="Margin/VBox/Content/TownMap/RightPane"]
+layout_mode = 2
+text = "Click a tile on the map to select it."
+custom_minimum_size = Vector2(0, 60)
+autowrap_mode = 3
+
+[node name="Actions" type="HBoxContainer" parent="Margin/VBox/Content/TownMap/RightPane"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ExploreBtn" type="Button" parent="Margin/VBox/Content/TownMap/RightPane/Actions"]
+layout_mode = 2
+text = "Launch Explore (2w)"
+disabled = true
+
+[node name="GatherBtn" type="Button" parent="Margin/VBox/Content/TownMap/RightPane/Actions"]
+layout_mode = 2
+text = "Launch Gather (3w)"
+disabled = true
+
+[node name="ResetMapBtn" type="Button" parent="Margin/VBox/Content/TownMap/RightPane/Actions"]
+layout_mode = 2
+text = "Recenter Map"
+
+[node name="ExpHeader" type="Label" parent="Margin/VBox/Content/TownMap/RightPane"]
+layout_mode = 2
+text = "Active Expeditions"
+theme_override_font_sizes/font_size = 18
+
+[node name="ExpeditionList" type="VBoxContainer" parent="Margin/VBox/Content/TownMap/RightPane"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Calendar" type="VBoxContainer" parent="Margin/VBox/Content"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="UpcomingHeader" type="Label" parent="Margin/VBox/Content/Calendar"]
+layout_mode = 2
+text = "Upcoming"
+theme_override_font_sizes/font_size = 18
+
+[node name="UpcomingList" type="VBoxContainer" parent="Margin/VBox/Content/Calendar"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="HistoryHeader" type="Label" parent="Margin/VBox/Content/Calendar"]
+layout_mode = 2
+text = "History"
+theme_override_font_sizes/font_size = 18
+
+[node name="HistoryScroll" type="ScrollContainer" parent="Margin/VBox/Content/Calendar"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="HistoryList" type="VBoxContainer" parent="Margin/VBox/Content/Calendar/HistoryScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="Research" type="VBoxContainer" parent="Margin/VBox/Content"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="ResearchHeader" type="Label" parent="Margin/VBox/Content/Research"]
+layout_mode = 2
+text = "Research"
+theme_override_font_sizes/font_size = 22
+theme_override_colors/font_color = Color(0.83, 0.66, 0.35, 1)
+
+[node name="ResearchPanel" type="PanelContainer" parent="Margin/VBox/Content/Research"]
+layout_mode = 2
+
+[node name="ResearchMargin" type="MarginContainer" parent="Margin/VBox/Content/Research/ResearchPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_bottom = 14
+
+[node name="ResearchBody" type="VBoxContainer" parent="Margin/VBox/Content/Research/ResearchPanel/ResearchMargin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ResearchTitle" type="Label" parent="Margin/VBox/Content/Research/ResearchPanel/ResearchMargin/ResearchBody"]
+layout_mode = 2
+text = "Scrolls & Whetstones"
+theme_override_font_sizes/font_size = 18
+
+[node name="ResearchBlurb" type="Label" parent="Margin/VBox/Content/Research/ResearchPanel/ResearchMargin/ResearchBody"]
+layout_mode = 2
+text = "No tomes have been opened, no smithy upgrades commissioned. The Research hall stands ready for future iteration — perks, training schools, and equipment unlocks will live here."
+autowrap_mode = 3
+modulate = Color(0.78, 0.74, 0.60, 1)
+
+[node name="StatusLabel" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+text = ""
+modulate = Color(0.85, 0.85, 0.7, 1)

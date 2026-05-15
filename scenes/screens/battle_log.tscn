@@ -1,0 +1,93 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/screens/battle_log.gd" id="1_bl"]
+
+[node name="BattleLog" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_bl")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Header" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+text = "Battle Log"
+theme_override_font_sizes/font_size = 22
+
+[node name="Verdict" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+text = "Result: ?"
+theme_override_font_sizes/font_size = 18
+
+[node name="Scroll" type="ScrollContainer" parent="Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Body" type="VBoxContainer" parent="Margin/VBox/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="BreakdownHeader" type="Label" parent="Margin/VBox/Scroll/Body"]
+layout_mode = 2
+text = "Per-unit breakdown"
+theme_override_font_sizes/font_size = 16
+
+[node name="Breakdown" type="VBoxContainer" parent="Margin/VBox/Scroll/Body"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="TotalsHeader" type="Label" parent="Margin/VBox/Scroll/Body"]
+layout_mode = 2
+text = "Totals"
+theme_override_font_sizes/font_size = 16
+
+[node name="Totals" type="VBoxContainer" parent="Margin/VBox/Scroll/Body"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="NotesHeader" type="Label" parent="Margin/VBox/Scroll/Body"]
+layout_mode = 2
+text = "Notes"
+theme_override_font_sizes/font_size = 16
+
+[node name="Notes" type="VBoxContainer" parent="Margin/VBox/Scroll/Body"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Bottom" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Spacer" type="Control" parent="Margin/VBox/Bottom"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ContinueBtn" type="Button" parent="Margin/VBox/Bottom"]
+layout_mode = 2
+text = "Continue →"
+custom_minimum_size = Vector2(200, 40)
+
+[node name="SettingsBtn" type="Button" parent="Margin/VBox/Bottom"]
+layout_mode = 2
+text = "⚙"
+custom_minimum_size = Vector2(44, 40)
+theme_override_font_sizes/font_size = 22
