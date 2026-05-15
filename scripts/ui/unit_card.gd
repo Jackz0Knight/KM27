@@ -6,18 +6,33 @@ extends RefCounted
 # / Pre-Battle Review screens. PA is intentionally never displayed — GDD §10.
 
 const STAT_ABBREV: Dictionary = {
-	"strength": "Str",
-	"speed": "Spd",
-	"technique": "Tec",
-	"bravery": "Bra",
-	"loyalty": "Loy",
-	"determination": "Det",
-	"swordsmanship": "Swd",
-	"archery": "Arc",
+	"strength":     "Str",
+	"speed":        "Spd",
+	"technique":    "Tec",
+	"bravery":      "Bra",
+	"loyalty":      "Loy",
+	"determination":"Det",
+	"swordsmanship":"Swd",
+	"archery":      "Arc",
 	"horsemanship": "Hrs",
-	"leadership": "Lea",
-	"etiquette": "Etq",
+	"leadership":   "Lea",
+	"etiquette":    "Etq",
 	"intimidation": "Int",
+}
+
+const STAT_TOOLTIPS: Dictionary = {
+	"strength":      "Strength — raw power; used in formation combat and expedition yield",
+	"speed":         "Speed — affects flanking, ranged approach, and Light Melee (Red slot)",
+	"technique":     "Technique — improves training efficiency and tournament performance",
+	"bravery":       "Bravery — contributes to formation combat power",
+	"loyalty":       "Loyalty — resilience against morale events; underpins Determination",
+	"determination": "Determination — chance of a bonus +1 to a random stat each training week",
+	"swordsmanship": "Swordsmanship — primary skill for Heavy Melee (Yellow) and Light Melee (Red) slots",
+	"archery":       "Archery — primary skill for the Ranged (Green) slot",
+	"horsemanship":  "Horsemanship — boosts mounted scouting and expedition efficiency",
+	"leadership":    "Leadership — enables Camp Leader (Blue) slot, granting +1 power to all other fighters",
+	"etiquette":     "Etiquette — increases tournament reward quality",
+	"intimidation":  "Intimidation — reduces effective enemy power in formation combat",
 }
 
 
@@ -41,8 +56,6 @@ static func build(
 	vbox.add_theme_constant_override("separation", 6)
 	margin.add_child(vbox)
 
-	# Name is a LinkButton when a click handler is provided (opens the
-	# Knight Overview screen); otherwise a plain Label.
 	var name_text: String = "%s — %s" % [unit.unit_name, unit.class_label()]
 	if on_name_clicked.is_valid():
 		var name_btn := LinkButton.new()
@@ -62,6 +75,16 @@ static func build(
 	task_lbl.modulate = Color(0.72, 0.72, 0.72)
 	vbox.add_child(task_lbl)
 
+	# Injury indicator
+	if unit.is_injured():
+		var inj_lbl := Label.new()
+		var inj_stats: Array[String] = unit.injured_stats()
+		inj_lbl.text = "⚠ Injured: %s" % ", ".join(inj_stats.map(func(s: String) -> String: return s.capitalize()))
+		inj_lbl.modulate = Color(0.95, 0.55, 0.25)
+		vbox.add_child(inj_lbl)
+
+	var injured_set: Array[String] = unit.injured_stats()
+
 	var grid := GridContainer.new()
 	grid.columns = 4
 	grid.add_theme_constant_override("h_separation", 14)
@@ -70,6 +93,9 @@ static func build(
 		var stat_lbl := Label.new()
 		var abbrev: String = STAT_ABBREV.get(stat_key, stat_key.substr(0, 3))
 		stat_lbl.text = "%s: %d" % [abbrev, unit.stats.get_value(stat_key)]
+		stat_lbl.tooltip_text = STAT_TOOLTIPS.get(stat_key, stat_key.capitalize())
+		if injured_set.has(stat_key):
+			stat_lbl.modulate = Color(0.95, 0.45, 0.30)
 		grid.add_child(stat_lbl)
 	vbox.add_child(grid)
 
