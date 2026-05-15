@@ -4,7 +4,7 @@ extends Control
 # Planning screen on Continue.
 
 @onready var header: Label = $Margin/VBox/Header
-@onready var resources_lbl: Label = $Margin/VBox/Resources
+@onready var resources_lbl: RichTextLabel = $Margin/VBox/Resources
 @onready var cards: VBoxContainer = $Margin/VBox/Scroll/Cards
 @onready var continue_btn: Button = $Margin/VBox/ContinueButton
 
@@ -20,7 +20,7 @@ func _ready() -> void:
 		GameState.week,
 		GameState.current_week_of_year(),
 	]
-	resources_lbl.text = "Stores — %s" % GameState.resources.describe()
+	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory))
 
 	for unit in GameState.roster:
 		cards.add_child(UnitCard.build(unit))

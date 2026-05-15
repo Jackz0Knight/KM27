@@ -141,7 +141,7 @@ static func resolve_formation(
 			mult = HOME_NON_DEFEND_MULT
 		var total: int = floori(float(raw) * mult)
 
-		intimidation_total += u.stats.intimidation / 4   # GDD §13 — rounded down
+		intimidation_total += floori(u.stats.intimidation / 4.0)   # GDD §13 — rounded down
 
 		per_unit.append({
 			"unit_id": u.id,
@@ -199,8 +199,8 @@ static func resolve_tournament(participants: Array, enemy_power: int) -> Diction
 
 # Pillage reward roll. Per resource: int in [1 + floor(week/10), 3 + floor(week/5)].
 static func roll_pillage_reward(week: int) -> ResourceBundle:
-	var lo: int = 1 + week / 10
-	var hi: int = 3 + week / 5
+	var lo: int = 1 + floori(week / 10.0)
+	var hi: int = 3 + floori(week / 5.0)
 	var b := ResourceBundle.new()
 	for key in ResourceBundle.KEYS:
 		b.set(key, RNG.randi_range(lo, hi))

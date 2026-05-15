@@ -35,8 +35,8 @@ func _on_quit() -> void:
 # Convenience: instance the popup, parent it to `caller`, and show it.
 static func show_for(caller: Node) -> void:
 	var scene: PackedScene = preload("res://scenes/ui/settings_popup.tscn")
-	var popup: PopupPanel = scene.instantiate()
-	caller.add_child(popup)
-	popup.popup_centered()
+	var instance: PopupPanel = scene.instantiate()
+	caller.add_child(instance)
+	instance.popup_centered()
 	# Free the popup when it closes so we don't accumulate instances.
-	popup.popup_hide.connect(popup.queue_free)
+	instance.popup_hide.connect(instance.queue_free)

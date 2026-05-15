@@ -32,10 +32,12 @@ layout_mode = 2
 text = "Your Household"
 theme_override_font_sizes/font_size = 28
 
-[node name="Resources" type="Label" parent="Margin/VBox"]
+[node name="Resources" type="RichTextLabel" parent="Margin/VBox"]
 layout_mode = 2
-text = "Stores — Wood:0 Fibres:0 Copper:0"
-modulate = Color(0.78, 0.78, 0.78, 1)
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+custom_minimum_size = Vector2(0, 24)
 
 [node name="SubHeader" type="Label" parent="Margin/VBox"]
 layout_mode = 2

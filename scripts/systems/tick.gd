@@ -88,23 +88,23 @@ static func _apply_training(gs: Node, results: Dictionary) -> void:
 # Returning units drop back into the at-home pool via complete_expedition().
 static func _apply_expedition_returns(gs: Node, results: Dictionary) -> void:
 	var to_complete: Array = []
-	for exp in gs.expeditions:
-		exp.weeks_remaining -= 1
-		if exp.weeks_remaining <= 0:
-			to_complete.append(exp)
-	for exp in to_complete:
-		results["expedition_returns"].append(_complete_one(gs, exp))
+	for exped in gs.expeditions:
+		exped.weeks_remaining -= 1
+		if exped.weeks_remaining <= 0:
+			to_complete.append(exped)
+	for exped in to_complete:
+		results["expedition_returns"].append(_complete_one(gs, exped))
 
 
-static func _complete_one(gs: Node, exp: Expedition) -> Dictionary:
-	var tile: MapTile = gs.world.get_tile(exp.target_x, exp.target_y)
+static func _complete_one(gs: Node, exped: Expedition) -> Dictionary:
+	var tile: MapTile = gs.world.get_tile(exped.target_x, exped.target_y)
 	var info: Dictionary = {
-		"expedition_id": exp.id,
-		"kind": exp.kind,
-		"kind_label": exp.kind_label(),
-		"target_x": exp.target_x,
-		"target_y": exp.target_y,
-		"unit_ids": exp.unit_ids.duplicate(),
+		"expedition_id": exped.id,
+		"kind": exped.kind,
+		"kind_label": exped.kind_label(),
+		"target_x": exped.target_x,
+		"target_y": exped.target_y,
+		"unit_ids": exped.unit_ids.duplicate(),
 		"yield_resource": "",
 		"yield_amount": 0,
 		"yield_bundle": null,
@@ -112,18 +112,18 @@ static func _complete_one(gs: Node, exp: Expedition) -> Dictionary:
 		"revealed_castle": null,
 	}
 
-	if exp.kind == Expedition.Kind.EXPLORE:
+	if exped.kind == Expedition.Kind.EXPLORE:
 		if tile != null and tile.knowledge != MapTile.Knowledge.EXPLORED:
 			tile.knowledge = MapTile.Knowledge.EXPLORED
 			info["revealed_terrain"] = MapTile.Terrain.keys()[tile.terrain]
 			if tile.castle != null:
 				info["revealed_castle"] = tile.castle
-	elif exp.kind == Expedition.Kind.GATHER:
+	elif exped.kind == Expedition.Kind.GATHER:
 		if tile != null:
 			var res_key: String = tile.gather_resource()
 			if res_key != "":
 				var party_strength: int = 0
-				for uid in exp.unit_ids:
+				for uid in exped.unit_ids:
 					var u: Unit = gs.find_unit(uid)
 					if u != null:
 						party_strength += u.stats.strength
@@ -135,6 +135,6 @@ static func _complete_one(gs: Node, exp: Expedition) -> Dictionary:
 				info["yield_amount"] = amount
 				info["yield_bundle"] = null
 
-	gs.complete_expedition(exp)
-	EventBus.expedition_returned.emit(exp)
+	gs.complete_expedition(exped)
+	EventBus.expedition_returned.emit(exped)
 	return info

@@ -39,8 +39,8 @@ static func is_combat(sub_type: String) -> bool:
 static func roll_harvest_bundle(week: int) -> ResourceBundle:
 	# Bountiful Harvest is comfortably "T1 bundle" sized — slightly skewed up
 	# from a Bandit Ambush win because it has no risk.
-	var lo: int = 1 + week / 12
-	var hi: int = 3 + week / 8
+	var lo: int = 1 + floori(week / 12.0)
+	var hi: int = 3 + floori(week / 8.0)
 	var b := ResourceBundle.new()
 	for key in ResourceBundle.KEYS:
 		b.set(key, RNG.randi_range(lo, hi))
@@ -59,10 +59,10 @@ static func roll_caravan_offers(week: int, count: int = 3) -> Array:
 static func _roll_caravan_offer(week: int) -> ResourceBundle:
 	# Each offer biases heavily toward one resource so the choice matters.
 	var primary_idx: int = RNG.randi_range(0, ResourceBundle.KEYS.size() - 1)
-	var lo_primary: int = 2 + week / 10
-	var hi_primary: int = 4 + week / 6
+	var lo_primary: int = 2 + floori(week / 10.0)
+	var hi_primary: int = 4 + floori(week / 6.0)
 	var lo_secondary: int = 0
-	var hi_secondary: int = 1 + week / 15
+	var hi_secondary: int = 1 + floori(week / 15.0)
 	var b := ResourceBundle.new()
 	for i in range(ResourceBundle.KEYS.size()):
 		var key: String = ResourceBundle.KEYS[i]

@@ -258,10 +258,10 @@ func _refresh_tactics_upcoming() -> void:
 	_add_tactics_line(t_text, Color(0.65, 0.88, 0.65))
 
 	# Nearby expedition returns
-	for exp in GameState.expeditions:
-		if exp.weeks_remaining <= 3:
+	for exped in GameState.expeditions:
+		if exped.weeks_remaining <= 3:
 			_add_tactics_line(
-				"Expedition #%d returns in %dw" % [exp.id, exp.weeks_remaining],
+				"Expedition #%d returns in %dw" % [exped.id, exped.weeks_remaining],
 				Color(0.65, 0.75, 0.95),
 			)
 
@@ -601,16 +601,16 @@ func _refresh_expeditions() -> void:
 		none_lbl.modulate = Color(0.7, 0.7, 0.7)
 		expedition_list.add_child(none_lbl)
 		return
-	for exp in GameState.expeditions:
+	for exped in GameState.expeditions:
 		var lbl := Label.new()
-		lbl.text = "  • #%d %s" % [exp.id, exp.describe()]
+		lbl.text = "  • #%d %s" % [exped.id, exped.describe()]
 		expedition_list.add_child(lbl)
 
 
 func _find_expedition_for(unit: Unit) -> Expedition:
-	for exp in GameState.expeditions:
-		if exp.id == unit.expedition_id:
-			return exp
+	for exped in GameState.expeditions:
+		if exped.id == unit.expedition_id:
+			return exped
 	return null
 
 
@@ -820,10 +820,10 @@ func _refresh_calendar_tab() -> void:
 	if GameState.expeditions.is_empty():
 		_add_upcoming_line("No active expeditions.", true)
 	else:
-		for exp in GameState.expeditions:
-			var return_week: int = GameState.week + exp.weeks_remaining
+		for exped in GameState.expeditions:
+			var return_week: int = GameState.week + exped.weeks_remaining
 			_add_upcoming_line("Expedition #%d (%s) returns Week %d (in %dw)" % [
-				exp.id, exp.kind_label(), return_week, exp.weeks_remaining,
+				exped.id, exped.kind_label(), return_week, exped.weeks_remaining,
 			], false)
 
 	if GameState.run_history.is_empty():
