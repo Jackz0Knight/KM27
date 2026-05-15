@@ -130,12 +130,10 @@ static func _complete_one(gs: Node, exp: Expedition) -> Dictionary:
 				var amount: int = roundi(
 					float(Expedition.GATHER_BASE_YIELD) * (1.0 + float(party_strength) / 30.0)
 				)
-				var bundle := ResourceBundle.new()
-				bundle.set(res_key, amount)
-				gs.resources.add(bundle)
+				gs.inventory[res_key] = gs.inventory.get(res_key, 0) + amount
 				info["yield_resource"] = res_key
 				info["yield_amount"] = amount
-				info["yield_bundle"] = bundle
+				info["yield_bundle"] = null
 
 	gs.complete_expedition(exp)
 	EventBus.expedition_returned.emit(exp)

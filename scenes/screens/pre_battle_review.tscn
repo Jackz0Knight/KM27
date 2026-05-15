@@ -32,10 +32,12 @@ layout_mode = 2
 text = "Pre-Battle Review"
 theme_override_font_sizes/font_size = 22
 
-[node name="Resources" type="Label" parent="Margin/VBox"]
+[node name="Resources" type="RichTextLabel" parent="Margin/VBox"]
 layout_mode = 2
-text = "Stores — ?"
-modulate = Color(0.78, 0.78, 0.78, 1)
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+custom_minimum_size = Vector2(0, 24)
 
 [node name="Scroll" type="ScrollContainer" parent="Margin/VBox"]
 layout_mode = 2
@@ -45,6 +47,24 @@ size_flags_vertical = 3
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 12
+
+[node name="BattleInfoHeader" type="Label" parent="Margin/VBox/Scroll/Body"]
+layout_mode = 2
+text = "This Week"
+theme_override_font_sizes/font_size = 18
+
+[node name="BattleInfo" type="VBoxContainer" parent="Margin/VBox/Scroll/Body"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="SetupHeader" type="Label" parent="Margin/VBox/Scroll/Body"]
+layout_mode = 2
+text = "Combat Setup"
+theme_override_font_sizes/font_size = 18
+
+[node name="Setup" type="VBoxContainer" parent="Margin/VBox/Scroll/Body"]
+layout_mode = 2
+theme_override_constants/separation = 6
 
 [node name="TickRecapHeader" type="Label" parent="Margin/VBox/Scroll/Body"]
 layout_mode = 2
@@ -63,15 +83,6 @@ theme_override_font_sizes/font_size = 18
 [node name="Roster" type="VBoxContainer" parent="Margin/VBox/Scroll/Body"]
 layout_mode = 2
 theme_override_constants/separation = 8
-
-[node name="SetupHeader" type="Label" parent="Margin/VBox/Scroll/Body"]
-layout_mode = 2
-text = "Combat Setup"
-theme_override_font_sizes/font_size = 18
-
-[node name="Setup" type="VBoxContainer" parent="Margin/VBox/Scroll/Body"]
-layout_mode = 2
-theme_override_constants/separation = 6
 
 [node name="Bottom" type="HBoxContainer" parent="Margin/VBox"]
 layout_mode = 2

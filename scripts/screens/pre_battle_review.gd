@@ -1,27 +1,22 @@
 extends Control
 
-# Phase 5/6 Pre-Battle Review per GDD §5. Sits between Tick (already applied
-# before this scene loads) and Resolution. Shows:
-#   • A recap of what changed during Tick (training, Determination, returns).
-#   • The post-Tick roster snapshot.
-#   • A combat-setup pane that depends on the week's event:
-#       – AWAY_BATTLE / HOME_BATTLE / Bandit Ambush → 4-slot formation editor.
-#       – Champion's Duel → single champion + target stat picker.
-#       – Tournament / Grand Tournament → up-to-4 participant picker.
-#       – Bountiful Harvest / Merchant Caravan → just a note.
-#
-# The Tick has already mutated GameState (training applied, expeditions
-# returned). This screen reads `GameState.last_tick_results` to show the recap.
+# Phase 5/6 Pre-Battle Review per GDD §5. Sits between Tick (already applied)
+# and Resolution. Layout (top to bottom in scroll):
+#   1. Battle Info — event label, enemy power, stakes, gold maintenance.
+#   2. Combat Setup — formation editor / champion picker / tournament picker.
+#   3. Tick Recap — training, Determination, expedition returns.
+#   4. Roster — full post-Tick snapshot.
 
-@onready var header_lbl: Label = $Margin/VBox/Header
-@onready var resources_lbl: Label = $Margin/VBox/Resources
-@onready var tick_recap: VBoxContainer = $Margin/VBox/Scroll/Body/TickRecap
-@onready var roster_list: VBoxContainer = $Margin/VBox/Scroll/Body/Roster
-@onready var setup_header: Label = $Margin/VBox/Scroll/Body/SetupHeader
-@onready var setup_pane: VBoxContainer = $Margin/VBox/Scroll/Body/Setup
-@onready var status_lbl: Label = $Margin/VBox/Bottom/StatusLabel
-@onready var confirm_btn: Button = $Margin/VBox/Bottom/ConfirmBtn
-@onready var settings_btn: Button = $Margin/VBox/Bottom/SettingsBtn
+@onready var header_lbl: Label             = $Margin/VBox/Header
+@onready var resources_lbl: RichTextLabel  = $Margin/VBox/Resources
+@onready var battle_info: VBoxContainer    = $Margin/VBox/Scroll/Body/BattleInfo
+@onready var tick_recap: VBoxContainer     = $Margin/VBox/Scroll/Body/TickRecap
+@onready var roster_list: VBoxContainer    = $Margin/VBox/Scroll/Body/Roster
+@onready var setup_header: Label           = $Margin/VBox/Scroll/Body/SetupHeader
+@onready var setup_pane: VBoxContainer     = $Margin/VBox/Scroll/Body/Setup
+@onready var status_lbl: Label             = $Margin/VBox/Bottom/StatusLabel
+@onready var confirm_btn: Button           = $Margin/VBox/Bottom/ConfirmBtn
+@onready var settings_btn: Button          = $Margin/VBox/Bottom/SettingsBtn
 
 const SettingsPopup = preload("res://scripts/ui/settings_popup.gd")
 
@@ -37,16 +32,13 @@ func _ready() -> void:
 	settings_btn.pressed.connect(_on_settings)
 
 	_refresh_header()
+	_refresh_battle_info()
+	_refresh_setup()
 	_refresh_tick_recap()
 	_refresh_roster()
-	_refresh_setup()
 	_refresh_confirm_button()
 
 
-# Seed this week's formation from the Tactics tab default when the week's
-# formation hasn't been touched yet (all slots -1). Invalid picks (units on
-# expedition, units not in the combat-participant set) are pruned later
-# by `_build_formation_editor`. Tournament / Duel weeks don't use formations.
 func _seed_formation_from_default() -> void:
 	if not GameState.current_event_uses_formation():
 		return
@@ -57,12 +49,11 @@ func _seed_formation_from_default() -> void:
 			break
 	if not all_empty:
 		return
-
-	var src: Dictionary
-	if GameState.current_event == EventKind.AWAY_BATTLE:
-		src = GameState.default_attack_formation
-	else:
-		src = GameState.default_defense_formation
+	var src: Dictionary = (
+		GameState.default_attack_formation
+		if GameState.current_event == EventKind.AWAY_BATTLE
+		else GameState.default_defense_formation
+	)
 	for slot_key in Combat.SLOTS:
 		GameState.formation[slot_key] = int(src.get(slot_key, -1))
 
@@ -74,13 +65,95 @@ func _refresh_header() -> void:
 	if GameState.current_event == EventKind.BATTLE_EVENT and GameState.current_battle_event != "":
 		label = "%s — %s" % [label, BattleEvent.label(GameState.current_battle_event)]
 	header_lbl.text = "Pre-Battle Review — Year %d, Week %d (%d/48) · %s" % [
-		GameState.current_year(),
-		GameState.week,
-		GameState.current_week_of_year(),
-		label,
+		GameState.current_year(), GameState.week,
+		GameState.current_week_of_year(), label,
 	]
-	resources_lbl.text = "Stores — %s" % GameState.resources.describe()
+	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory))
 	confirm_btn.text = "To Battle →" if _is_combat_week() else "Continue →"
+
+
+# ---------- battle info panel ----------
+
+func _refresh_battle_info() -> void:
+	for c in battle_info.get_children():
+		c.queue_free()
+
+	var ev: int = GameState.current_event
+	var sub: String = GameState.current_battle_event
+
+	var event_lbl := Label.new()
+	var full_label: String = EventKind.label(ev)
+	if ev == EventKind.BATTLE_EVENT and sub != "":
+		full_label += " — " + BattleEvent.label(sub)
+	event_lbl.text = full_label
+	event_lbl.add_theme_font_size_override("font_size", 20)
+	battle_info.add_child(event_lbl)
+
+	var enemy: int = _battle_enemy_power()
+	if enemy > 0:
+		var enemy_lbl := Label.new()
+		enemy_lbl.text = "Enemy strength: %d" % enemy
+		enemy_lbl.modulate = Color(0.95, 0.55, 0.45)
+		battle_info.add_child(enemy_lbl)
+
+	var stakes_lbl := Label.new()
+	stakes_lbl.text = _stakes_text(ev, sub)
+	stakes_lbl.modulate = Color(0.82, 0.78, 0.58)
+	stakes_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+	battle_info.add_child(stakes_lbl)
+
+	var cost: int = GameState.gold_maintenance_cost()
+	var gold_lbl := Label.new()
+	gold_lbl.text = "Maintenance: %d gold (have %d)" % [cost, GameState.gold]
+	gold_lbl.modulate = (
+		Color(1.0, 0.84, 0.1) if GameState.gold >= cost else Color(0.95, 0.38, 0.38)
+	)
+	battle_info.add_child(gold_lbl)
+
+
+func _battle_enemy_power() -> int:
+	match GameState.current_event:
+		EventKind.AWAY_BATTLE:
+			if GameState.pending_away_mode == "assault" and GameState.pending_assault_castle != null:
+				return GameState.pending_assault_castle.difficulty
+			return Combat.enemy_power_pillage(GameState.week)
+		EventKind.HOME_BATTLE:
+			return Combat.enemy_power_home(GameState.week)
+		EventKind.BATTLE_EVENT:
+			match GameState.current_battle_event:
+				"bandit_ambush": return Combat.enemy_power_bandit_ambush(GameState.week)
+				"champion_duel": return Combat.enemy_power_champion_duel(GameState.week)
+		EventKind.TOURNAMENT:
+			return Combat.enemy_power_tournament(GameState.week)
+		EventKind.GRAND_TOURNAMENT:
+			return Combat.enemy_power_grand_tournament(GameState.week)
+	return 0
+
+
+func _stakes_text(ev: int, sub: String) -> String:
+	match ev:
+		EventKind.HOME_BATTLE:
+			return "⚠ Defeat → Game Over. All at-home units defend (Defend = full power, others = 75%)."
+		EventKind.AWAY_BATTLE:
+			if GameState.pending_away_mode == "assault":
+				return "Win → seize the castle and claim its reward. Loss → return empty-handed."
+			return "Win → pillage reward. Loss → return empty-handed."
+		EventKind.BATTLE_EVENT:
+			match sub:
+				"bandit_ambush": return "Win → loot reward. No game-over risk."
+				"champion_duel": return "Win → +1 to chosen stat. Loss → no penalty."
+				"bountiful_harvest": return "Free resource gift — no combat needed."
+				"merchant_caravan": return "Pick one of three bundles on the Weekly Summary screen."
+		EventKind.TOURNAMENT:
+			var note: String = ""
+			if GameState.tournament_streak >= 1:
+				note = " Streak: %d." % GameState.tournament_streak
+			if GameState.tournament_streak >= 2:
+				note += " Win → GRAND TOURNAMENT next!"
+			return "Win → resource reward + streak +1. Loss → streak resets." + note
+		EventKind.GRAND_TOURNAMENT:
+			return "★ Win → RUN COMPLETE — the realm is yours! Loss → streak resets, run continues."
+	return ""
 
 
 # ---------- tick recap ----------
@@ -94,7 +167,6 @@ func _refresh_tick_recap() -> void:
 		_add_recap_line("(No Tick recorded.)", true)
 		return
 
-	# Training
 	var training: Array = t.get("training", [])
 	if training.is_empty():
 		_add_recap_line("Training: nobody trained this week.", true)
@@ -102,16 +174,16 @@ func _refresh_tick_recap() -> void:
 		_add_recap_line("Training:", false)
 		for entry in training:
 			var u: Unit = GameState.find_unit(entry["unit_id"])
-			var name: String = u.unit_name if u != null else "?"
+			var uname: String = u.unit_name if u != null else "?"
 			var stat: String = entry["stat"]
 			if entry["applied"]:
 				_add_recap_line(
-					"  • %s trained %s: %d → %d" % [name, stat.capitalize(), entry["before"], entry["after"]],
+					"  • %s trained %s: %d → %d" % [uname, stat.capitalize(), entry["before"], entry["after"]],
 					false,
 				)
 			else:
 				_add_recap_line(
-					"  • %s trained %s — blocked by cap (now %d)" % [name, stat.capitalize(), entry["after"]],
+					"  • %s trained %s — blocked by cap (now %d)" % [uname, stat.capitalize(), entry["after"]],
 					true,
 				)
 			if entry.get("bonus_stat", "") != "":
@@ -120,7 +192,6 @@ func _refresh_tick_recap() -> void:
 					false,
 				)
 
-	# Determination
 	var det: Array = t.get("determination", [])
 	if Determination.should_trigger(GameState.week):
 		if det.is_empty():
@@ -134,12 +205,19 @@ func _refresh_tick_recap() -> void:
 					false,
 				)
 
-	# Expedition returns
 	var returns: Array = t.get("expedition_returns", [])
 	if not returns.is_empty():
 		_add_recap_line("Expedition returns:", false)
 		for r in returns:
 			_add_recap_line("  • %s" % _describe_return(r), false)
+
+	var gold_cost: int = t.get("gold_deducted", 0)
+	if gold_cost > 0:
+		var debt: bool = t.get("maintenance_debt", false)
+		if debt:
+			_add_recap_line("Maintenance: %d gold due — insufficient funds." % gold_cost, true)
+		else:
+			_add_recap_line("Maintenance: %d gold deducted." % gold_cost, true)
 
 
 func _describe_return(r: Dictionary) -> String:
@@ -155,9 +233,11 @@ func _describe_return(r: Dictionary) -> String:
 			bits.append("nothing new revealed")
 	elif r["kind"] == Expedition.Kind.GATHER:
 		if r["yield_amount"] > 0:
-			bits.append("+%d %s" % [r["yield_amount"], r["yield_resource"]])
+			var entry: Dictionary = ResourceDB.RESOURCES.get(r["yield_resource"], {})
+			var res_name: String = entry.get("name", r["yield_resource"])
+			bits.append("+%d %s" % [r["yield_amount"], res_name])
 		else:
-			bits.append("no yield (terrain not gatherable)")
+			bits.append("no yield")
 	return " — ".join(bits)
 
 
@@ -181,8 +261,6 @@ func _refresh_roster() -> void:
 # ---------- setup pane (event-specific) ----------
 
 func _refresh_setup() -> void:
-	# Clear cached references — the children below get freed and we don't
-	# want to read stale Labels in `_update_forecast`.
 	_forecast_lbl = null
 	_forecast_slots_lbl = null
 	_forecast_participants = []
@@ -219,9 +297,6 @@ var _forecast_slots_lbl: Label = null
 var _forecast_participants: Array = []
 
 
-# Drag-and-drop FormationEditor + live forecast. The editor mutates
-# GameState.formation in place; on `formation_changed` we re-run the
-# preview without rebuilding the editor (would lose visual state).
 func _build_formation_editor(participants: Array, blurb: String) -> void:
 	setup_header.text = "Formation Editor"
 	if participants.is_empty():
@@ -235,7 +310,6 @@ func _build_formation_editor(participants: Array, blurb: String) -> void:
 
 	var editor := FormationEditor.new()
 	setup_pane.add_child(editor)
-	# Typed-array contract: FormationEditor expects Array[Unit].
 	var typed_participants: Array[Unit] = []
 	for u in participants:
 		typed_participants.append(u)
@@ -258,7 +332,7 @@ func _on_formation_changed() -> void:
 func _update_forecast() -> void:
 	if _forecast_lbl == null or _forecast_participants.is_empty():
 		return
-	var enemy: int = _forecast_enemy_power()
+	var enemy: int = _battle_enemy_power()
 	var preview: Dictionary = Combat.resolve_formation(
 		_forecast_participants, GameState.formation, enemy, _is_home_battle()
 	)
@@ -273,21 +347,7 @@ func _update_forecast() -> void:
 	for slot_key in Combat.SLOTS:
 		if int(GameState.formation.get(slot_key, -1)) >= 0:
 			assigned += 1
-	_forecast_slots_lbl.text = "Slots filled: %d/4 — unslotted participants still fight, just without the +2 match bonus." % assigned
-
-
-func _forecast_enemy_power() -> int:
-	match GameState.current_event:
-		EventKind.AWAY_BATTLE:
-			if GameState.pending_away_mode == "assault" and GameState.pending_assault_castle != null:
-				return GameState.pending_assault_castle.difficulty
-			return Combat.enemy_power_pillage(GameState.week)
-		EventKind.HOME_BATTLE:
-			return Combat.enemy_power_home(GameState.week)
-		EventKind.BATTLE_EVENT:
-			if GameState.current_battle_event == "bandit_ambush":
-				return Combat.enemy_power_bandit_ambush(GameState.week)
-	return 0
+	_forecast_slots_lbl.text = "Slots filled: %d/4 — unslotted participants still fight without the +2 match bonus." % assigned
 
 
 func _is_home_battle() -> bool:
@@ -379,7 +439,6 @@ func _build_tournament_picker(is_grand: bool) -> void:
 	setup_pane.add_child(intro)
 
 	var at_home: Array[Unit] = GameState.at_home_units()
-	# Prune stale tournament_participants
 	var pruned: Array[int] = []
 	for uid in GameState.tournament_participants:
 		var u: Unit = GameState.find_unit(uid)
@@ -408,8 +467,7 @@ func _build_tournament_picker(is_grand: bool) -> void:
 			participants.append(u)
 	var preview: Dictionary = Combat.resolve_tournament(participants, enemy)
 	forecast.text = "Forecast: %d vs %d enemy → %s" % [
-		preview["player_total"], enemy,
-		"Win" if preview["won"] else "Loss",
+		preview["player_total"], enemy, "Win" if preview["won"] else "Loss",
 	]
 	setup_pane.add_child(forecast)
 
@@ -454,7 +512,6 @@ func _is_combat_week() -> bool:
 func _refresh_confirm_button() -> void:
 	confirm_btn.disabled = false
 	if GameState.current_event == EventKind.BATTLE_EVENT and GameState.current_battle_event == "champion_duel":
-		# Require both a champion AND a target stat — otherwise the reward is forfeit.
 		if GameState.champion_unit_id < 0 or GameState.champion_target_stat == "":
 			confirm_btn.disabled = true
 

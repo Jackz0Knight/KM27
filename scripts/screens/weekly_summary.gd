@@ -14,7 +14,7 @@ extends Control
 #   • Otherwise → planning.tscn (after wrap_week + roll).
 
 @onready var header_lbl: Label = $Margin/VBox/Header
-@onready var resources_lbl: Label = $Margin/VBox/Resources
+@onready var resources_lbl: RichTextLabel = $Margin/VBox/Resources
 @onready var outcome_lbl: Label = $Margin/VBox/Scroll/Body/EventOutcome
 @onready var rewards_list: VBoxContainer = $Margin/VBox/Scroll/Body/Rewards
 @onready var caravan_pane: VBoxContainer = $Margin/VBox/Scroll/Body/CaravanPicker
@@ -44,7 +44,7 @@ func _render() -> void:
 	if r.get("sub_event", "") != "":
 		label = "%s — %s" % [label, BattleEvent.label(r["sub_event"])]
 	header_lbl.text = "Weekly Summary — Week %d · %s" % [GameState.week, label]
-	resources_lbl.text = "Stores — %s" % GameState.resources.describe()
+	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory))
 
 	_render_outcome(r)
 	_render_rewards(r)
@@ -160,8 +160,9 @@ func _render_caravan(r: Dictionary) -> void:
 func _on_caravan_pick(idx: int) -> void:
 	GameState.merchant_pick = idx
 	var offer: ResourceBundle = GameState.merchant_offers[idx]
-	GameState.resources.add(offer)
-	# Stamp the reward onto the result so the rewards pane reflects the pick.
+	var inv_delta: Dictionary = offer.to_inventory_dict()
+	for id: String in inv_delta:
+		GameState.inventory[id] = GameState.inventory.get(id, 0) + inv_delta[id]
 	GameState.last_battle_result["reward"] = offer
 	_render()
 
