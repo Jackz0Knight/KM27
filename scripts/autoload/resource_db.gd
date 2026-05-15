@@ -113,7 +113,7 @@ const RESOURCES: Dictionary = {
 
 # Returns the ID of the highest-tier resource of `res_type` the player has any
 # amount of in inventory, or "" if the inventory holds none of that type.
-static func best_for_type(inventory: Dictionary, res_type: int) -> String:
+func best_for_type(inventory: Dictionary, res_type: int) -> String:
 	var best_id: String = ""
 	var best_tier: int = 0
 	for id: String in RESOURCES:
@@ -130,7 +130,7 @@ static func best_for_type(inventory: Dictionary, res_type: int) -> String:
 
 # Returns a BBCode string for the persistent resource HUD.
 # Gold (gold), then best held resource per type with tier colour.
-static func resource_hud_bbcode(gold: int, inventory: Dictionary) -> String:
+func resource_hud_bbcode(gold: int, inventory: Dictionary) -> String:
 	var parts: Array[String] = []
 	parts.append("[color=#FFD61A]Gold: %d[/color]" % gold)
 	var type_labels: Dictionary = {
@@ -151,12 +151,12 @@ static func resource_hud_bbcode(gold: int, inventory: Dictionary) -> String:
 	return "  ".join(parts)
 
 
-static func color_for_tier(tier: int) -> Color:
+func color_for_tier(tier: int) -> Color:
 	return TIER_COLORS.get(tier, Color.WHITE)
 
 
 # True if this resource has a recipe and its research gate (if any) is cleared.
-static func is_craftable(id: String, researched: Array) -> bool:
+func is_craftable(id: String, researched: Array) -> bool:
 	var entry: Dictionary = RESOURCES.get(id, {})
 	if entry.is_empty() or not entry.has("recipe") or entry["recipe"] == null:
 		return false
@@ -167,7 +167,7 @@ static func is_craftable(id: String, researched: Array) -> bool:
 
 
 # True if the player's inventory covers all recipe inputs for this resource.
-static func can_afford(id: String, inventory: Dictionary) -> bool:
+func can_afford(id: String, inventory: Dictionary) -> bool:
 	var entry: Dictionary = RESOURCES.get(id, {})
 	if entry.is_empty() or not entry.has("recipe") or entry["recipe"] == null:
 		return false
