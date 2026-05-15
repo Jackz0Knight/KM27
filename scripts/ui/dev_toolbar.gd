@@ -1,0 +1,302 @@
+extends CanvasLayer
+
+# F1 dev toolbar. Only visible in debug builds. Provides:
+#   • Resources — add arbitrary quantities to inventory
+#   • Gold — set gold directly
+#   • Time — advance N weeks, or force-queue a specific event
+#   • Units — edit individual unit stats live
+
+var _panel: PanelContainer = null
+var _visible: bool = false
+
+# Unit attribute editor state
+var _attr_unit_id: int = -1
+var _attr_spinners: Dictionary = {}   # stat_key -> SpinBox
+
+
+func _ready() -> void:
+	if not OS.is_debug_build():
+		queue_free()
+		return
+	layer = 128
+	_build_panel()
+	_panel.visible = false
+
+
+func _input(event: InputEvent) -> void:
+	if not OS.is_debug_build():
+		return
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_F1:
+			_toggle()
+			get_viewport().set_input_as_handled()
+
+
+func _toggle() -> void:
+	_visible = not _visible
+	_panel.visible = _visible
+	if _visible:
+		_refresh_attr_editor()
+
+
+func _build_panel() -> void:
+	_panel = PanelContainer.new()
+	_panel.custom_minimum_size = Vector2(520, 560)
+	_panel.position = Vector2(20, 20)
+	add_child(_panel)
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(520, 560)
+	_panel.add_child(scroll)
+
+	var margin := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 10)
+	scroll.add_child(margin)
+
+	var root := VBoxContainer.new()
+	root.add_theme_constant_override("separation", 10)
+	margin.add_child(root)
+
+	# Title bar
+	var title_row := HBoxContainer.new()
+	root.add_child(title_row)
+	var title_lbl := Label.new()
+	title_lbl.text = "  Dev Toolbar  [F1 to close]"
+	title_lbl.add_theme_font_size_override("font_size", 16)
+	title_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_row.add_child(title_lbl)
+	var close_btn := Button.new()
+	close_btn.text = "✕"
+	close_btn.pressed.connect(_toggle)
+	title_row.add_child(close_btn)
+
+	root.add_child(HSeparator.new())
+
+	# Resources section
+	_add_section_header(root, "Resources")
+	var res_hbox := HBoxContainer.new()
+	res_hbox.add_theme_constant_override("separation", 6)
+	root.add_child(res_hbox)
+
+	var res_dropdown := OptionButton.new()
+	res_dropdown.custom_minimum_size = Vector2(180, 0)
+	for id in ResourceDB.RESOURCES:
+		res_dropdown.add_item(ResourceDB.RESOURCES[id]["name"])
+		res_dropdown.set_item_metadata(res_dropdown.item_count - 1, id)
+	res_hbox.add_child(res_dropdown)
+
+	var res_spin := SpinBox.new()
+	res_spin.min_value = 1
+	res_spin.max_value = 999
+	res_spin.value = 10
+	res_spin.custom_minimum_size = Vector2(90, 0)
+	res_hbox.add_child(res_spin)
+
+	var res_add_btn := Button.new()
+	res_add_btn.text = "Add to Inventory"
+	res_add_btn.pressed.connect(func():
+		if not GameState.has_active_run():
+			return
+		var idx: int = res_dropdown.selected
+		var rid: String = res_dropdown.get_item_metadata(idx)
+		GameState.inventory[rid] = GameState.inventory.get(rid, 0) + int(res_spin.value)
+	)
+	res_hbox.add_child(res_add_btn)
+
+	root.add_child(HSeparator.new())
+
+	# Gold section
+	_add_section_header(root, "Gold")
+	var gold_hbox := HBoxContainer.new()
+	gold_hbox.add_theme_constant_override("separation", 6)
+	root.add_child(gold_hbox)
+
+	var gold_input := LineEdit.new()
+	gold_input.placeholder_text = "amount"
+	gold_input.custom_minimum_size = Vector2(120, 0)
+	gold_hbox.add_child(gold_input)
+
+	var gold_btn := Button.new()
+	gold_btn.text = "Set Gold"
+	gold_btn.pressed.connect(func():
+		if not GameState.has_active_run():
+			return
+		var raw: String = gold_input.text.strip_edges()
+		if raw.is_valid_int():
+			GameState.gold = int(raw)
+	)
+	gold_hbox.add_child(gold_btn)
+
+	root.add_child(HSeparator.new())
+
+	# Time section
+	_add_section_header(root, "Time")
+	var time_hbox := HBoxContainer.new()
+	time_hbox.add_theme_constant_override("separation", 6)
+	root.add_child(time_hbox)
+
+	var week_lbl := Label.new()
+	week_lbl.text = "Advance"
+	time_hbox.add_child(week_lbl)
+
+	var week_spin := SpinBox.new()
+	week_spin.min_value = 1
+	week_spin.max_value = 48
+	week_spin.value = 1
+	week_spin.custom_minimum_size = Vector2(80, 0)
+	time_hbox.add_child(week_spin)
+
+	var week_lbl2 := Label.new()
+	week_lbl2.text = "weeks"
+	time_hbox.add_child(week_lbl2)
+
+	var advance_btn := Button.new()
+	advance_btn.text = "Run Ticks"
+	advance_btn.pressed.connect(func():
+		if not GameState.has_active_run():
+			return
+		for _i in range(int(week_spin.value)):
+			Tick.apply(GameState)
+			GameState.wrap_week()
+			GameState.roll_current_event()
+	)
+	time_hbox.add_child(advance_btn)
+
+	# Force event dropdown
+	var event_hbox := HBoxContainer.new()
+	event_hbox.add_theme_constant_override("separation", 6)
+	root.add_child(event_hbox)
+
+	var ev_lbl := Label.new()
+	ev_lbl.text = "Force event:"
+	event_hbox.add_child(ev_lbl)
+
+	var ev_dropdown := OptionButton.new()
+	ev_dropdown.custom_minimum_size = Vector2(200, 0)
+	ev_dropdown.add_item("Away Battle");       ev_dropdown.set_item_metadata(0, EventKind.AWAY_BATTLE)
+	ev_dropdown.add_item("Home Battle");       ev_dropdown.set_item_metadata(1, EventKind.HOME_BATTLE)
+	ev_dropdown.add_item("Battle Event");      ev_dropdown.set_item_metadata(2, EventKind.BATTLE_EVENT)
+	ev_dropdown.add_item("Tournament");        ev_dropdown.set_item_metadata(3, EventKind.TOURNAMENT)
+	ev_dropdown.add_item("Grand Tournament");  ev_dropdown.set_item_metadata(4, EventKind.GRAND_TOURNAMENT)
+	event_hbox.add_child(ev_dropdown)
+
+	var ev_btn := Button.new()
+	ev_btn.text = "Queue"
+	ev_btn.pressed.connect(func():
+		if not GameState.has_active_run():
+			return
+		var idx2: int = ev_dropdown.selected
+		GameState.current_event = int(ev_dropdown.get_item_metadata(idx2))
+		GameState.current_battle_event = ""
+	)
+	event_hbox.add_child(ev_btn)
+
+	root.add_child(HSeparator.new())
+
+	# Unit attribute editor
+	_add_section_header(root, "Unit Attribute Editor")
+
+	var unit_hbox := HBoxContainer.new()
+	unit_hbox.add_theme_constant_override("separation", 6)
+	root.add_child(unit_hbox)
+
+	var unit_lbl := Label.new()
+	unit_lbl.text = "Unit:"
+	unit_hbox.add_child(unit_lbl)
+
+	var unit_dropdown := OptionButton.new()
+	unit_dropdown.custom_minimum_size = Vector2(200, 0)
+	unit_dropdown.add_item("(select a unit)")
+	unit_dropdown.set_item_metadata(0, -1)
+	unit_dropdown.item_selected.connect(func(idx: int):
+		_attr_unit_id = int(unit_dropdown.get_item_metadata(idx))
+		_refresh_attr_editor()
+	)
+	unit_hbox.add_child(unit_dropdown)
+
+	# Populate unit dropdown in _refresh_attr_editor
+	var attr_grid := GridContainer.new()
+	attr_grid.columns = 4
+	attr_grid.name = "AttrGrid"
+	attr_grid.add_theme_constant_override("h_separation", 8)
+	attr_grid.add_theme_constant_override("v_separation", 4)
+	root.add_child(attr_grid)
+
+	var apply_btn := Button.new()
+	apply_btn.text = "Apply Stat Changes"
+	apply_btn.name = "AttrApply"
+	apply_btn.pressed.connect(_apply_attr_changes)
+	root.add_child(apply_btn)
+
+	# Store refs for later refresh
+	_panel.set_meta("unit_dropdown", unit_dropdown)
+	_panel.set_meta("attr_grid", attr_grid)
+
+
+func _add_section_header(parent: Control, text: String) -> void:
+	var lbl := Label.new()
+	lbl.text = text
+	lbl.add_theme_font_size_override("font_size", 14)
+	lbl.modulate = Color(0.85, 0.75, 0.45)
+	parent.add_child(lbl)
+
+
+func _refresh_attr_editor() -> void:
+	if not _panel.has_meta("unit_dropdown"):
+		return
+	var unit_dropdown: OptionButton = _panel.get_meta("unit_dropdown")
+	var attr_grid: GridContainer = _panel.get_meta("attr_grid")
+
+	# Rebuild unit dropdown if run is active
+	if GameState.has_active_run():
+		unit_dropdown.clear()
+		unit_dropdown.add_item("(select a unit)")
+		unit_dropdown.set_item_metadata(0, -1)
+		for u in GameState.roster:
+			unit_dropdown.add_item("%s (%s)" % [u.unit_name, u.class_label()])
+			unit_dropdown.set_item_metadata(unit_dropdown.item_count - 1, u.id)
+			if u.id == _attr_unit_id:
+				unit_dropdown.select(unit_dropdown.item_count - 1)
+
+	# Clear and rebuild stat grid
+	for c in attr_grid.get_children():
+		c.queue_free()
+	_attr_spinners.clear()
+
+	if _attr_unit_id < 0 or not GameState.has_active_run():
+		return
+	var u: Unit = GameState.find_unit(_attr_unit_id)
+	if u == null:
+		return
+
+	for stat_key in Stats.STAT_KEYS:
+		var name_lbl := Label.new()
+		name_lbl.text = stat_key.capitalize()
+		attr_grid.add_child(name_lbl)
+
+		var spin := SpinBox.new()
+		spin.min_value = 0
+		spin.max_value = Stats.STAT_CAP
+		spin.value = u.stats.get_value(stat_key)
+		spin.custom_minimum_size = Vector2(80, 0)
+		attr_grid.add_child(spin)
+		_attr_spinners[stat_key] = spin
+
+		var pa_lbl := Label.new()
+		pa_lbl.text = "PA: %d" % u.potential_ability
+		pa_lbl.modulate = Color(0.6, 0.6, 0.6)
+		attr_grid.add_child(pa_lbl)
+
+		attr_grid.add_child(Control.new())   # spacer
+
+
+func _apply_attr_changes() -> void:
+	if _attr_unit_id < 0 or not GameState.has_active_run():
+		return
+	var u: Unit = GameState.find_unit(_attr_unit_id)
+	if u == null:
+		return
+	for stat_key in _attr_spinners:
+		var spin: SpinBox = _attr_spinners[stat_key]
+		u.stats.set_value(stat_key, int(spin.value))
