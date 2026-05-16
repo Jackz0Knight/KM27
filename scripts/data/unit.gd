@@ -27,6 +27,16 @@ var expedition_id: int = -1
 # Each entry: {"stat": String, "weeks_remaining": int}. Decremented by Tick.
 var injuries: Array = []
 
+# Chronicle enrichment — populated at unit creation by RosterGenerator.
+# epithet: earned through events ("the Steadfast", "the Duelist", etc.)
+# banner_line: heraldic descriptor derived from top 2 stats.
+# origin_text: backstory paragraph shown on the Knight Overview screen.
+# oath: a single sworn sentence; honoring/breaking has stat consequences.
+var epithet: String = ""
+var banner_line: String = ""
+var origin_text: String = ""
+var oath: String = ""
+
 
 func _init(
 	p_id: int = 0,
