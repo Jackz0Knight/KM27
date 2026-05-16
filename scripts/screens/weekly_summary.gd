@@ -5,6 +5,7 @@ extends Control
 
 @onready var header_lbl: Label = $Margin/VBox/Header
 @onready var resources_lbl: RichTextLabel = $Margin/VBox/Resources
+@onready var summary_body: VBoxContainer = $Margin/VBox/Scroll/Body
 @onready var outcome_lbl: Label = $Margin/VBox/Scroll/Body/EventOutcome
 @onready var rewards_list: VBoxContainer = $Margin/VBox/Scroll/Body/Rewards
 @onready var caravan_pane: VBoxContainer = $Margin/VBox/Scroll/Body/CaravanPicker
@@ -36,15 +37,21 @@ func _ready() -> void:
 	# Render content into the nodes first (hidden).
 	_render_content()
 
-	# Collect the sections we'll animate in.
-	_anim_sections = [
+	# Chronicle panel is the first child after render_content() inserts it.
+	var chronicle_panel: Control = summary_body.get_child(0) if summary_body.get_child_count() > 0 else null
+
+	# Collect the sections we'll animate in — Chronicle first, then ledger data.
+	_anim_sections = []
+	if chronicle_panel != null and chronicle_panel.name == "ChroniclePanel":
+		_anim_sections.append(chronicle_panel)
+	_anim_sections.append_array([
 		outcome_lbl,
 		rewards_list,
 		deltas_list,
 		returns_list,
 		caravan_pane,
 		streak_lbl,
-	]
+	])
 
 	# Hide all sections initially.
 	for sec in _anim_sections:
@@ -87,6 +94,7 @@ func _render_content() -> void:
 	header_lbl.text = "Weekly Summary — Week %d · %s" % [GameState.week, label]
 	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory))
 
+	_render_chronicle()
 	_render_outcome(r)
 	_render_rewards(r)
 	_render_caravan(r)
@@ -95,6 +103,47 @@ func _render_content() -> void:
 	_render_streak(r)
 	# Next button state set after animation.
 	next_btn.text = "Please wait…"
+
+
+func _render_chronicle() -> void:
+	# Remove any previously-rendered chronicle panel (re-render safety).
+	for c in summary_body.get_children():
+		if c.name == "ChroniclePanel":
+			c.queue_free()
+			break
+
+	var prose: String = Chronicle.generate_week_entry(GameState)
+
+	var panel := PanelContainer.new()
+	panel.name = "ChroniclePanel"
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_right", 16)
+	margin.add_theme_constant_override("margin_top", 14)
+	margin.add_theme_constant_override("margin_bottom", 14)
+	panel.add_child(margin)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	margin.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "Chronicle"
+	title.add_theme_font_size_override("font_size", 14)
+	title.modulate = Color(0.72, 0.62, 0.38)
+	vbox.add_child(title)
+
+	var prose_lbl := Label.new()
+	prose_lbl.text = prose
+	prose_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+	prose_lbl.modulate = Color(0.86, 0.80, 0.65)
+	prose_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(prose_lbl)
+
+	summary_body.add_child(panel)
+	summary_body.move_child(panel, 0)
 
 
 func _render(r: Dictionary = GameState.last_battle_result) -> void:

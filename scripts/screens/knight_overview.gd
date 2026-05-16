@@ -51,6 +51,7 @@ const STAT_BLURBS: Dictionary = {
 @onready var stats_blocks: VBoxContainer = $Margin/VBox/Scroll/Body/StatsBlocks
 @onready var task_info: VBoxContainer = $Margin/VBox/Scroll/Body/TaskInfo
 @onready var history_info: VBoxContainer = $Margin/VBox/Scroll/Body/HistoryInfo
+@onready var overview_body: VBoxContainer = $Margin/VBox/Scroll/Body
 @onready var back_btn: Button = $Margin/VBox/TopBar/BackBtn
 @onready var settings_btn: Button = $Margin/VBox/TopBar/SettingsBtn
 
@@ -72,10 +73,14 @@ func _ready() -> void:
 
 
 func _render(unit: Unit) -> void:
-	header_lbl.text = "%s %s" % [_honorific(unit), unit.unit_name]
+	var name_parts: String = "%s %s" % [_honorific(unit), unit.unit_name]
+	if unit.epithet != "":
+		name_parts += ", %s" % unit.epithet
+	header_lbl.text = name_parts
 	sub_header_lbl.text = "%s · %s" % [unit.class_label(), _status_line(unit)]
 	stats_total_lbl.text = "Stat total: %d" % unit.stats.sum()
 	_render_stats(unit)
+	_render_chronicle_card(unit)
 	_render_task(unit)
 	_render_history(unit)
 
@@ -158,6 +163,76 @@ func _build_stat_group(unit: Unit, group_label: String, stat_keys: Array) -> Con
 		vbox.add_child(row)
 
 	return panel
+
+
+# ---------- Chronicle card (origin, banner, oath) ----------
+
+func _render_chronicle_card(unit: Unit) -> void:
+	# Insert a bordered amber card between stats and task info.
+	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 14)
+	margin.add_theme_constant_override("margin_right", 14)
+	margin.add_theme_constant_override("margin_top", 12)
+	margin.add_theme_constant_override("margin_bottom", 12)
+	panel.add_child(margin)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	margin.add_child(vbox)
+
+	# Origin
+	if unit.origin_text != "":
+		var origin_lbl := Label.new()
+		origin_lbl.text = unit.origin_text
+		origin_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+		origin_lbl.modulate = Color(0.88, 0.82, 0.68)
+		vbox.add_child(origin_lbl)
+
+	# Banner & Oath in a two-row info strip
+	if unit.banner_line != "" or unit.oath != "":
+		var sep := HSeparator.new()
+		sep.modulate = Color(0.5, 0.42, 0.25, 0.5)
+		vbox.add_child(sep)
+
+	if unit.banner_line != "":
+		var hbox := HBoxContainer.new()
+		hbox.add_theme_constant_override("separation", 8)
+		var label_lbl := Label.new()
+		label_lbl.text = "Arms:"
+		label_lbl.modulate = Color(0.72, 0.62, 0.40)
+		label_lbl.custom_minimum_size = Vector2(56, 0)
+		hbox.add_child(label_lbl)
+		var val_lbl := Label.new()
+		val_lbl.text = unit.banner_line
+		val_lbl.modulate = Color(0.78, 0.72, 0.55)
+		val_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		val_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+		hbox.add_child(val_lbl)
+		vbox.add_child(hbox)
+
+	if unit.oath != "":
+		var hbox := HBoxContainer.new()
+		hbox.add_theme_constant_override("separation", 8)
+		var label_lbl := Label.new()
+		label_lbl.text = "Oath:"
+		label_lbl.modulate = Color(0.72, 0.62, 0.40)
+		label_lbl.custom_minimum_size = Vector2(56, 0)
+		hbox.add_child(label_lbl)
+		var val_lbl := Label.new()
+		val_lbl.text = "\" %s \"" % unit.oath
+		val_lbl.modulate = Color(0.82, 0.78, 0.60)
+		val_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		val_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+		hbox.add_child(val_lbl)
+		vbox.add_child(hbox)
+
+	# Insert after stats_blocks (before task_info) by getting its index.
+	var insert_idx: int = stats_blocks.get_index() + 1
+	overview_body.add_child(panel)
+	overview_body.move_child(panel, insert_idx)
 
 
 # ---------- task info ----------

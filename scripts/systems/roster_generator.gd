@@ -55,10 +55,20 @@ static func _roll_knight(unit_id: int) -> Unit:
 	var stats: Stats = Stats.roll(KNIGHT_STAT_MIN, KNIGHT_STAT_MAX)
 	stats.apply_flat_bonus(KNIGHT_FLAT_BONUS)
 	var pa: int = RNG.randi_range(KNIGHT_PA_MIN, KNIGHT_PA_MAX)
-	return Unit.new(unit_id, NamePool.random_name(), Unit.UnitClass.KNIGHT, stats, pa)
+	var u := Unit.new(unit_id, NamePool.random_name(), Unit.UnitClass.KNIGHT, stats, pa)
+	_enrich(u)
+	return u
 
 
 static func _roll_squire(unit_id: int) -> Unit:
 	var stats: Stats = Stats.roll(SQUIRE_STAT_MIN, SQUIRE_STAT_MAX)
 	var pa: int = RNG.randi_range(SQUIRE_PA_MIN, SQUIRE_PA_MAX)
-	return Unit.new(unit_id, NamePool.random_name(), Unit.UnitClass.SQUIRE, stats, pa)
+	var u := Unit.new(unit_id, NamePool.random_name(), Unit.UnitClass.SQUIRE, stats, pa)
+	_enrich(u)
+	return u
+
+
+static func _enrich(u: Unit) -> void:
+	u.origin_text = Chronicle.generate_origin(u)
+	u.banner_line  = Chronicle.generate_banner(u)
+	u.oath         = Chronicle.generate_oath(u)
