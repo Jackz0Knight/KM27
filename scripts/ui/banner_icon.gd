@@ -36,6 +36,15 @@ func set_unit(unit: Unit) -> void:
 	queue_redraw()
 
 
+# Decorative entry point — render a house's crest without needing a Unit.
+# Used by the title screen frieze. Pass body_type="" to suppress the silhouette
+# (set_show_body still gates whether the silhouette renders at all).
+func set_house(house_id: String, body_type: String = "") -> void:
+	_house_id = house_id
+	_body_type = body_type
+	queue_redraw()
+
+
 func set_show_body(show: bool) -> void:
 	_show_body = show
 	queue_redraw()
