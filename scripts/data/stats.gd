@@ -25,6 +25,36 @@ const STAT_KEYS: Array[String] = [
 
 const STAT_CAP: int = 20
 
+# Descriptor bands for stat obfuscation. Cards show the word, Knight Overview
+# shows the word + the number. Hover tooltips on the cards reveal the number
+# so the player can verify when they need to. Bands chosen so each holds 3
+# values across the 1-20 scale — keeps the spread legible.
+const DESCRIPTORS: Array[Dictionary] = [
+	{"max": 0,  "label": "—",         "color": Color(0.50, 0.46, 0.40)},
+	{"max": 3,  "label": "Wretched",  "color": Color(0.60, 0.28, 0.22)},
+	{"max": 6,  "label": "Poor",      "color": Color(0.75, 0.45, 0.30)},
+	{"max": 9,  "label": "Decent",    "color": Color(0.80, 0.72, 0.45)},
+	{"max": 12, "label": "Good",      "color": Color(0.70, 0.82, 0.55)},
+	{"max": 15, "label": "Strong",    "color": Color(0.50, 0.85, 0.50)},
+	{"max": 18, "label": "Excellent", "color": Color(0.40, 0.82, 0.85)},
+	{"max": 20, "label": "Masterful", "color": Color(0.95, 0.78, 0.30)},
+]
+
+
+static func descriptor(value: int) -> String:
+	for band in DESCRIPTORS:
+		if value <= int(band["max"]):
+			return str(band["label"])
+	return "Masterful"
+
+
+static func descriptor_color(value: int) -> Color:
+	for band in DESCRIPTORS:
+		if value <= int(band["max"]):
+			return band["color"]
+	return DESCRIPTORS[-1]["color"]
+
+
 var strength: int = 0
 var speed: int = 0
 var technique: int = 0

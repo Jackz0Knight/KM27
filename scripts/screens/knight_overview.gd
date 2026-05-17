@@ -47,11 +47,11 @@ const STAT_BLURBS: Dictionary = {
 
 @onready var header_lbl: Label = $Margin/VBox/Header
 @onready var sub_header_lbl: Label = $Margin/VBox/SubHeader
-@onready var stats_total_lbl: Label = $Margin/VBox/Scroll/Body/StatsTotal
-@onready var stats_blocks: VBoxContainer = $Margin/VBox/Scroll/Body/StatsBlocks
-@onready var task_info: VBoxContainer = $Margin/VBox/Scroll/Body/TaskInfo
-@onready var history_info: VBoxContainer = $Margin/VBox/Scroll/Body/HistoryInfo
-@onready var overview_body: VBoxContainer = $Margin/VBox/Scroll/Body
+@onready var chronicle_slot: VBoxContainer = $Margin/VBox/Columns/LeftCol/ChronicleSlot
+@onready var stats_total_lbl: Label = $Margin/VBox/Columns/MidCol/StatsTotal
+@onready var stats_blocks: VBoxContainer = $Margin/VBox/Columns/MidCol/StatsBlocks
+@onready var task_info: VBoxContainer = $Margin/VBox/Columns/RightCol/TaskInfo
+@onready var history_info: VBoxContainer = $Margin/VBox/Columns/RightCol/HistoryScroll/HistoryInfo
 @onready var back_btn: Button = $Margin/VBox/TopBar/BackBtn
 @onready var settings_btn: Button = $Margin/VBox/TopBar/SettingsBtn
 
@@ -146,18 +146,29 @@ func _build_stat_group(unit: Unit, group_label: String, stat_keys: Array) -> Con
 
 		var name_lbl := Label.new()
 		name_lbl.text = String(key).capitalize()
-		name_lbl.custom_minimum_size = Vector2(160, 0)
+		name_lbl.custom_minimum_size = Vector2(120, 0)
 		row.add_child(name_lbl)
 
+		var value: int = unit.stats.get_value(key)
 		var value_lbl := Label.new()
-		value_lbl.text = "%d / 20" % unit.stats.get_value(key)
-		value_lbl.custom_minimum_size = Vector2(70, 0)
+		value_lbl.text = "%d" % value
+		value_lbl.custom_minimum_size = Vector2(30, 0)
+		value_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		value_lbl.modulate = Color(0.78, 0.74, 0.60)
 		row.add_child(value_lbl)
+
+		# Coloured descriptor — same band system as the cards.
+		var desc_lbl := Label.new()
+		desc_lbl.text = Stats.descriptor(value)
+		desc_lbl.add_theme_color_override("font_color", Stats.descriptor_color(value))
+		desc_lbl.custom_minimum_size = Vector2(80, 0)
+		row.add_child(desc_lbl)
 
 		var blurb := Label.new()
 		blurb.text = STAT_BLURBS.get(key, "")
-		blurb.modulate = Color(0.7, 0.7, 0.7)
+		blurb.modulate = Color(0.6, 0.58, 0.46)
 		blurb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		blurb.autowrap_mode = TextServer.AUTOWRAP_WORD
 		row.add_child(blurb)
 
 		vbox.add_child(row)
@@ -284,10 +295,11 @@ func _render_chronicle_card(unit: Unit) -> void:
 		hbox.add_child(val_lbl)
 		vbox.add_child(hbox)
 
-	# Insert after stats_blocks (before task_info) by getting its index.
-	var insert_idx: int = stats_blocks.get_index() + 1
-	overview_body.add_child(panel)
-	overview_body.move_child(panel, insert_idx)
+	# Chronicle card now lives in its own left column.
+	for c in chronicle_slot.get_children():
+		c.queue_free()
+	panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	chronicle_slot.add_child(panel)
 
 
 # ---------- task info ----------

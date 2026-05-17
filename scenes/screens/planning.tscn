@@ -120,13 +120,10 @@ layout_mode = 2
 text = "Click a name to open the Knight's full overview."
 modulate = Color(0.72, 0.72, 0.72, 1)
 
-[node name="RosterScroll" type="ScrollContainer" parent="Margin/VBox/Content/Overview"]
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="RosterCards" type="VBoxContainer" parent="Margin/VBox/Content/Overview/RosterScroll"]
+[node name="RosterCards" type="VBoxContainer" parent="Margin/VBox/Content/Overview"]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 3
 theme_override_constants/separation = 10
 
 [node name="Tactics" type="VBoxContainer" parent="Margin/VBox/Content"]
@@ -276,28 +273,52 @@ theme_override_colors/font_color = Color(0.83, 0.66, 0.35, 1)
 
 [node name="ResearchPanel" type="PanelContainer" parent="Margin/VBox/Content/Research"]
 layout_mode = 2
+size_flags_vertical = 3
 
 [node name="ResearchMargin" type="MarginContainer" parent="Margin/VBox/Content/Research/ResearchPanel"]
 layout_mode = 2
-theme_override_constants/margin_left = 18
-theme_override_constants/margin_right = 18
-theme_override_constants/margin_top = 14
-theme_override_constants/margin_bottom = 14
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_bottom = 20
 
 [node name="ResearchBody" type="VBoxContainer" parent="Margin/VBox/Content/Research/ResearchPanel/ResearchMargin"]
 layout_mode = 2
-theme_override_constants/separation = 6
+alignment = 1
+theme_override_constants/separation = 14
+
+[node name="ResearchOrnament" type="Label" parent="Margin/VBox/Content/Research/ResearchPanel/ResearchMargin/ResearchBody"]
+layout_mode = 2
+text = "❦  ⚜  ❦"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 28
+modulate = Color(0.65, 0.55, 0.32, 1)
 
 [node name="ResearchTitle" type="Label" parent="Margin/VBox/Content/Research/ResearchPanel/ResearchMargin/ResearchBody"]
 layout_mode = 2
 text = "Scrolls & Whetstones"
-theme_override_font_sizes/font_size = 18
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 24
+theme_override_colors/font_color = Color(0.92, 0.84, 0.55, 1)
 
 [node name="ResearchBlurb" type="Label" parent="Margin/VBox/Content/Research/ResearchPanel/ResearchMargin/ResearchBody"]
 layout_mode = 2
-text = "No tomes have been opened, no smithy upgrades commissioned. The Research hall stands ready for future iteration — perks, training schools, and equipment unlocks will live here."
+text = "No tomes have been opened, no smithy upgrades commissioned. The Research hall stands ready — perks, training schools, and equipment unlocks will live here in time."
+horizontal_alignment = 1
 autowrap_mode = 3
 modulate = Color(0.78, 0.74, 0.60, 1)
+
+[node name="ResearchSep" type="HSeparator" parent="Margin/VBox/Content/Research/ResearchPanel/ResearchMargin/ResearchBody"]
+layout_mode = 2
+modulate = Color(0.5, 0.42, 0.25, 0.4)
+
+[node name="ResearchQuote" type="Label" parent="Margin/VBox/Content/Research/ResearchPanel/ResearchMargin/ResearchBody"]
+layout_mode = 2
+text = "\"  Knowledge sharpens the sword no less than the whetstone.  \""
+horizontal_alignment = 1
+autowrap_mode = 3
+modulate = Color(0.62, 0.55, 0.40, 1)
+theme_override_font_sizes/font_size = 14
 
 [node name="Calendar" type="VBoxContainer" parent="Margin/VBox/Content"]
 layout_mode = 2

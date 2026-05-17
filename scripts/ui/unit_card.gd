@@ -134,24 +134,44 @@ static func build(
 
 	var injured_set: Array[String] = unit.injured_stats()
 
+	# Stats grid uses DESCRIPTORS (Wretched/Poor/Decent/Good/...) instead of
+	# numbers — cards are the "at a glance" surface. The full numeric value
+	# is in the tooltip for players who need to verify. Knight Overview
+	# (the detail screen) keeps the numbers visible.
 	var grid := GridContainer.new()
-	grid.columns = 4
-	grid.add_theme_constant_override("h_separation", 14)
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 20)
 	grid.add_theme_constant_override("v_separation", 2)
 	for stat_key in Stats.STAT_KEYS:
-		var stat_lbl := Label.new()
-		var abbrev: String = STAT_ABBREV.get(stat_key, stat_key.substr(0, 3))
-		stat_lbl.text = "%s: %d" % [abbrev, unit.stats.get_value(stat_key)]
-		stat_lbl.tooltip_text = STAT_TOOLTIPS.get(stat_key, stat_key.capitalize())
-		if injured_set.has(stat_key):
-			stat_lbl.modulate = Color(0.95, 0.45, 0.30)
-		grid.add_child(stat_lbl)
-	vbox.add_child(grid)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
 
-	var sum_lbl := Label.new()
-	sum_lbl.text = "Stat total: %d" % unit.stats.sum()
-	sum_lbl.modulate = Color(0.72, 0.72, 0.72)
-	vbox.add_child(sum_lbl)
+		var name_lbl := Label.new()
+		name_lbl.text = "%s" % String(stat_key).capitalize()
+		name_lbl.custom_minimum_size = Vector2(110, 0)
+		name_lbl.modulate = Color(0.72, 0.70, 0.58)
+		row.add_child(name_lbl)
+
+		var value: int = unit.stats.get_value(stat_key)
+		var desc_lbl := Label.new()
+		desc_lbl.text = Stats.descriptor(value)
+		desc_lbl.add_theme_color_override("font_color", Stats.descriptor_color(value))
+		if injured_set.has(stat_key):
+			desc_lbl.text = "%s (hurt)" % Stats.descriptor(value)
+			desc_lbl.add_theme_color_override("font_color", Color(0.95, 0.45, 0.30))
+		row.add_child(desc_lbl)
+
+		# Tooltip on the whole row gives the numeric value + the gameplay blurb.
+		var tip: String = "%s — value: %d / 20\n%s" % [
+			String(stat_key).capitalize(),
+			value,
+			STAT_TOOLTIPS.get(stat_key, ""),
+		]
+		name_lbl.tooltip_text = tip
+		desc_lbl.tooltip_text = tip
+
+		grid.add_child(row)
+	vbox.add_child(grid)
 
 	# Heraldic banner — one subtle line on every card when the unit has one.
 	var banner: String = unit.banner_line

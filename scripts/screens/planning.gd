@@ -31,7 +31,7 @@ const SettingsPopup = preload("res://scripts/ui/settings_popup.gd")
 @onready var status_lbl: Label            = $Margin/VBox/StatusLabel
 
 # Overview tab.
-@onready var roster_cards: VBoxContainer = $Margin/VBox/Content/Overview/RosterScroll/RosterCards
+@onready var roster_cards: VBoxContainer = $Margin/VBox/Content/Overview/RosterCards
 
 # Tactics tab.
 @onready var tactics_upcoming_list: VBoxContainer = $Margin/VBox/Content/Tactics/TacticsUpcoming/UpcomingList
@@ -205,12 +205,22 @@ func _refresh_overview_tab() -> void:
 	var sep := HSeparator.new()
 	roster_cards.add_child(sep)
 
+	# 2×2 grid for the four roster cards — no scroll needed at 1080p.
+	var card_grid := GridContainer.new()
+	card_grid.columns = 2
+	card_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card_grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	card_grid.add_theme_constant_override("h_separation", 16)
+	card_grid.add_theme_constant_override("v_separation", 12)
+	roster_cards.add_child(card_grid)
+
 	for u in GameState.roster:
 		var card: Control = UnitCard.build(
 			u, Callable(), "", _open_knight_overview.bind(u.id)
 		)
 		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		roster_cards.add_child(card)
+		card.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		card_grid.add_child(card)
 
 
 func _cashflow_bbcode() -> String:

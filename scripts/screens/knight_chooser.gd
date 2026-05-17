@@ -33,6 +33,8 @@ func _ready() -> void:
 			u, _on_choose.bind(i), "Take %s into service" % u.unit_name,
 			Callable(), true,
 		)
+		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		card.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		cards.add_child(card)
 
 
