@@ -27,8 +27,11 @@ func _ready() -> void:
 
 	for i in range(GameState.knight_candidates.size()):
 		var u: Unit = GameState.knight_candidates[i]
+		# show_chronicle = true: origin paragraph and oath shown on the chooser
+		# so the player recruits a person, not just a stat block.
 		var card: Control = UnitCard.build(
-			u, _on_choose.bind(i), "Take %s into service" % u.unit_name
+			u, _on_choose.bind(i), "Take %s into service" % u.unit_name,
+			Callable(), true,
 		)
 		cards.add_child(card)
 

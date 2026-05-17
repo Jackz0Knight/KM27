@@ -168,6 +168,14 @@ func _build_stat_group(unit: Unit, group_label: String, stat_keys: Array) -> Con
 # ---------- Chronicle card (origin, banner, oath) ----------
 
 func _render_chronicle_card(unit: Unit) -> void:
+	# Lazy-generate fields for units created before this feature (old saves).
+	if unit.banner_line == "":
+		unit.banner_line = Chronicle.generate_banner(unit)
+	if unit.origin_text == "":
+		unit.origin_text = Chronicle.generate_origin(unit)
+	if unit.oath == "":
+		unit.oath = Chronicle.generate_oath(unit)
+
 	# Insert a bordered amber card between stats and task info.
 	var panel := PanelContainer.new()
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL

@@ -36,11 +36,14 @@ const STAT_TOOLTIPS: Dictionary = {
 }
 
 
+# show_chronicle: when true, render the unit's origin paragraph and oath below
+# the stats (used on the Knight Chooser so recruitment feels like hiring a person).
 static func build(
 	unit: Unit,
 	on_choose: Callable = Callable(),
 	choose_label: String = "",
 	on_name_clicked: Callable = Callable(),
+	show_chronicle: bool = false,
 ) -> Control:
 	var panel := PanelContainer.new()
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -56,7 +59,11 @@ static func build(
 	vbox.add_theme_constant_override("separation", 6)
 	margin.add_child(vbox)
 
-	var name_text: String = "%s — %s" % [unit.unit_name, unit.class_label()]
+	# Name — include earned epithet when set.
+	var display_name: String = unit.unit_name
+	if unit.epithet != "":
+		display_name += ", %s" % unit.epithet
+	var name_text: String = "%s — %s" % [display_name, unit.class_label()]
 	if on_name_clicked.is_valid():
 		var name_btn := LinkButton.new()
 		name_btn.text = name_text
@@ -75,7 +82,7 @@ static func build(
 	task_lbl.modulate = Color(0.72, 0.72, 0.72)
 	vbox.add_child(task_lbl)
 
-	# Injury indicator
+	# Injury indicator.
 	if unit.is_injured():
 		var inj_lbl := Label.new()
 		var inj_stats: Array[String] = unit.injured_stats()
@@ -103,6 +110,46 @@ static func build(
 	sum_lbl.text = "Stat total: %d" % unit.stats.sum()
 	sum_lbl.modulate = Color(0.72, 0.72, 0.72)
 	vbox.add_child(sum_lbl)
+
+	# Heraldic banner — one subtle line on every card when the unit has one.
+	var banner: String = unit.banner_line
+	if banner == "":
+		banner = Chronicle.generate_banner(unit)
+	if banner != "":
+		var banner_lbl := Label.new()
+		banner_lbl.text = banner
+		banner_lbl.modulate = Color(0.60, 0.54, 0.36)
+		banner_lbl.add_theme_font_size_override("font_size", 12)
+		vbox.add_child(banner_lbl)
+
+	# Chronicle section — origin paragraph + oath, shown when requested.
+	if show_chronicle:
+		var origin: String = unit.origin_text
+		if origin == "":
+			origin = Chronicle.generate_origin(unit)
+		var oath: String = unit.oath
+		if oath == "":
+			oath = Chronicle.generate_oath(unit)
+
+		if origin != "" or oath != "":
+			var sep := HSeparator.new()
+			sep.modulate = Color(0.5, 0.42, 0.25, 0.4)
+			vbox.add_child(sep)
+
+		if origin != "":
+			var origin_lbl := Label.new()
+			origin_lbl.text = origin
+			origin_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+			origin_lbl.modulate = Color(0.82, 0.76, 0.60)
+			vbox.add_child(origin_lbl)
+
+		if oath != "":
+			var oath_lbl := Label.new()
+			oath_lbl.text = "\" %s \"" % oath
+			oath_lbl.modulate = Color(0.80, 0.70, 0.40)
+			oath_lbl.add_theme_font_size_override("font_size", 13)
+			oath_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+			vbox.add_child(oath_lbl)
 
 	if on_choose.is_valid() and choose_label != "":
 		var btn := Button.new()
