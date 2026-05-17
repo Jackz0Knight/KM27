@@ -138,6 +138,29 @@ Declared in `scripts/autoload/event_bus.gd`. Listeners attach at `_ready()`; emi
 
 Add new signals here as new phases need them — don't proliferate ad-hoc signal definitions across scenes.
 
+## Local Validation (headless Godot)
+
+You can validate code changes without launching the editor by running the project headless. This catches parse errors, missing class references, and autoload wiring issues in seconds.
+
+**Godot binary** (machine-specific, lives on Jack's Desktop):
+```powershell
+& 'C:\Users\zoom3\Desktop\Godot_v4.6.1-stable_win64.exe' --headless --path . --quit-after 30
+```
+
+A clean run prints `[KM27] Title ready.` and exits with no `SCRIPT ERROR` / `Parse Error` lines. If you see `Could not find type "Unit"` (or any other `class_name`'d type) errors, it usually means the **class cache is missing** — the registry that maps `class_name` declarations to script paths. Build it once by running the editor headless:
+
+```powershell
+& 'C:\Users\zoom3\Desktop\Godot_v4.6.1-stable_win64.exe' --headless --path . --editor --quit
+```
+
+That populates `.godot/global_script_class_cache.cfg`. Re-run the first command and errors should clear. The `.godot/` directory is gitignored, so a fresh worktree or CI runner will need this step.
+
+**Other useful invocations:**
+- `--script res://path/to/dev_scene.gd` — run a single script headless (good for the `scripts/dev/` validators).
+- `--check-only` — pure GDScript parse check, no autoload bring-up.
+
+The binary path is whitelisted in `.claude/settings.local.json` (gitignored — machine-specific). If the binary moves, update the wildcard there.
+
 ## Dev Hotkeys & Debug Entry Points
 
 | Key / button | What it does |
