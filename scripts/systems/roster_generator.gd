@@ -54,16 +54,27 @@ static func build_starting_roster(chosen_knight: Unit, squires: Array[Unit]) -> 
 static func _roll_knight(unit_id: int) -> Unit:
 	var stats: Stats = Stats.roll(KNIGHT_STAT_MIN, KNIGHT_STAT_MAX)
 	stats.apply_flat_bonus(KNIGHT_FLAT_BONUS)
+	var house_id: String = HousePool.random_house_id()
+	HousePool.apply_lean(stats, house_id, Stats.STAT_CAP)
 	var pa: int = RNG.randi_range(KNIGHT_PA_MIN, KNIGHT_PA_MAX)
 	var u := Unit.new(unit_id, NamePool.random_name(), Unit.UnitClass.KNIGHT, stats, pa)
+	u.house_id = house_id
+	u.body_type = BodyType.random_body_type()
 	_enrich(u)
 	return u
 
 
 static func _roll_squire(unit_id: int) -> Unit:
 	var stats: Stats = Stats.roll(SQUIRE_STAT_MIN, SQUIRE_STAT_MAX)
+	var house_id: String = HousePool.random_house_id()
+	# Squires use the same lean — they're sworn to a household too.
+	# Cap squire stats at SQUIRE_STAT_MAX so the lean doesn't push them out
+	# of their roll band.
+	HousePool.apply_lean(stats, house_id, SQUIRE_STAT_MAX)
 	var pa: int = RNG.randi_range(SQUIRE_PA_MIN, SQUIRE_PA_MAX)
 	var u := Unit.new(unit_id, NamePool.random_name(), Unit.UnitClass.SQUIRE, stats, pa)
+	u.house_id = house_id
+	u.body_type = BodyType.random_body_type()
 	_enrich(u)
 	return u
 

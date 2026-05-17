@@ -262,6 +262,40 @@ Squires do not promote to Knight in MVP. The starting roster is permanent.
 ### No Recruitment in MVP
 The roster is fixed at the 4 starting units.
 
+### Households & Body Types
+
+Every unit is rolled into one of **four noble houses** and one of **four body types**. Together they give the player an at-a-glance read on a character before reading the stat block.
+
+#### Houses (4)
+
+| House | Archetype | Motto | Visual | Stat Lean (implicit) |
+|---|---|---|---|---|
+| **Brann** | Warrior | "Steel before words." | Crimson + black; pale; crossed swords | +Strength / +Swordsmanship / +Bravery; −Etiquette / −Technique |
+| **Aldermere** | Scholar | "By measure and by mind." | Deep blue + silver; chevron; book | +Etiquette / +Leadership / +Loyalty; −Strength / −Intimidation |
+| **Daven** | Scout | "First to the tide." | Sea green + bone; bend; arrow | +Speed / +Archery / +Technique; −Bravery / −Leadership |
+| **Faldur** | Cavalier | "Higher than the throne." | Forest green + ochre; saltire; horseshoe | +Horsemanship / +Bravery / +Leadership; −Archery / −Determination |
+
+The lean is **+1 to each preferred stat, −1 to each discouraged stat**, applied after the base roll and before clamping. Net stat budget is roughly preserved — house shifts the curve rather than growing it. **Leans are not displayed to the player** (no chips, no tooltips); the motto and origin paragraph hint at them. Players learn the leans by playing.
+
+#### Body Types (4, rolled independently)
+
+| Body | Silhouette feel |
+|---|---|
+| **Lean** | Long-limbed and economical of motion. |
+| **Burly** | Broad through the shoulder, slow to anger and slower to move. |
+| **Tall** | A full head above the other men in the courtyard. |
+| **Wiry** | Small-framed but never the first to tire. |
+
+Body type does **not** affect stats. It's a pure visual + flavour signal that stacks with the heraldic crest so the player can read two independent dimensions of a character at a glance. Body type rolls uniformly and independently of house — a Brann (warrior house) knight can still be Lean, which creates outlier characters worth picking.
+
+#### Visual surface
+
+- **Knight Chooser** — large crest (~72×92) + house name + motto + body silhouette appear on every candidate card. The pick feels like recruiting a person, not selecting a stat array.
+- **Knight Overview** — full crest (~132×168) anchors the chronicle card; house name, motto, and body type flavour fill the right column.
+- **UnitCard (everywhere else)** — compact 44×56 crest + body silhouette + a single muted line `House Name · Body · "Motto"` above the stat grid.
+
+All heraldry is rendered procedurally via `scripts/ui/banner_icon.gd` (custom `_draw()` with `Polygon2D`-style primitives). No PNG assets, scales freely from 32px chips to full hero cards.
+
 ---
 
 ## 10. Stats
@@ -471,5 +505,6 @@ All in `FutureFeatures.md`.
 
 ## Changelog
 
+- 2026-05-17 — Added §9 *Households & Body Types* (4 archetypal houses with implicit stat leans + 4 independent body silhouettes). Drives the visual banner system; not in original MVP scope but additive — doesn't change any existing rule, just biases starting stat rolls.
 - 2026-05-14 — MVP GDD imported from external draft (Core Loop, Win/Loss, Map & Tile Knowledge, Weekly Flow, Events, At-Home Tasks, Expeditions, Stats, Formations, Battle Resolution, Resources, UI, Calendar, MVP Exclusions).
 - 2026-05-14 — Initial GDD skeleton (superseded by MVP import).

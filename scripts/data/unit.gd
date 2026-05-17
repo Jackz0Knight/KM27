@@ -37,6 +37,13 @@ var banner_line: String = ""
 var origin_text: String = ""
 var oath: String = ""
 
+# Household + body type — rolled at unit creation by RosterGenerator. Drives
+# the visual crest rendered by BannerIcon plus the implicit stat lean.
+# Body type rolls independently of house (a Brann knight can still be Lean).
+# See `scripts/data/house_pool.gd` and `scripts/data/body_type.gd`.
+var house_id: String = ""
+var body_type: String = ""
+
 
 func _init(
 	p_id: int = 0,

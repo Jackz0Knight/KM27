@@ -59,6 +59,32 @@ static func build(
 	vbox.add_theme_constant_override("separation", 6)
 	margin.add_child(vbox)
 
+	# Header row: small crest (with body silhouette) + name block.
+	# Chooser cards (show_chronicle=true) use a larger banner; regular cards
+	# get a compact 28×36 chip that still reads at-a-glance.
+	var header_row := HBoxContainer.new()
+	header_row.add_theme_constant_override("separation", 10)
+	vbox.add_child(header_row)
+
+	if unit.house_id != "":
+		var banner := BannerIcon.new()
+		if show_chronicle:
+			banner.custom_minimum_size = Vector2(72, 92)
+		else:
+			banner.custom_minimum_size = Vector2(44, 56)
+		banner.set_show_body(true)
+		banner.set_unit(unit)
+		var banner_wrap := VBoxContainer.new()
+		banner_wrap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		banner_wrap.add_child(banner)
+		header_row.add_child(banner_wrap)
+
+	var name_block := VBoxContainer.new()
+	name_block.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_block.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	name_block.add_theme_constant_override("separation", 2)
+	header_row.add_child(name_block)
+
 	# Name — include earned epithet when set.
 	var display_name: String = unit.unit_name
 	if unit.epithet != "":
@@ -69,12 +95,28 @@ static func build(
 		name_btn.text = name_text
 		name_btn.add_theme_font_size_override("font_size", 18)
 		name_btn.pressed.connect(on_name_clicked)
-		vbox.add_child(name_btn)
+		name_block.add_child(name_btn)
 	else:
 		var name_lbl := Label.new()
 		name_lbl.text = name_text
 		name_lbl.add_theme_font_size_override("font_size", 18)
-		vbox.add_child(name_lbl)
+		name_block.add_child(name_lbl)
+
+	# House + body line (implicit lean — motto only, no stat tags per design).
+	if unit.house_id != "":
+		var house_lbl := Label.new()
+		var motto: String = HousePool.motto_for(unit.house_id)
+		var body_label: String = BodyType.label_for(unit.body_type)
+		var house_name: String = HousePool.name_for(unit.house_id)
+		if motto != "" and body_label != "":
+			house_lbl.text = "%s · %s · \"%s\"" % [house_name, body_label, motto]
+		elif motto != "":
+			house_lbl.text = "%s · \"%s\"" % [house_name, motto]
+		else:
+			house_lbl.text = house_name
+		house_lbl.modulate = Color(0.70, 0.62, 0.40)
+		house_lbl.add_theme_font_size_override("font_size", 12)
+		name_block.add_child(house_lbl)
 
 	var task_lbl := Label.new()
 	var loc: String = "expedition #%d" % unit.expedition_id if unit.is_on_expedition() else "at home"

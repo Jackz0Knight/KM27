@@ -68,6 +68,12 @@ func _serialise_state() -> Dictionary:
 			"current_task": u.current_task,
 			"expedition_id": u.expedition_id,
 			"injuries": u.injuries.duplicate(true),
+			"house_id": u.house_id,
+			"body_type": u.body_type,
+			"epithet": u.epithet,
+			"banner_line": u.banner_line,
+			"origin_text": u.origin_text,
+			"oath": u.oath,
 		})
 
 	var expeditions_data: Array = []
@@ -214,6 +220,19 @@ func _restore_state(data: Dictionary) -> void:
 		u.injuries = []
 		for inj in rd.get("injuries", []):
 			u.injuries.append({"stat": str(inj["stat"]), "weeks_remaining": int(inj["weeks_remaining"])})
+		# Chronicle + heraldry fields. Lazy-fill house_id and body_type for
+		# saves written before the banner system landed so old runs don't
+		# show blank crests.
+		u.house_id = str(rd.get("house_id", ""))
+		if u.house_id == "":
+			u.house_id = HousePool.random_house_id()
+		u.body_type = str(rd.get("body_type", ""))
+		if u.body_type == "":
+			u.body_type = BodyType.random_body_type()
+		u.epithet = str(rd.get("epithet", ""))
+		u.banner_line = str(rd.get("banner_line", ""))
+		u.origin_text = str(rd.get("origin_text", ""))
+		u.oath = str(rd.get("oath", ""))
 		GameState.roster.append(u)
 
 	# Restore expeditions

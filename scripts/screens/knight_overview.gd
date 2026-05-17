@@ -168,7 +168,11 @@ func _build_stat_group(unit: Unit, group_label: String, stat_keys: Array) -> Con
 # ---------- Chronicle card (origin, banner, oath) ----------
 
 func _render_chronicle_card(unit: Unit) -> void:
-	# Lazy-generate fields for units created before this feature (old saves).
+	# Lazy-fill for units created before these features landed (old saves).
+	if unit.house_id == "":
+		unit.house_id = HousePool.random_house_id()
+	if unit.body_type == "":
+		unit.body_type = BodyType.random_body_type()
 	if unit.banner_line == "":
 		unit.banner_line = Chronicle.generate_banner(unit)
 	if unit.origin_text == "":
@@ -190,6 +194,49 @@ func _render_chronicle_card(unit: Unit) -> void:
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 8)
 	margin.add_child(vbox)
+
+	# Heraldic header: big crest + house name + motto + body silhouette.
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 16)
+	vbox.add_child(header)
+
+	var banner := BannerIcon.new()
+	banner.custom_minimum_size = Vector2(132, 168)
+	banner.set_show_body(true)
+	banner.set_unit(unit)
+	header.add_child(banner)
+
+	var house_block := VBoxContainer.new()
+	house_block.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	house_block.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	house_block.add_theme_constant_override("separation", 4)
+	header.add_child(house_block)
+
+	var house_name_lbl := Label.new()
+	house_name_lbl.text = HousePool.name_for(unit.house_id)
+	house_name_lbl.add_theme_font_size_override("font_size", 20)
+	house_name_lbl.modulate = Color(0.92, 0.84, 0.55)
+	house_block.add_child(house_name_lbl)
+
+	var motto_lbl := Label.new()
+	motto_lbl.text = "\" %s \"" % HousePool.motto_for(unit.house_id)
+	motto_lbl.add_theme_font_size_override("font_size", 14)
+	motto_lbl.modulate = Color(0.78, 0.70, 0.45)
+	house_block.add_child(motto_lbl)
+
+	var body_lbl := Label.new()
+	body_lbl.text = "%s — %s" % [
+		BodyType.label_for(unit.body_type),
+		BodyType.flavour_for(unit.body_type),
+	]
+	body_lbl.add_theme_font_size_override("font_size", 13)
+	body_lbl.modulate = Color(0.72, 0.66, 0.48)
+	body_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+	house_block.add_child(body_lbl)
+
+	var sep_top := HSeparator.new()
+	sep_top.modulate = Color(0.5, 0.42, 0.25, 0.5)
+	vbox.add_child(sep_top)
 
 	# Origin
 	if unit.origin_text != "":
