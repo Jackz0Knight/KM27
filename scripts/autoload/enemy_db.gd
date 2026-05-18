@@ -11,6 +11,8 @@ const ENEMY_STAT_KEYS: Array[String] = [
 ]
 
 # Enemy type table. stat_ranges: {stat_key: [min, max]}
+# loot_tags per entry are reserved for a future loot-variety system — no code
+# reads them yet. Keep them accurate when adding new enemy types.
 const ENEMY_TYPES: Dictionary = {
 	"goblin": {
 		"name": "Goblin",
@@ -136,7 +138,9 @@ const TIER1_TYPES: Array[String] = [
 	"goblin", "goblin_warrior", "bandit", "bandit_leader", "dire_wolf",
 ]
 
-# Tier 2 enemy types for mid-game rolls.
+# Tier 2 enemy types — defined but not yet selected by any combat path.
+# Activation deferred to Phase 8 balance pass: week >= 20 (or a configurable
+# threshold) will weight the roll toward TIER2_TYPES for mid-game variety.
 const TIER2_TYPES: Array[String] = [
 	"orc", "orc_berserker", "giant_spider", "troll",
 ]

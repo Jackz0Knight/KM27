@@ -115,6 +115,12 @@ func gold_maintenance_cost() -> int:
 	return roster.size() * 5
 
 
+func purchase_research(project_id: String) -> void:
+	var proj: Dictionary = ResourceDB.RESEARCH_PROJECTS.get(project_id, {})
+	gold -= proj["cost_gold"]
+	researched.append(project_id)
+
+
 func total_gold_income() -> int:
 	var total: int = 0
 	for v in gold_income_sources.values():

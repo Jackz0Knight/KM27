@@ -8,6 +8,10 @@ extends RefCounted
 # Phase 5's Tick wires this; Phase 3 just defines the helper.
 
 const TRIGGER_INTERVAL: int = 4
+# Percentage chance per point of Determination. Used by roll_for_units() and
+# also referenced by Tick._apply_training() for the per-training bonus roll.
+# Single source of truth — change here to retune both roll sites.
+const CHANCE_PER_POINT: float = 0.5
 
 
 static func should_trigger(week: int) -> bool:
@@ -21,7 +25,7 @@ static func roll_for_units(units: Array[Unit]) -> Array:
 	for u in units:
 		if u.is_on_expedition():
 			continue
-		var chance_pct: float = float(u.stats.determination) * 0.5
+		var chance_pct: float = float(u.stats.determination) * CHANCE_PER_POINT
 		var roll: float = RNG.randf_range(0.0, 100.0)
 		if roll < chance_pct:
 			var stat_picked: String = u.stats.try_increment_random(u.potential_ability)

@@ -504,7 +504,7 @@ func _build_tournament_picker(is_grand: bool) -> void:
 	for u in at_home:
 		var row := HBoxContainer.new()
 		var chk := CheckBox.new()
-		var power: int = Combat.TOURNAMENT_BASE_POWER + u.stats.strength + u.stats.technique + maxi(u.stats.swordsmanship, u.stats.archery)
+		var power: int = Combat.tournament_unit_power(u)
 		chk.text = "%s — power %d (Str %d, Tec %d, max(Sword,Arch) %d, Etq %d)" % [
 			u.unit_name, power, u.stats.strength, u.stats.technique,
 			maxi(u.stats.swordsmanship, u.stats.archery), u.stats.etiquette,

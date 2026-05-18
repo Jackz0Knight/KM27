@@ -41,6 +41,10 @@ func _init(
 	unit_ids = p_units.duplicate()
 
 
+static func estimate_yield(party_strength: int) -> int:
+	return roundi(float(GATHER_BASE_YIELD) * (1.0 + float(party_strength) / 30.0))
+
+
 func kind_label() -> String:
 	match kind:
 		Kind.EXPLORE: return "Explore"

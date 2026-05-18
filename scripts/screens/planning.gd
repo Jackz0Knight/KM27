@@ -697,9 +697,7 @@ func _refresh_expeditions() -> void:
 						var u: Unit = GameState.find_unit(uid)
 						if u != null:
 							party_strength += u.stats.strength
-					var est_amount: int = roundi(
-						float(Expedition.GATHER_BASE_YIELD) * (1.0 + float(party_strength) / 30.0)
-					)
+					var est_amount: int = Expedition.estimate_yield(party_strength)
 					var entry: Dictionary = ResourceDB.RESOURCES.get(res_key, {})
 					var res_name: String = entry.get("name", res_key)
 					var yield_lbl := Label.new()
@@ -874,11 +872,7 @@ func _on_craft(resource_id: String) -> void:
 
 func _do_craft(resource_id: String) -> void:
 	var entry: Dictionary = ResourceDB.RESOURCES.get(resource_id, {})
-	for input_id: String in entry["recipe"]:
-		GameState.inventory[input_id] = GameState.inventory.get(input_id, 0) - entry["recipe"][input_id]
-	GameState.inventory[resource_id] = GameState.inventory.get(resource_id, 0) + 1
-	if not GameState.crafted_ids.has(resource_id):
-		GameState.crafted_ids.append(resource_id)
+	Crafting.craft(GameState, resource_id)
 	status_lbl.text = "Crafted: %s" % entry["name"]
 	_refresh_crafting_tab()
 	_refresh_header()
@@ -962,8 +956,7 @@ func _on_research(project_id: String) -> void:
 		self, "research_" + project_id,
 		"Research %s for %d gold?\n\n%s" % [proj["name"], cost, proj["description"]],
 		func():
-			GameState.gold -= cost
-			GameState.researched.append(project_id)
+			GameState.purchase_research(project_id)
 			status_lbl.text = "Researched: %s" % proj["name"]
 			_refresh_research_tab()
 			_refresh_crafting_tab()

@@ -169,19 +169,23 @@ static func resolve_formation(
 	}
 
 
+# Named helper so the UI and resolve_tournament() share exactly one formula.
+static func tournament_unit_power(unit: Unit) -> int:
+	return TOURNAMENT_BASE_POWER + unit.stats.strength + unit.stats.technique + maxi(unit.stats.swordsmanship, unit.stats.archery)
+
+
 # Tournament resolution (no formation, no Leadership buff, no Intimidation).
 #   unit_power = 10 + Str + Tec + max(Sword, Arch)
 static func resolve_tournament(participants: Array, enemy_power: int) -> Dictionary:
 	var per_unit: Array = []
 	var total: int = 0
 	for u in participants:
-		var skill: int = maxi(u.stats.swordsmanship, u.stats.archery)
-		var raw: int = TOURNAMENT_BASE_POWER + u.stats.strength + u.stats.technique + skill
+		var raw: int = tournament_unit_power(u)
 		per_unit.append({
 			"unit_id": u.id,
 			"str": u.stats.strength,
 			"tec": u.stats.technique,
-			"skill": skill,
+			"skill": maxi(u.stats.swordsmanship, u.stats.archery),
 			"total": raw,
 		})
 		total += raw
