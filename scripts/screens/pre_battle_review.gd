@@ -96,6 +96,14 @@ func _refresh_battle_info() -> void:
 		enemy_lbl.modulate = Color(0.95, 0.55, 0.45)
 		battle_info.add_child(enemy_lbl)
 
+		var flavor: String = _enemy_flavor_text(ev, sub)
+		if flavor != "":
+			var flavor_lbl := Label.new()
+			flavor_lbl.text = flavor
+			flavor_lbl.modulate = Color(0.72, 0.68, 0.55)
+			flavor_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+			battle_info.add_child(flavor_lbl)
+
 	var stakes_lbl := Label.new()
 	stakes_lbl.text = _stakes_text(ev, sub)
 	stakes_lbl.modulate = Color(0.82, 0.78, 0.58)
@@ -128,6 +136,45 @@ func _battle_enemy_power() -> int:
 		EventKind.GRAND_TOURNAMENT:
 			return Combat.enemy_power_grand_tournament(GameState.week)
 	return 0
+
+
+func _enemy_flavor_text(ev: int, sub: String) -> String:
+	var week: int = GameState.week
+	match ev:
+		EventKind.HOME_BATTLE:
+			if week <= 8:
+				return "Opportunistic raiders from the borderlands — disorganised but hungry."
+			elif week <= 20:
+				return "A war band, emboldened. They have scouted your walls."
+			else:
+				return "A well-organised force. Someone has given them orders."
+		EventKind.AWAY_BATTLE:
+			if GameState.pending_away_mode == "assault":
+				return "The castle garrison will not yield their post without argument."
+			if week <= 8:
+				return "A bandit camp — poorly armed, not poorly motivated."
+			elif week <= 20:
+				return "Goblin warriors dug in on broken ground."
+			else:
+				return "Orc veterans. They have held this field before."
+		EventKind.BATTLE_EVENT:
+			match sub:
+				"bandit_ambush":
+					if week <= 8:
+						return "Goblins out of the eastern wood — fast and loud."
+					elif week <= 16:
+						return "A bandit crew, road-worn and desperate enough to try this."
+					else:
+						return "Orc skirmishers. They tested the outer wall first."
+				"champion_duel":
+					return "A travelling champion — reputation arrives before him, as always."
+		EventKind.TOURNAMENT:
+			if GameState.tournament_streak >= 2:
+				return "The field is watching. Every house has a stake in the result."
+			return "Rivals with months of preparation. The lists will tell."
+		EventKind.GRAND_TOURNAMENT:
+			return "Every knight in the realm has come to see this settled."
+	return ""
 
 
 func _stakes_text(ev: int, sub: String) -> String:

@@ -116,6 +116,12 @@ static func _resolve_away(gs: Node, result: Dictionary) -> void:
 			_remove_castle(gs, castle)
 		else:
 			result["reward"] = Combat.roll_pillage_reward(gs.week)
+		var tag: String = "assault_win" if gs.pending_away_mode == "assault" else "pillage_win"
+		for u in party:
+			var old_ep: String = u.epithet
+			Chronicle.grant_epithet(u, tag)
+			if u.epithet != "" and old_ep == "":
+				result["notes"].append("%s earns the epithet '%s'." % [u.unit_name, u.epithet])
 	else:
 		result["notes"].append("Battle lost — no reward.")
 
@@ -147,6 +153,11 @@ static func _resolve_home(gs: Node, result: Dictionary) -> void:
 
 	if combat["won"]:
 		result["reward"] = Combat.roll_home_win_reward(gs.week)
+		for u in party:
+			var old_ep: String = u.epithet
+			Chronicle.grant_epithet(u, "home_battle_won")
+			if u.epithet != "" and old_ep == "":
+				result["notes"].append("%s earns the epithet '%s'." % [u.unit_name, u.epithet])
 	else:
 		result["is_game_over"] = true
 		result["notes"].append("Homestead breached — GAME OVER.")
@@ -190,6 +201,11 @@ static func _resolve_bandit_ambush(gs: Node, result: Dictionary) -> void:
 
 	if combat["won"]:
 		result["reward"] = Combat.roll_bandit_ambush_reward(gs.week)
+		for u in party:
+			var old_ep: String = u.epithet
+			Chronicle.grant_epithet(u, "home_battle_won")
+			if u.epithet != "" and old_ep == "":
+				result["notes"].append("%s earns the epithet '%s'." % [u.unit_name, u.epithet])
 	else:
 		result["notes"].append("Bandits drove us off — no loot.")
 
@@ -221,6 +237,10 @@ static func _resolve_champion_duel(gs: Node, result: Dictionary) -> void:
 	result["enemy_pre_intim"] = duel["enemy_power"]
 
 	if duel["won"]:
+		var old_ep: String = champ.epithet
+		Chronicle.grant_epithet(champ, "duel_win")
+		if champ.epithet != "" and old_ep == "":
+			result["notes"].append("%s earns the epithet '%s'." % [champ.unit_name, champ.epithet])
 		var stat: String = gs.champion_target_stat
 		if stat == "":
 			result["notes"].append("No target stat picked — reward forfeit.")
@@ -291,6 +311,11 @@ static func _resolve_tournament(gs: Node, result: Dictionary, is_grand: bool) ->
 			gs.gold += prize
 			result["tournament_gold"] = prize
 			result["notes"].append("Grand Tournament prize: +%d gold." % prize)
+			for u in participants:
+				var old_ep: String = u.epithet
+				Chronicle.grant_epithet(u, "grand_tournament_win")
+				if u.epithet != "" and old_ep == "":
+					result["notes"].append("%s earns the epithet '%s'." % [u.unit_name, u.epithet])
 		else:
 			gs.tournament_streak += 1
 			result["notes"].append("Tournament won — streak now %d." % gs.tournament_streak)
@@ -299,6 +324,11 @@ static func _resolve_tournament(gs: Node, result: Dictionary, is_grand: bool) ->
 			gs.gold += prize
 			result["tournament_gold"] = prize
 			result["notes"].append("Tournament prize: +%d gold." % prize)
+			for u in participants:
+				var old_ep: String = u.epithet
+				Chronicle.grant_epithet(u, "tournament_win")
+				if u.epithet != "" and old_ep == "":
+					result["notes"].append("%s earns the epithet '%s'." % [u.unit_name, u.epithet])
 	else:
 		gs.tournament_streak = 0
 		if is_grand:

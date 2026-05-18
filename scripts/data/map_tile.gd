@@ -28,6 +28,7 @@ func gather_resource() -> String:
 		Terrain.FOREST: return "logs"
 		Terrain.PLAINS, Terrain.BEACH: return "plant_fibres"
 		Terrain.MOUNTAIN: return "copper_ore"
+		Terrain.HILLS: return "iron_ore"
 		_: return ""
 
 
