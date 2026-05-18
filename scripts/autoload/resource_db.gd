@@ -103,7 +103,7 @@ const RESOURCES: Dictionary = {
 	"cow_hide":     { "name": "Cow Hide",     "map_source": "cow" },
 	"fungal_log":   { "name": "Fungal Log",   "map_source": "fungal_log" },
 	"hardwood":     { "name": "Hardwood",     "map_source": "hardwood" },
-	"iron_ore":     { "name": "Iron Ore",     "map_source": "mountain" },
+	"iron_ore":     { "name": "Iron Ore",     "map_source": "hills" },
 	"coal":         { "name": "Coal",         "map_source": "mountain" },
 	"duskwood":     { "name": "Duskwood",     "map_source": null },
 	"elven_wood":   { "name": "Elven Wood",   "map_source": null },
@@ -164,6 +164,30 @@ func is_craftable(id: String, researched: Array) -> bool:
 	if gate != null and gate != "" and not researched.has(gate):
 		return false
 	return true
+
+
+# Research project table. Keys here must match the "research" gate strings used
+# in RESOURCES above. Each project has a gold cost and lists what it unlocks.
+const RESEARCH_PROJECTS: Dictionary = {
+	"cotton_cultivation": {
+		"name": "Cotton Cultivation",
+		"description": "Commission a study of cotton preparation — enables fine cloth weaving from gathered cotton.",
+		"cost_gold": 40,
+		"unlocks": ["cloth"],
+	},
+	"alloy_research": {
+		"name": "Alloy Research",
+		"description": "Learn to combine tin and copper into bronze — the first step in serious metallurgy.",
+		"cost_gold": 60,
+		"unlocks": ["bronze_ingot"],
+	},
+	"blast_furnace": {
+		"name": "Blast Furnace",
+		"description": "Commission a proper furnace capable of refining iron ore and coal into steel.",
+		"cost_gold": 120,
+		"unlocks": ["steel_ingot"],
+	},
+}
 
 
 # True if the player's inventory covers all recipe inputs for this resource.

@@ -57,6 +57,9 @@ var _tactics_mode: int = TACTICS_DEFENSE
 # Crafting tab.
 @onready var crafting_vbox: VBoxContainer = $Margin/VBox/Content/Crafting/CraftingScroll/CraftingVBox
 
+# Research tab.
+@onready var research_body: VBoxContainer = $Margin/VBox/Content/Research/ResearchPanel/ResearchMargin/ResearchBody
+
 # Calendar pane.
 @onready var upcoming_list: VBoxContainer = $Margin/VBox/Content/Calendar/UpcomingList
 @onready var history_list: VBoxContainer  = $Margin/VBox/Content/Calendar/HistoryScroll/HistoryList
@@ -171,6 +174,7 @@ func _refresh_all() -> void:
 	_refresh_expeditions()
 	_refresh_action_buttons()
 	_refresh_crafting_tab()
+	_refresh_research_tab()
 	_refresh_calendar_tab()
 
 
@@ -878,6 +882,93 @@ func _do_craft(resource_id: String) -> void:
 	status_lbl.text = "Crafted: %s" % entry["name"]
 	_refresh_crafting_tab()
 	_refresh_header()
+
+
+# ---------- Research tab ----------
+
+func _refresh_research_tab() -> void:
+	for c in research_body.get_children():
+		c.queue_free()
+
+	var intro := Label.new()
+	intro.text = "Spend gold to unlock new crafting recipes. Researched projects persist for the run."
+	intro.modulate = Color(0.72, 0.68, 0.55)
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD
+	research_body.add_child(intro)
+	research_body.add_child(HSeparator.new())
+
+	var any_project: bool = false
+	for project_id: String in ResourceDB.RESEARCH_PROJECTS:
+		any_project = true
+		var proj: Dictionary = ResourceDB.RESEARCH_PROJECTS[project_id]
+		var is_done: bool = GameState.researched.has(project_id)
+
+		var entry_box := VBoxContainer.new()
+		entry_box.add_theme_constant_override("separation", 4)
+		if is_done:
+			entry_box.modulate = Color(0.55, 0.55, 0.55)
+		research_body.add_child(entry_box)
+
+		var name_row := HBoxContainer.new()
+		name_row.add_theme_constant_override("separation", 10)
+		entry_box.add_child(name_row)
+
+		var name_lbl := Label.new()
+		name_lbl.text = proj["name"] + (" ✓" if is_done else "")
+		name_lbl.add_theme_font_size_override("font_size", 15)
+		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_row.add_child(name_lbl)
+
+		if not is_done:
+			var btn := Button.new()
+			btn.text = "Research (%d gold)" % proj["cost_gold"]
+			btn.disabled = GameState.gold < proj["cost_gold"]
+			btn.pressed.connect(_on_research.bind(project_id))
+			name_row.add_child(btn)
+
+		var desc_lbl := Label.new()
+		desc_lbl.text = proj["description"]
+		desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+		desc_lbl.modulate = Color(0.75, 0.72, 0.60)
+		entry_box.add_child(desc_lbl)
+
+		var unlock_names: Array[String] = []
+		for rid: String in proj["unlocks"]:
+			var rentry: Dictionary = ResourceDB.RESOURCES.get(rid, {})
+			unlock_names.append(rentry.get("name", rid))
+		var unlocks_lbl := Label.new()
+		unlocks_lbl.text = "Unlocks: %s" % ", ".join(unlock_names)
+		unlocks_lbl.modulate = Color(0.65, 0.88, 0.65)
+		entry_box.add_child(unlocks_lbl)
+
+		research_body.add_child(HSeparator.new())
+
+	if not any_project:
+		var none_lbl := Label.new()
+		none_lbl.text = "No research projects available."
+		none_lbl.modulate = Color(0.5, 0.5, 0.5)
+		research_body.add_child(none_lbl)
+
+
+func _on_research(project_id: String) -> void:
+	var proj: Dictionary = ResourceDB.RESEARCH_PROJECTS.get(project_id, {})
+	if proj.is_empty() or GameState.researched.has(project_id):
+		return
+	var cost: int = proj["cost_gold"]
+	if GameState.gold < cost:
+		status_lbl.text = "Not enough gold for %s." % proj["name"]
+		return
+	ConfirmDialogUtil.ask(
+		self, "research_" + project_id,
+		"Research %s for %d gold?\n\n%s" % [proj["name"], cost, proj["description"]],
+		func():
+			GameState.gold -= cost
+			GameState.researched.append(project_id)
+			status_lbl.text = "Researched: %s" % proj["name"]
+			_refresh_research_tab()
+			_refresh_crafting_tab()
+			_refresh_header()
+	)
 
 
 # ---------- Resource info popup ----------
