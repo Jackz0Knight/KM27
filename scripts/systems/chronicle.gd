@@ -429,6 +429,16 @@ static func generate_oath(unit: Unit) -> String:
 
 # ---------- Epithet granting ----------
 
+# Valid event tag keys for grant_epithet(). Resolution.gd references these
+# constants so a typo is a compile error, not a silent no-op.
+const TAG_TOURNAMENT_WIN:       String = "tournament_win"
+const TAG_GRAND_TOURNAMENT_WIN: String = "grand_tournament_win"
+const TAG_DUEL_WIN:             String = "duel_win"
+const TAG_HOME_BATTLE_SURVIVED: String = "home_battle_survived"
+const TAG_HOME_BATTLE_WON:      String = "home_battle_won"
+const TAG_PILLAGE_WIN:          String = "pillage_win"
+const TAG_ASSAULT_WIN:          String = "assault_win"
+
 static func grant_epithet(unit: Unit, event_tag: String) -> void:
 	# One epithet per unit; don't overwrite an earned one.
 	if unit.epithet != "":

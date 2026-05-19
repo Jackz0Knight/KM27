@@ -169,19 +169,23 @@ static func resolve_formation(
 	}
 
 
+# Named helper so the UI and resolve_tournament() share exactly one formula.
+static func tournament_unit_power(unit: Unit) -> int:
+	return TOURNAMENT_BASE_POWER + unit.stats.strength + unit.stats.technique + maxi(unit.stats.swordsmanship, unit.stats.archery)
+
+
 # Tournament resolution (no formation, no Leadership buff, no Intimidation).
 #   unit_power = 10 + Str + Tec + max(Sword, Arch)
 static func resolve_tournament(participants: Array, enemy_power: int) -> Dictionary:
 	var per_unit: Array = []
 	var total: int = 0
 	for u in participants:
-		var skill: int = maxi(u.stats.swordsmanship, u.stats.archery)
-		var raw: int = TOURNAMENT_BASE_POWER + u.stats.strength + u.stats.technique + skill
+		var raw: int = tournament_unit_power(u)
 		per_unit.append({
 			"unit_id": u.id,
 			"str": u.stats.strength,
 			"tec": u.stats.technique,
-			"skill": skill,
+			"skill": maxi(u.stats.swordsmanship, u.stats.archery),
 			"total": raw,
 		})
 		total += raw
@@ -207,15 +211,25 @@ static func roll_pillage_reward(week: int) -> ResourceBundle:
 	return b
 
 
-# Home Battle reward — "Small resource reward" (GDD §6). Placeholder bundle;
-# tune in Phase 8 if needed.
-static func roll_home_win_reward(_week: int) -> ResourceBundle:
-	return ResourceBundle.new(2, 2, 1)
+# Home Battle reward — week-scaled small bundle (GDD §6).
+# Slightly smaller than pillage since home defence is guaranteed participation.
+static func roll_home_win_reward(week: int) -> ResourceBundle:
+	var lo: int = 1 + floori(week / 16.0)
+	var hi: int = 2 + floori(week / 10.0)
+	var b := ResourceBundle.new()
+	for key in ResourceBundle.KEYS:
+		b.set(key, RNG.randi_range(lo, hi))
+	return b
 
 
-# Bandit Ambush loot — "small resource loot" (GDD §6).
-static func roll_bandit_ambush_reward(_week: int) -> ResourceBundle:
-	return ResourceBundle.new(1, 1, 1)
+# Bandit Ambush loot — small consolation bundle (GDD §6). Scales gently.
+static func roll_bandit_ambush_reward(week: int) -> ResourceBundle:
+	var lo: int = 1
+	var hi: int = 1 + floori(week / 20.0)
+	var b := ResourceBundle.new()
+	for key in ResourceBundle.KEYS:
+		b.set(key, RNG.randi_range(lo, hi))
+	return b
 
 
 # Tournament reward modified by the highest Etiquette among participants

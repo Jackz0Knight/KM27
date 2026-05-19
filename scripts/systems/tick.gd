@@ -99,7 +99,7 @@ static func _apply_training(gs: Node, results: Dictionary) -> void:
 		}
 		# GDD §7 training-bonus roll. Independent of the every-4-weeks
 		# Determination roll in GDD §10 (that's handled by Determination.gd).
-		var chance_pct: float = float(u.stats.determination) * 0.5
+		var chance_pct: float = float(u.stats.determination) * Determination.CHANCE_PER_POINT
 		if RNG.randf_range(0.0, 100.0) < chance_pct:
 			var bonus: String = u.stats.try_increment_random_excluding(u.potential_ability, stat)
 			if bonus != "":
@@ -152,9 +152,7 @@ static func _complete_one(gs: Node, exped: Expedition) -> Dictionary:
 					var u: Unit = gs.find_unit(uid)
 					if u != null:
 						party_strength += u.stats.strength
-				var amount: int = roundi(
-					float(Expedition.GATHER_BASE_YIELD) * (1.0 + float(party_strength) / 30.0)
-				)
+				var amount: int = Expedition.estimate_yield(party_strength)
 				gs.inventory[res_key] = gs.inventory.get(res_key, 0) + amount
 				info["yield_resource"] = res_key
 				info["yield_amount"] = amount

@@ -44,6 +44,11 @@ var oath: String = ""
 var house_id: String = ""
 var body_type: String = ""
 
+# Equipment — string IDs into Weapon.CATALOGUE and Armour.CATALOGUE.
+# Defaults to "" (CombatUnit falls back to "unarmed" / "unarmoured").
+var weapon_id: String = ""
+var armour_id: String = ""
+
 
 func _init(
 	p_id: int = 0,

@@ -270,12 +270,7 @@ func _render_caravan(r: Dictionary) -> void:
 
 
 func _on_caravan_pick(idx: int) -> void:
-	GameState.merchant_pick = idx
-	var offer: ResourceBundle = GameState.merchant_offers[idx]
-	var inv_delta: Dictionary = offer.to_inventory_dict()
-	for id: String in inv_delta:
-		GameState.inventory[id] = GameState.inventory.get(id, 0) + inv_delta[id]
-	GameState.last_battle_result["reward"] = offer
+	Crafting.accept_caravan_offer(GameState, idx)
 	_render()
 
 

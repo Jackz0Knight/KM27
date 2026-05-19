@@ -4,6 +4,12 @@ extends Resource
 # T1 resource trio per GDD §14. Wraps the three counters so Pillage / Assault /
 # Tournament / Gather / event rewards all add and subtract through one helper
 # instead of duplicating field names.
+#
+# ⚠ KEY NAMING NOTE: The internal field names ("wood", "fibres", "copper_ore")
+# intentionally differ from the canonical ResourceDB / GameState.inventory keys
+# ("logs", "plant_fibres", "copper_ore"). The translation lives in
+# to_inventory_dict(). ALL code that delivers a bundle into inventory MUST call
+# to_inventory_dict() — never write bundle.wood directly into inventory.
 
 const KEYS: Array[String] = ["wood", "fibres", "copper_ore"]
 

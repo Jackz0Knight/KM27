@@ -60,6 +60,8 @@ static func _roll_knight(unit_id: int) -> Unit:
 	var u := Unit.new(unit_id, NamePool.random_name(), Unit.UnitClass.KNIGHT, stats, pa)
 	u.house_id = house_id
 	u.body_type = BodyType.random_body_type()
+	u.weapon_id = "longsword"
+	u.armour_id = "leather"
 	_enrich(u)
 	return u
 
@@ -75,6 +77,8 @@ static func _roll_squire(unit_id: int) -> Unit:
 	var u := Unit.new(unit_id, NamePool.random_name(), Unit.UnitClass.SQUIRE, stats, pa)
 	u.house_id = house_id
 	u.body_type = BodyType.random_body_type()
+	u.weapon_id = "shortsword"
+	u.armour_id = "unarmoured"
 	_enrich(u)
 	return u
 

@@ -135,17 +135,17 @@ func _build_left_panel() -> Control:
 func _build_heraldic_frieze() -> Control:
 	# A row of all four house crests. Pure decoration — anchors the houses
 	# as canonical lore the moment the player loads the game.
-	var wrap := HBoxContainer.new()
-	wrap.alignment = BoxContainer.ALIGNMENT_CENTER
-	wrap.add_theme_constant_override("separation", 14)
+	var frieze_row := HBoxContainer.new()
+	frieze_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	frieze_row.add_theme_constant_override("separation", 14)
 	for hid in HOUSE_FRIEZE_IDS:
 		var crest := BannerIcon.new()
 		crest.custom_minimum_size = Vector2(56, 72)
 		crest.set_show_body(false)
 		crest.set_house(hid)
 		crest.modulate.a = 0.92
-		wrap.add_child(crest)
-	return wrap
+		frieze_row.add_child(crest)
+	return frieze_row
 
 
 func _build_title_block() -> Control:

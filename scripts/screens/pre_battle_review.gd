@@ -96,6 +96,14 @@ func _refresh_battle_info() -> void:
 		enemy_lbl.modulate = Color(0.95, 0.55, 0.45)
 		battle_info.add_child(enemy_lbl)
 
+		var flavor: String = _enemy_flavor_text(ev, sub)
+		if flavor != "":
+			var flavor_lbl := Label.new()
+			flavor_lbl.text = flavor
+			flavor_lbl.modulate = Color(0.72, 0.68, 0.55)
+			flavor_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+			battle_info.add_child(flavor_lbl)
+
 	var stakes_lbl := Label.new()
 	stakes_lbl.text = _stakes_text(ev, sub)
 	stakes_lbl.modulate = Color(0.82, 0.78, 0.58)
@@ -128,6 +136,45 @@ func _battle_enemy_power() -> int:
 		EventKind.GRAND_TOURNAMENT:
 			return Combat.enemy_power_grand_tournament(GameState.week)
 	return 0
+
+
+func _enemy_flavor_text(ev: int, sub: String) -> String:
+	var week: int = GameState.week
+	match ev:
+		EventKind.HOME_BATTLE:
+			if week <= 8:
+				return "Opportunistic raiders from the borderlands — disorganised but hungry."
+			elif week <= 20:
+				return "A war band, emboldened. They have scouted your walls."
+			else:
+				return "A well-organised force. Someone has given them orders."
+		EventKind.AWAY_BATTLE:
+			if GameState.pending_away_mode == "assault":
+				return "The castle garrison will not yield their post without argument."
+			if week <= 8:
+				return "A bandit camp — poorly armed, not poorly motivated."
+			elif week <= 20:
+				return "Goblin warriors dug in on broken ground."
+			else:
+				return "Orc veterans. They have held this field before."
+		EventKind.BATTLE_EVENT:
+			match sub:
+				"bandit_ambush":
+					if week <= 8:
+						return "Goblins out of the eastern wood — fast and loud."
+					elif week <= 16:
+						return "A bandit crew, road-worn and desperate enough to try this."
+					else:
+						return "Orc skirmishers. They tested the outer wall first."
+				"champion_duel":
+					return "A travelling champion — reputation arrives before him, as always."
+		EventKind.TOURNAMENT:
+			if GameState.tournament_streak >= 2:
+				return "The field is watching. Every house has a stake in the result."
+			return "Rivals with months of preparation. The lists will tell."
+		EventKind.GRAND_TOURNAMENT:
+			return "Every knight in the realm has come to see this settled."
+	return ""
 
 
 func _stakes_text(ev: int, sub: String) -> String:
@@ -332,22 +379,40 @@ func _on_formation_changed() -> void:
 func _update_forecast() -> void:
 	if _forecast_lbl == null or _forecast_participants.is_empty():
 		return
-	var enemy: int = _battle_enemy_power()
-	var preview: Dictionary = Combat.resolve_formation(
-		_forecast_participants, GameState.formation, enemy, _is_home_battle()
-	)
-	var verdict: String = "Win" if preview["won"] else "Loss"
-	var bracket_color: Color = OutcomeBracket.color_for(preview["player_total"], preview["enemy_after_intimidation"])
-	var bracket_label: String = OutcomeBracket.label_for(preview["player_total"], preview["enemy_after_intimidation"])
-	_forecast_lbl.text = "Power: %d  vs  %d enemy (after intim. %d)  →  %s" % [
-		preview["player_total"],
-		preview["enemy_power"],
-		preview["enemy_after_intimidation"],
-		verdict,
+
+	# Build player CombatUnits, applying home-battle 0.75× to non-Defend units.
+	var is_home: bool = _is_home_battle()
+	var player_cus: Array = []
+	for u: Unit in _forecast_participants:
+		var mult: float = 1.0
+		if is_home and u.current_task != Unit.TASK_DEFEND:
+			mult = 0.75
+		player_cus.append(CombatUnit.new(u, "", "", mult))
+
+	# Preview party uses midpoint averages — no RNG consumed, safe for live UI.
+	var event_key: String = _forecast_event_key()
+	var enemy_cus: Array = EnemyDB.preview_party(event_key, GameState.week)
+
+	var analysis: Dictionary = CombatSim.analyze(player_cus, enemy_cus)
+	var pct: int = roundi(analysis["win_probability"] * 100.0)
+
+	_forecast_lbl.text = "Forecast: %d%% chance  ·  Score %.1f vs %.1f enemy" % [
+		pct, analysis["player_score"], analysis["enemy_score"],
 	]
-	_forecast_lbl.modulate = bracket_color
-	_forecast_slots_lbl.text = "%s  ·  Slots: %d/4 filled" % [bracket_label, _count_filled_slots()]
-	_forecast_slots_lbl.modulate = bracket_color
+	_forecast_lbl.modulate = analysis["color"]
+	_forecast_slots_lbl.text = "%s  ·  Slots: %d/4 filled" % [analysis["label"], _count_filled_slots()]
+	_forecast_slots_lbl.modulate = analysis["color"]
+
+
+func _forecast_event_key() -> String:
+	match GameState.current_event:
+		EventKind.HOME_BATTLE:   return "home_battle"
+		EventKind.AWAY_BATTLE:   return "pillage"
+		EventKind.TOURNAMENT:    return "tournament"
+		EventKind.GRAND_TOURNAMENT: return "tournament"
+	if GameState.current_battle_event == "bandit_ambush":
+		return "bandit_ambush"
+	return "pillage"
 
 
 func _count_filled_slots() -> int:
@@ -457,7 +522,7 @@ func _build_tournament_picker(is_grand: bool) -> void:
 	for u in at_home:
 		var row := HBoxContainer.new()
 		var chk := CheckBox.new()
-		var power: int = Combat.TOURNAMENT_BASE_POWER + u.stats.strength + u.stats.technique + maxi(u.stats.swordsmanship, u.stats.archery)
+		var power: int = Combat.tournament_unit_power(u)
 		chk.text = "%s — power %d (Str %d, Tec %d, max(Sword,Arch) %d, Etq %d)" % [
 			u.unit_name, power, u.stats.strength, u.stats.technique,
 			maxi(u.stats.swordsmanship, u.stats.archery), u.stats.etiquette,

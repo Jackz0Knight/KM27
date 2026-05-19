@@ -9,7 +9,7 @@ extends Control
 # to lead before committing.
 
 @onready var squires_row: HBoxContainer = $Margin/VBox/SquiresRow
-@onready var cards: VBoxContainer = $Margin/VBox/Scroll/Cards
+@onready var cards: HBoxContainer = $Margin/VBox/Cards
 
 
 func _ready() -> void:
