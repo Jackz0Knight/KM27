@@ -264,46 +264,6 @@ func preview_party(event_key: String, week: int) -> Array:
 	return out
 
 
-# ---------- legacy helpers (kept for expedition flavor and old display code) ----------
-
-func roll_enemy_group(type_id: String, count: int) -> Array[Dictionary]:
-	var entry: Dictionary = ENEMY_TYPES.get(type_id, {})
-	if entry.is_empty():
-		return []
-	var ranges: Dictionary = entry["stat_ranges"]
-	var out: Array[Dictionary] = []
-	for i in range(count):
-		var unit_stats: Dictionary = {"type_id": type_id, "display_name": entry["display_name"]}
-		for stat_key in ranges:
-			var lo: int = ranges[stat_key][0]
-			var hi: int = ranges[stat_key][1]
-			unit_stats[stat_key] = RNG.randi_range(lo, hi)
-		out.append(unit_stats)
-	return out
-
-
-func group_power(units: Array[Dictionary]) -> int:
-	var total: int = 0
-	for u in units:
-		total += int(u.get("strength", 0)) + int(u.get("bravery", 0)) + floori(float(u.get("intimidation", 0)) * 0.5)
-	return total
-
-
-func roll_t1_group() -> Array[Dictionary]:
-	var count: int = RNG.randi_range(2, 4)
-	var type_id: String = TIER1_TYPES[RNG.randi_range(0, TIER1_TYPES.size() - 1)]
-	return [{"type_id": type_id, "count": count}]
-
-
-func describe_group(composition: Array[Dictionary]) -> String:
-	var parts: Array[String] = []
-	for entry in composition:
-		var type_entry: Dictionary = ENEMY_TYPES.get(entry["type_id"], {})
-		var dname: String = type_entry.get("display_name", entry["type_id"])
-		parts.append("%d× %s" % [entry["count"], dname])
-	return ", ".join(parts)
-
-
 # ---------- internal ----------
 
 func _types_for_event(event_key: String, week: int) -> Array[String]:

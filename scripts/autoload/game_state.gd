@@ -228,12 +228,6 @@ func wrap_week() -> void:
 	EventBus.week_advanced.emit(week)
 
 
-# Legacy single-step advance (Phase 4 stub). Kept so older call sites keep
-# compiling. New flow uses `wrap_week()` + a fresh `roll_current_event()`.
-func advance_to_next_week() -> void:
-	wrap_week()
-
-
 # ---------- roster helpers ----------
 
 func find_unit(unit_id: int) -> Unit:
