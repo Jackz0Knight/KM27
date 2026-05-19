@@ -53,6 +53,15 @@ layout_mode = 2
 text = ""
 theme_override_font_sizes/font_size = 18
 
+[node name="BattleBreakdownHeader" type="Label" parent="Margin/VBox/Scroll/Body"]
+layout_mode = 2
+text = "Battle Breakdown"
+theme_override_font_sizes/font_size = 16
+
+[node name="BattleBreakdown" type="VBoxContainer" parent="Margin/VBox/Scroll/Body"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
 [node name="RewardsHeader" type="Label" parent="Margin/VBox/Scroll/Body"]
 layout_mode = 2
 text = "Rewards"

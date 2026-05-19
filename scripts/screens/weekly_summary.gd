@@ -7,6 +7,8 @@ extends Control
 @onready var resources_lbl: RichTextLabel = $Margin/VBox/Resources
 @onready var summary_body: VBoxContainer = $Margin/VBox/Scroll/Body
 @onready var outcome_lbl: Label = $Margin/VBox/Scroll/Body/EventOutcome
+@onready var battle_breakdown_header: Label = $Margin/VBox/Scroll/Body/BattleBreakdownHeader
+@onready var battle_breakdown: VBoxContainer = $Margin/VBox/Scroll/Body/BattleBreakdown
 @onready var rewards_list: VBoxContainer = $Margin/VBox/Scroll/Body/Rewards
 @onready var caravan_pane: VBoxContainer = $Margin/VBox/Scroll/Body/CaravanPicker
 @onready var deltas_list: VBoxContainer = $Margin/VBox/Scroll/Body/Deltas
@@ -46,6 +48,7 @@ func _ready() -> void:
 		_anim_sections.append(chronicle_panel)
 	_anim_sections.append_array([
 		outcome_lbl,
+		battle_breakdown,
 		rewards_list,
 		deltas_list,
 		returns_list,
@@ -96,6 +99,7 @@ func _render_content() -> void:
 
 	_render_chronicle()
 	_render_outcome(r)
+	_render_battle_breakdown(r)
 	_render_rewards(r)
 	_render_caravan(r)
 	_render_deltas()
@@ -187,6 +191,123 @@ func label_for(r: Dictionary) -> String:
 	return EventKind.label(r["event_kind"])
 
 
+# Inlined Battle Log content. We always route through the Weekly Summary now
+# (see pre_battle_review._on_confirm), so the per-unit breakdown shows here as
+# part of the animated reveal. Hidden when there's nothing combat-y to show.
+func _render_battle_breakdown(r: Dictionary) -> void:
+	for c in battle_breakdown.get_children():
+		c.queue_free()
+
+	var has_formation: bool = not r.get("per_unit", []).is_empty()
+	var has_tourney: bool = not r.get("tournament_per_unit", []).is_empty()
+	var is_duel: bool = r.get("sub_event", "") == "champion_duel"
+	var fought: bool = r.get("fought", false)
+
+	# Hide the whole section (header + body) when there's nothing useful to show.
+	if not (has_formation or has_tourney or is_duel or fought):
+		battle_breakdown_header.visible = false
+		battle_breakdown.visible = false
+		return
+	battle_breakdown_header.visible = true
+	battle_breakdown.visible = true
+
+	if has_formation:
+		_render_formation_rows(r)
+	elif has_tourney:
+		_render_tournament_rows(r)
+	elif is_duel:
+		_render_duel_summary(r)
+
+	# Totals line — short, single string.
+	if fought:
+		var totals := Label.new()
+		var intim: int = int(r.get("intimidation_reduction", 0))
+		if intim > 0:
+			totals.text = "Totals — %d vs %d (intimidation shaved %d)" % [
+				r.get("player_total", 0), r.get("enemy_total", 0), intim,
+			]
+		else:
+			totals.text = "Totals — %d vs %d" % [
+				r.get("player_total", 0), r.get("enemy_total", 0),
+			]
+		totals.modulate = Color(0.78, 0.78, 0.72)
+		battle_breakdown.add_child(totals)
+
+	# Combat notes — sim flavour, epithet grants, special outcomes. These used
+	# to live on the Battle Log; without them the player misses earned epithets.
+	for note in r.get("notes", []):
+		var note_lbl := Label.new()
+		note_lbl.text = "• %s" % note
+		note_lbl.modulate = Color(0.75, 0.70, 0.55)
+		note_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+		battle_breakdown.add_child(note_lbl)
+
+
+func _render_formation_rows(r: Dictionary) -> void:
+	var hdr := _breakdown_row(
+		["Unit", "Slot", "Power", "Total"], true,
+	)
+	battle_breakdown.add_child(hdr)
+	for entry in r["per_unit"]:
+		var u: Unit = GameState.find_unit(entry["unit_id"])
+		var unit_name: String = u.unit_name if u != null else "?"
+		var slot_label: String = entry["slot"] if entry["slot"] != "" else "—"
+		var power_breakdown: String = "%d + %d str + %d bra + %d skl" % [
+			entry["base"], entry["str"], entry["bra"], entry["skill"],
+		]
+		if entry["slot_bonus"] > 0:
+			power_breakdown += " (+%d match)" % entry["slot_bonus"]
+		if entry["leadership_buff"] > 0:
+			power_breakdown += " (+%d lead)" % entry["leadership_buff"]
+		var total_str: String = "%d" % entry["total"]
+		if entry["mult"] != 1.0:
+			total_str = "%d ×%.2f → %d" % [entry["raw"], entry["mult"], entry["total"]]
+		battle_breakdown.add_child(_breakdown_row(
+			[unit_name, slot_label, power_breakdown, total_str], false,
+		))
+
+
+func _render_tournament_rows(r: Dictionary) -> void:
+	var hdr := _breakdown_row(["Unit", "Build", "Power"], true)
+	battle_breakdown.add_child(hdr)
+	for entry in r["tournament_per_unit"]:
+		var u: Unit = GameState.find_unit(entry["unit_id"])
+		var unit_name: String = u.unit_name if u != null else "?"
+		var build_str: String = "%d + %d str + %d tec + %d skl" % [
+			Combat.TOURNAMENT_BASE_POWER,
+			entry["str"], entry["tec"], entry["skill"],
+		]
+		battle_breakdown.add_child(_breakdown_row(
+			[unit_name, build_str, "%d" % entry["total"]], false,
+		))
+
+
+func _render_duel_summary(r: Dictionary) -> void:
+	var u: Unit = GameState.find_unit(r["duel_unit_id"])
+	var champ_name: String = u.unit_name if u != null else "?"
+	var line := Label.new()
+	line.text = "Champion: %s — Str+Bra+Sword = %d  vs  %d" % [
+		champ_name, r["duel_player_power"], r["duel_enemy_power"],
+	]
+	battle_breakdown.add_child(line)
+
+
+func _breakdown_row(cells: Array, header: bool) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 14)
+	for i in range(cells.size()):
+		var lbl := Label.new()
+		lbl.text = str(cells[i])
+		# First column is the unit name — wider so it doesn't wrap.
+		lbl.custom_minimum_size = Vector2(140 if i == 0 else 0, 0)
+		lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL if i > 0 else Control.SIZE_FILL
+		if header:
+			lbl.modulate = Color(0.85, 0.78, 0.55)
+			lbl.add_theme_font_size_override("font_size", 13)
+		row.add_child(lbl)
+	return row
+
+
 func _render_rewards(r: Dictionary) -> void:
 	for c in rewards_list.get_children():
 		c.queue_free()
@@ -235,8 +356,8 @@ func _render_rewards(r: Dictionary) -> void:
 
 	if rewards_list.get_child_count() == 0:
 		var none := Label.new()
-		none.text = "—"
-		none.modulate = Color(0.6, 0.6, 0.6)
+		none.text = "Nothing carried home this week."
+		none.modulate = Color(0.55, 0.50, 0.40)
 		rewards_list.add_child(none)
 
 
@@ -369,8 +490,8 @@ func _render_returns() -> void:
 	var returns: Array = t.get("expedition_returns", [])
 	if returns.is_empty():
 		var none := Label.new()
-		none.text = "—"
-		none.modulate = Color(0.6, 0.6, 0.6)
+		none.text = "No parties returned this week."
+		none.modulate = Color(0.55, 0.50, 0.40)
 		returns_list.add_child(none)
 		return
 	for r in returns:

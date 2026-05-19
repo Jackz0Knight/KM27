@@ -592,25 +592,10 @@ func _refresh_confirm_button() -> void:
 func _on_confirm() -> void:
 	GameState.phase_machine.transition(PhaseMachine.Phase.RESOLUTION)
 	Resolution.run(GameState)
-	# Skip the Battle Log when there's nothing useful to show on it (the
-	# verdict/totals already appear on the Weekly Summary). The Battle Log
-	# is only worth a stop when there's per-unit data to read — formation
-	# breakdowns, tournament participants, or a champion's duel.
-	if _is_combat_week() and _has_battle_log_content():
-		get_tree().change_scene_to_file("res://scenes/screens/battle_log.tscn")
-	else:
-		get_tree().change_scene_to_file("res://scenes/screens/weekly_summary.tscn")
-
-
-func _has_battle_log_content() -> bool:
-	var r: Dictionary = GameState.last_battle_result
-	if not r.get("per_unit", []).is_empty():
-		return true
-	if not r.get("tournament_per_unit", []).is_empty():
-		return true
-	if r.get("sub_event", "") == "champion_duel":
-		return true
-	return false
+	# Always route to the Weekly Summary now — the per-unit breakdown that
+	# used to live on Battle Log is rendered there as an animated section.
+	# The Battle Log scene is no longer reachable in the normal flow.
+	get_tree().change_scene_to_file("res://scenes/screens/weekly_summary.tscn")
 
 
 func _on_settings() -> void:

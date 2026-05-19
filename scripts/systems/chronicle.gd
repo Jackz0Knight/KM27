@@ -345,34 +345,39 @@ static func generate_origin(unit: Unit) -> String:
 
 
 static func generate_banner(unit: Unit) -> String:
+	# Each charge is keyed by its tincture so we can enforce the rule of
+	# tincture: a metal (or / argent) is never placed on a metal, and a
+	# colour (gules / azure / sable / vert) is never placed on a colour.
+	# `charge_template` substitutes the chosen tincture at "%s".
 	const CHARGES: Dictionary = {
-		"strength":      "a tower argent",
-		"speed":         "a chevron azure",
-		"technique":     "an arrow or",
-		"bravery":       "a lion rampant gules",
-		"loyalty":       "a chain linked or",
-		"determination": "an anvil sable",
-		"swordsmanship": "a sword in pale argent",
-		"archery":       "a bow bent sable",
-		"horsemanship":  "a horse passant argent",
-		"leadership":    "a pennant or",
-		"etiquette":     "a cup or",
-		"intimidation":  "a gauntlet sable",
+		"strength":      {"template": "a tower %s",          "metal_tincture": "argent", "colour_tincture": "sable"},
+		"speed":         {"template": "a chevron %s",        "metal_tincture": "or",     "colour_tincture": "azure"},
+		"technique":     {"template": "an arrow %s",         "metal_tincture": "or",     "colour_tincture": "sable"},
+		"bravery":       {"template": "a lion rampant %s",   "metal_tincture": "or",     "colour_tincture": "gules"},
+		"loyalty":       {"template": "a chain linked %s",   "metal_tincture": "or",     "colour_tincture": "sable"},
+		"determination": {"template": "an anvil %s",         "metal_tincture": "argent", "colour_tincture": "sable"},
+		"swordsmanship": {"template": "a sword in pale %s",  "metal_tincture": "argent", "colour_tincture": "gules"},
+		"archery":       {"template": "a bow bent %s",       "metal_tincture": "or",     "colour_tincture": "sable"},
+		"horsemanship":  {"template": "a horse passant %s",  "metal_tincture": "argent", "colour_tincture": "sable"},
+		"leadership":    {"template": "a pennant %s",        "metal_tincture": "or",     "colour_tincture": "gules"},
+		"etiquette":     {"template": "a cup %s",            "metal_tincture": "or",     "colour_tincture": "gules"},
+		"intimidation":  {"template": "a gauntlet %s",       "metal_tincture": "argent", "colour_tincture": "sable"},
 	}
-	const FIELDS: Dictionary = {
-		"strength":      "on gules",
-		"speed":         "on azure",
-		"technique":     "on vert",
-		"bravery":       "on sable",
-		"loyalty":       "on argent",
-		"determination": "on sable",
-		"swordsmanship": "on gules",
-		"archery":       "on vert",
-		"horsemanship":  "on azure",
-		"leadership":    "on or",
-		"etiquette":     "on argent",
-		"intimidation":  "on sable",
+	const FIELD_BY_STAT: Dictionary = {
+		"strength":      "gules",
+		"speed":         "azure",
+		"technique":     "vert",
+		"bravery":       "sable",
+		"loyalty":       "argent",
+		"determination": "sable",
+		"swordsmanship": "gules",
+		"archery":       "vert",
+		"horsemanship":  "azure",
+		"leadership":    "or",
+		"etiquette":     "argent",
+		"intimidation":  "sable",
 	}
+	const METALS: Array[String] = ["or", "argent"]
 
 	# Find the two highest stats.
 	var top_stat: String = ""
@@ -390,13 +395,30 @@ static func generate_banner(unit: Unit) -> String:
 			sec_stat = key
 			sec_val = v
 
-	var charge1: String = CHARGES.get(top_stat, "a cross or")
-	var field: String = FIELDS.get(sec_stat if sec_stat != "" else top_stat, "on sable")
-	var charge2: String = CHARGES.get(sec_stat, "")
+	# Field tincture comes from the SECOND stat (or the top one if there's only
+	# one) — that's the background colour the charge sits on.
+	var field_tincture: String = FIELD_BY_STAT.get(sec_stat if sec_stat != "" else top_stat, "sable")
+	var field_is_metal: bool = METALS.has(field_tincture)
 
-	if charge2 != "" and charge2 != charge1:
-		return "%s %s, and %s." % [charge1.capitalize(), field, charge2]
-	return "%s %s." % [charge1.capitalize(), field]
+	# Pick the charge's tincture to CONTRAST with the field (rule of tincture).
+	var charge1_def: Dictionary = CHARGES.get(top_stat, {"template": "a cross %s", "metal_tincture": "or", "colour_tincture": "sable"})
+	var charge1_tinct: String = charge1_def["colour_tincture"] if field_is_metal else charge1_def["metal_tincture"]
+	var charge1: String = (charge1_def["template"] as String) % charge1_tinct
+
+	if sec_stat == "" or sec_stat == top_stat:
+		return "%s on %s." % [charge1.capitalize(), field_tincture]
+
+	# Second charge contrasts with the field too (same rule). It joins as
+	# "and a ...", so it's read against the field, not against charge1.
+	var charge2_def: Dictionary = CHARGES.get(sec_stat, charge1_def)
+	var charge2_tinct: String = charge2_def["colour_tincture"] if field_is_metal else charge2_def["metal_tincture"]
+	var charge2: String = (charge2_def["template"] as String) % charge2_tinct
+
+	# Avoid repeating the same charge phrase when top_stat and sec_stat happen
+	# to share both template and tincture pick.
+	if charge2 == charge1:
+		return "%s on %s." % [charge1.capitalize(), field_tincture]
+	return "%s on %s, and %s." % [charge1.capitalize(), field_tincture, charge2]
 
 
 static func generate_oath(unit: Unit) -> String:

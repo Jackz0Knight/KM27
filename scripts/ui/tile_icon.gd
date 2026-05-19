@@ -55,9 +55,18 @@ func _draw_unknown(sz: Vector2) -> void:
 
 func _draw_fogged(sz: Vector2) -> void:
 	# Fog-of-war — adjacent to an explored tile, still hidden but visibly
-	# reachable. Brighter, slightly larger "?" plus a subtle hint dot
-	# pattern so it reads as "you could send scouts here."
-	var hint := Color(0.85, 0.74, 0.42, 0.85)
+	# reachable. We layer a faint diagonal hatch pattern (so the tile reads
+	# as "the mist before the mist breaks") behind a brighter, larger "?".
+	var hatch := Color(0.72, 0.62, 0.40, 0.20)
+	var step: float = maxf(sz.y * 0.15, 3.0)
+	var span: float = sz.x + sz.y
+	var d: float = -sz.y
+	while d < span:
+		# Diagonal line from (d, 0) to (d - sz.y, sz.y); clipped to tile by Godot.
+		draw_line(Vector2(d, 0.0), Vector2(d - sz.y, sz.y), hatch, 1.0, true)
+		d += step
+
+	var hint := Color(0.92, 0.78, 0.42, 0.90)
 	_draw_question_mark(sz, hint, 0.22)
 
 
@@ -224,26 +233,39 @@ func _draw_wave(start: Vector2, width: float, amplitude: float, col: Color) -> v
 # ── Expedition flag overlay ───────────────────────────────────────────────
 
 func _draw_expedition_flag(sz: Vector2, weeks: int) -> void:
-	# Top-right pennant + week count tucked inside the tile.
+	# Top-right pennant + countdown badge. Bigger and bolder than the prior
+	# pass: dark backing disc behind the pole makes the gold pennant pop
+	# against any terrain colour, and the week count sits inside a circular
+	# badge below for instant readability.
 	var pole_x: float = sz.x * 0.78
-	var pole_top: float = sz.y * 0.08
-	var pole_bot: float = sz.y * 0.38
+	var pole_top: float = sz.y * 0.06
+	var pole_bot: float = sz.y * 0.42
 	var dark := Color(0.10, 0.08, 0.06)
-	var pennant := Color(0.95, 0.78, 0.30)
+	var pennant := Color(0.98, 0.82, 0.32)
 
-	draw_line(Vector2(pole_x, pole_top), Vector2(pole_x, pole_bot), dark, 1.5, true)
+	# Disc behind the pole so it stays visible on any terrain tint.
+	draw_circle(Vector2(pole_x + sz.x * 0.04, pole_top + sz.y * 0.06), sz.y * 0.16, Color(0.10, 0.08, 0.06, 0.45))
+
+	draw_line(Vector2(pole_x, pole_top), Vector2(pole_x, pole_bot), dark, 2.0, true)
 	var flag := PackedVector2Array([
 		Vector2(pole_x, pole_top),
-		Vector2(pole_x + sz.x * 0.14, pole_top + sz.y * 0.06),
-		Vector2(pole_x, pole_top + sz.y * 0.12),
+		Vector2(pole_x + sz.x * 0.18, pole_top + sz.y * 0.08),
+		Vector2(pole_x, pole_top + sz.y * 0.16),
 	])
 	draw_colored_polygon(flag, pennant)
 
-	# Week count below the flag.
+	# Countdown badge — a filled circle with the week count centred inside.
+	var badge_centre := Vector2(pole_x, pole_bot + sz.y * 0.18)
+	var badge_radius: float = sz.y * 0.18
+	draw_circle(badge_centre, badge_radius + 1.0, dark)
+	draw_circle(badge_centre, badge_radius, pennant)
+
 	var font: Font = ThemeDB.fallback_font
-	var fsize: int = maxi(int(sz.y * 0.22), 9)
-	var text: String = "%dw" % weeks
+	var fsize: int = maxi(int(sz.y * 0.26), 10)
+	var text: String = "%d" % weeks
 	var text_size: Vector2 = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize)
-	var tx: float = pole_x - text_size.x * 0.5 + sz.x * 0.06
-	var ty: float = pole_bot + text_size.y * 0.5
-	draw_string(font, Vector2(tx, ty), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, Color(1, 1, 1, 0.95))
+	draw_string(
+		font,
+		Vector2(badge_centre.x - text_size.x * 0.5, badge_centre.y + text_size.y * 0.30),
+		text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, dark,
+	)

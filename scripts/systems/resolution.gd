@@ -350,7 +350,8 @@ static func _away_party(gs: Node) -> Array[Unit]:
 
 # Populate result from a CombatSim run. player_total/enemy_total are HP
 # remainders — used by weekly_summary for the "X vs Y" display line.
-# per_unit is left empty until battle_log is migrated to the sim turn_log.
+# per_unit is left empty until the breakdown is migrated to the sim turn_log
+# (weekly_summary's battle breakdown section renders per_unit when populated).
 static func _fill_from_sim(result: Dictionary, sim: Dictionary) -> void:
 	result["fought"] = true
 	result["won"] = sim["winner"] == "player"

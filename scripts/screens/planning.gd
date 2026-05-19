@@ -611,6 +611,42 @@ func _on_tile_clicked(x: int, y: int) -> void:
 func _refresh_action_buttons() -> void:
 	explore_btn.disabled = not _can_explore()
 	gather_btn.disabled = not _can_gather()
+	explore_btn.tooltip_text = _explore_disabled_reason() if explore_btn.disabled else "Send the selected party to scout this tile."
+	gather_btn.tooltip_text = _gather_disabled_reason() if gather_btn.disabled else "Send the selected party to gather here."
+
+
+func _explore_disabled_reason() -> String:
+	if _expedition_party.is_empty():
+		return "Pick at least one unit with ＋ Send on Expedition first."
+	if _selected.x < 0:
+		return "Click a tile on the map to choose where to scout."
+	var tile: MapTile = GameState.world.get_tile(_selected.x, _selected.y)
+	if tile == null:
+		return "Invalid tile."
+	if tile.active_expedition != null:
+		return "Another expedition is already at this tile."
+	if tile.knowledge == MapTile.Knowledge.EXPLORED:
+		return "This tile is already known — pick an unexplored one."
+	if not MapTile.is_fogged_in(GameState.world, tile.x, tile.y):
+		return "Too distant — scouts can only step into a tile next to one they already know."
+	return ""
+
+
+func _gather_disabled_reason() -> String:
+	if _expedition_party.is_empty():
+		return "Pick at least one unit with ＋ Send on Expedition first."
+	if _selected.x < 0:
+		return "Click a tile on the map to choose where to gather."
+	var tile: MapTile = GameState.world.get_tile(_selected.x, _selected.y)
+	if tile == null:
+		return "Invalid tile."
+	if tile.active_expedition != null:
+		return "Another expedition is already at this tile."
+	if tile.knowledge != MapTile.Knowledge.EXPLORED:
+		return "Send scouts here first — you don't yet know what this tile yields."
+	if tile.gather_resource() == "":
+		return "This terrain yields nothing the household can gather."
+	return ""
 
 
 func _can_explore() -> bool:
@@ -691,8 +727,8 @@ func _refresh_expeditions() -> void:
 		child.queue_free()
 	if GameState.expeditions.is_empty():
 		var none_lbl := Label.new()
-		none_lbl.text = "No active expeditions."
-		none_lbl.modulate = Color(0.7, 0.7, 0.7)
+		none_lbl.text = "The grounds are quiet — no parties in the field."
+		none_lbl.modulate = Color(0.62, 0.56, 0.42)
 		expedition_list.add_child(none_lbl)
 		return
 	for exped in GameState.expeditions:
@@ -777,70 +813,82 @@ func _refresh_crafting_tab() -> void:
 	var sep := HSeparator.new()
 	crafting_vbox.add_child(sep)
 
-	# Recipes grouped by type.
+	# Recipes grouped by type. We show only recipes the player can craft right
+	# now — research unlocked AND ingredients in hand. The Research tab is the
+	# place to see what's coming; this tab is the place to do something with
+	# what you've got.
 	var type_labels: Dictionary = {
 		ResourceDB.ResType.FABRIC: "Fabric",
 		ResourceDB.ResType.TIMBER: "Timber",
 		ResourceDB.ResType.METAL:  "Metal",
 	}
+	var any_recipe_anywhere: bool = false
 	for res_type: int in [ResourceDB.ResType.FABRIC, ResourceDB.ResType.TIMBER, ResourceDB.ResType.METAL]:
-		var type_hdr := Label.new()
-		type_hdr.text = type_labels[res_type]
-		type_hdr.add_theme_font_size_override("font_size", 16)
-		crafting_vbox.add_child(type_hdr)
-
-		var any_shown: bool = false
+		var rows_for_type: Array[Control] = []
 		for id: String in ResourceDB.RESOURCES:
 			var entry: Dictionary = ResourceDB.RESOURCES[id]
 			if not entry.has("type") or entry["type"] != res_type:
 				continue
-			# Hide research-locked recipes entirely. Recipes that need research
-			# unlock will reappear from the Research tab once unlocked, so this
-			# keeps the crafting menu focused on what the player can actually do.
 			if not ResourceDB.is_craftable(id, GameState.researched):
 				continue
-			any_shown = true
+			if not ResourceDB.can_afford(id, GameState.inventory):
+				continue
+			rows_for_type.append(_build_recipe_row(id, entry, res_type))
 
-			var row := HBoxContainer.new()
-			row.add_theme_constant_override("separation", 10)
+		if rows_for_type.is_empty():
+			continue
+		any_recipe_anywhere = true
+
+		var type_hdr := Label.new()
+		type_hdr.text = type_labels[res_type]
+		type_hdr.add_theme_font_size_override("font_size", 16)
+		crafting_vbox.add_child(type_hdr)
+		for row in rows_for_type:
 			crafting_vbox.add_child(row)
 
-			# Tier-colored swatch icon — small visual anchor next to the name.
-			row.add_child(_make_recipe_icon(entry["tier"], res_type))
+	if not any_recipe_anywhere:
+		var none_lbl := Label.new()
+		none_lbl.text = "The workshop stands idle — your scouts have brought back nothing the smiths can put hands to. Gather more raw materials, or unlock a new craft from the Research tab."
+		none_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+		none_lbl.modulate = Color(0.58, 0.52, 0.40)
+		crafting_vbox.add_child(none_lbl)
 
-			# Clickable tier-coloured name → info popup.
-			var name_btn := LinkButton.new()
-			name_btn.text = entry["name"]
-			name_btn.add_theme_color_override("font_color", ResourceDB.color_for_tier(entry["tier"]))
-			name_btn.custom_minimum_size = Vector2(140, 0)
-			name_btn.pressed.connect(_show_resource_popup.bind(id))
-			row.add_child(name_btn)
 
-			# Recipe inputs with current stock.
-			var recipe: Dictionary = entry["recipe"]
-			var recipe_parts: PackedStringArray = PackedStringArray()
-			for input_id: String in recipe:
-				var input_entry: Dictionary = ResourceDB.RESOURCES.get(input_id, {})
-				var input_name: String = input_entry.get("name", input_id)
-				var have: int = GameState.inventory.get(input_id, 0)
-				recipe_parts.append("%s ×%d (have %d)" % [input_name, recipe[input_id], have])
-			var recipe_lbl := Label.new()
-			recipe_lbl.text = " + ".join(recipe_parts)
-			recipe_lbl.modulate = Color(0.72, 0.72, 0.72)
-			recipe_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			row.add_child(recipe_lbl)
+func _build_recipe_row(id: String, entry: Dictionary, res_type: int) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
 
-			var craft_btn := Button.new()
-			craft_btn.text = "Craft"
-			craft_btn.disabled = not ResourceDB.can_afford(id, GameState.inventory)
-			craft_btn.pressed.connect(_on_craft.bind(id))
-			row.add_child(craft_btn)
+	# Tier-colored swatch icon — small visual anchor next to the name.
+	row.add_child(_make_recipe_icon(entry["tier"], res_type))
 
-		if not any_shown:
-			var none_lbl := Label.new()
-			none_lbl.text = "  No recipes available."
-			none_lbl.modulate = Color(0.45, 0.45, 0.45)
-			crafting_vbox.add_child(none_lbl)
+	# Clickable tier-coloured name → info popup.
+	var name_btn := LinkButton.new()
+	name_btn.text = entry["name"]
+	name_btn.add_theme_color_override("font_color", ResourceDB.color_for_tier(entry["tier"]))
+	name_btn.custom_minimum_size = Vector2(140, 0)
+	name_btn.pressed.connect(_show_resource_popup.bind(id))
+	row.add_child(name_btn)
+
+	# Recipe inputs with current stock.
+	var recipe: Dictionary = entry["recipe"]
+	var recipe_parts: PackedStringArray = PackedStringArray()
+	for input_id: String in recipe:
+		var input_entry: Dictionary = ResourceDB.RESOURCES.get(input_id, {})
+		var input_name: String = input_entry.get("name", input_id)
+		var have: int = GameState.inventory.get(input_id, 0)
+		recipe_parts.append("%s ×%d (have %d)" % [input_name, recipe[input_id], have])
+	var recipe_lbl := Label.new()
+	recipe_lbl.text = " + ".join(recipe_parts)
+	recipe_lbl.modulate = Color(0.72, 0.72, 0.72)
+	recipe_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(recipe_lbl)
+
+	var craft_btn := Button.new()
+	craft_btn.text = "Craft"
+	craft_btn.pressed.connect(_on_craft.bind(id))
+	row.add_child(craft_btn)
+
+	return row
 
 
 # Small tier-coloured swatch with a one-glyph type hint. Drawn as a Label
@@ -1223,7 +1271,7 @@ func _refresh_calendar_tab() -> void:
 		_add_upcoming_line(label, GameState.tournament_streak >= 2)
 
 	if GameState.expeditions.is_empty():
-		_add_upcoming_line("No active expeditions.", true)
+		_add_upcoming_line("No parties in the field.", true)
 	else:
 		for exped in GameState.expeditions:
 			var return_week: int = GameState.week + exped.weeks_remaining
@@ -1233,7 +1281,7 @@ func _refresh_calendar_tab() -> void:
 
 	if GameState.run_history.is_empty():
 		var none := Label.new()
-		none.text = "No weeks recorded yet."
+		none.text = "The chronicle is unwritten — your first week is still to come."
 		none.modulate = Color(0.65, 0.65, 0.65)
 		history_list.add_child(none)
 		return

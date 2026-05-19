@@ -48,8 +48,7 @@ scenes/
     planning.tscn                 Weekly Planning (5 tabs + Calendar toggle)
     knight_overview.tscn          Per-unit detail screen (click a name on any card)
     pre_battle_review.tscn        Post-Tick roster + event-aware setup pane
-    battle_log.tscn               Per-unit combat breakdown (combat events only)
-    weekly_summary.tscn           Chronicle + deltas + returns + rewards + caravan picker
+    weekly_summary.tscn           Chronicle + per-unit battle breakdown + deltas + returns + rewards + caravan picker
     game_over.tscn                Home Battle loss
     run_win.tscn                  Grand Tournament victory
   ui/settings_popup.tscn          Shared in-game settings modal
