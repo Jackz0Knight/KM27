@@ -8,8 +8,8 @@ extends Control
 # displayed in a top row so the player can see who they're picking a Knight
 # to lead before committing.
 
-@onready var squires_row: HBoxContainer = $Margin/VBox/SquiresRow
-@onready var cards: HBoxContainer = $Margin/VBox/Cards
+@onready var squires_row: HBoxContainer = $Margin/VBox/Scroll/ScrollBody/SquiresRow
+@onready var cards: HBoxContainer = $Margin/VBox/Scroll/ScrollBody/Cards
 
 
 func _ready() -> void:

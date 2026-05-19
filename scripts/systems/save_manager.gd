@@ -130,20 +130,24 @@ func _serialise_state() -> Dictionary:
 
 
 func _world_seed() -> int:
-	# World seed isn't stored on GameState; we use the RNG's base seed as proxy.
-	# If unavailable, return 0 (world will be regenerated from full exploration state).
+	# WorldGenerator stamps the seed onto the World instance; pull it back out
+	# so loading regenerates the same terrain (otherwise the saved explored
+	# tiles and castles get re-applied on top of a brand-new random map).
+	if GameState.world != null:
+		return GameState.world.seed_value
 	return 0
 
 
 # ---------- restore ----------
 
 func _restore_state(data: Dictionary) -> void:
-	# Re-generate the world from scratch using saved explored/castle state,
-	# since we don't persist the seed directly yet.
-	# We use seed 0 as placeholder and then override knowledge from the save.
-	var seed_val: int = int(data.get("world_seed", 0))
-	if seed_val == 0:
-		seed_val = randi()
+	# Regenerate the world from the saved seed so terrain, castle layout, and
+	# anything else WorldGenerator places end up identical to the run that was
+	# saved. Pre-seed-fix saves stored 0 and lose their original world; in
+	# that case we roll a fresh seed and rely on the saved explored/castle
+	# state to patch what we can.
+	var has_seed: bool = data.has("world_seed") and int(data.get("world_seed", 0)) != 0
+	var seed_val: int = int(data.get("world_seed", 0)) if has_seed else randi()
 	GameState.start_run(seed_val)
 
 	GameState.week = int(data.get("week", 1))

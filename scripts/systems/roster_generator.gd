@@ -23,6 +23,13 @@ const KNIGHT_CANDIDATE_COUNT: int = 3
 const STARTING_SQUIRE_COUNT: int = 3
 
 
+# The two roll_* calls share `_taken_names` so the entire Knight Chooser
+# screen — 3 squires + 3 candidate knights — never shows two units with the
+# same first name or surname. Cleared at the start of each call to
+# `roll_starting_squires` since that's the first call the chooser makes.
+static var _taken_names: Array[String] = []
+
+
 static func roll_knight_candidates() -> Array[Unit]:
 	var out: Array[Unit] = []
 	for i in range(KNIGHT_CANDIDATE_COUNT):
@@ -34,6 +41,7 @@ static func roll_knight_candidates() -> Array[Unit]:
 # the Knight chooser screen can show them before the Knight pick (the player
 # decides which Knight best complements the Squires they're getting).
 static func roll_starting_squires() -> Array[Unit]:
+	_taken_names.clear()
 	var out: Array[Unit] = []
 	for i in range(STARTING_SQUIRE_COUNT):
 		out.append(_roll_squire(2 + i))
@@ -57,7 +65,9 @@ static func _roll_knight(unit_id: int) -> Unit:
 	var house_id: String = HousePool.random_house_id()
 	HousePool.apply_lean(stats, house_id, Stats.STAT_CAP)
 	var pa: int = RNG.randi_range(KNIGHT_PA_MIN, KNIGHT_PA_MAX)
-	var u := Unit.new(unit_id, NamePool.random_name(), Unit.UnitClass.KNIGHT, stats, pa)
+	var name: String = NamePool.random_name_avoiding(_taken_names)
+	_taken_names.append(name)
+	var u := Unit.new(unit_id, name, Unit.UnitClass.KNIGHT, stats, pa)
 	u.house_id = house_id
 	u.body_type = BodyType.random_body_type()
 	u.weapon_id = "longsword"
@@ -74,7 +84,9 @@ static func _roll_squire(unit_id: int) -> Unit:
 	# of their roll band.
 	HousePool.apply_lean(stats, house_id, SQUIRE_STAT_MAX)
 	var pa: int = RNG.randi_range(SQUIRE_PA_MIN, SQUIRE_PA_MAX)
-	var u := Unit.new(unit_id, NamePool.random_name(), Unit.UnitClass.SQUIRE, stats, pa)
+	var name: String = NamePool.random_name_avoiding(_taken_names)
+	_taken_names.append(name)
+	var u := Unit.new(unit_id, name, Unit.UnitClass.SQUIRE, stats, pa)
 	u.house_id = house_id
 	u.body_type = BodyType.random_body_type()
 	u.weapon_id = "shortsword"
