@@ -191,13 +191,24 @@ func is_craftable(id: String, researched: Array) -> bool:
 
 # Research project table. Keys here must match the "research" gate strings used
 # in RESOURCES above. Each project has a gold cost and lists what it unlocks.
+# Five categories — these are the swimlanes the Research tab renders by.
+# "category" on each project must match one of these keys exactly.
+const RESEARCH_CATEGORIES: Array[String] = ["cultivation", "forestry", "metallurgy", "husbandry", "lore"]
+const RESEARCH_CATEGORY_LABELS: Dictionary = {
+	"cultivation": "Cultivation",
+	"forestry":    "Forestry",
+	"metallurgy":  "Metallurgy",
+	"husbandry":   "Husbandry",
+	"lore":        "Lore",
+}
+
 const RESEARCH_PROJECTS: Dictionary = {
 	"cotton_cultivation": {
 		"name": "Cotton Cultivation",
 		"description": "Commission a study of cotton preparation — enables fine cloth weaving from gathered cotton.",
 		"cost_gold": 40,
 		"unlocks": ["cloth"],
-		"category": "fabric",
+		"category": "cultivation",
 		"tier": 2,
 		"prerequisites": [],
 	},
@@ -206,7 +217,7 @@ const RESEARCH_PROJECTS: Dictionary = {
 		"description": "Learn to combine tin and copper into bronze — the first step in serious metallurgy.",
 		"cost_gold": 60,
 		"unlocks": ["bronze_ingot"],
-		"category": "metal",
+		"category": "metallurgy",
 		"tier": 2,
 		"prerequisites": [],
 	},
@@ -215,9 +226,57 @@ const RESEARCH_PROJECTS: Dictionary = {
 		"description": "Commission a proper furnace capable of refining iron ore and coal into steel.",
 		"cost_gold": 120,
 		"unlocks": ["steel_ingot"],
-		"category": "metal",
+		"category": "metallurgy",
 		"tier": 3,
 		"prerequisites": ["alloy_research"],
+	},
+	# ---- Suggested/placeholder projects below this line. They flesh the tree
+	# ---- out visually; their `unlocks` reference future content not yet wired
+	# ---- to ResourceDB.RESOURCES (the detail panel renders the prettified IDs).
+	"forester_guild": {
+		"name": "Forester's Guild",
+		"description": "Charter a guild of foresters — better axes, better paths, better yields from every wooded tile your scouts walk into.",
+		"cost_gold": 50,
+		"unlocks": ["seasoned_lumber"],
+		"category": "forestry",
+		"tier": 2,
+		"prerequisites": [],
+	},
+	"falconry": {
+		"name": "Falconry",
+		"description": "Raise hunting birds for the mews — their eyes reach further than any rider, and your scouts learn to read the skies.",
+		"cost_gold": 55,
+		"unlocks": ["scouting_birds"],
+		"category": "husbandry",
+		"tier": 2,
+		"prerequisites": [],
+	},
+	"cartography": {
+		"name": "Cartography",
+		"description": "Engage a scribe of maps — distant tiles can be drawn from rumour alone, and your scouts no longer cross the same ridge twice.",
+		"cost_gold": 70,
+		"unlocks": ["chart_room"],
+		"category": "lore",
+		"tier": 2,
+		"prerequisites": [],
+	},
+	"apothecary": {
+		"name": "Apothecary's Cabinet",
+		"description": "Stock the cabinet with bark, willow, and known restoratives. Injured retainers return to the field one week sooner.",
+		"cost_gold": 90,
+		"unlocks": ["restorative_draught"],
+		"category": "husbandry",
+		"tier": 3,
+		"prerequisites": ["falconry"],
+	},
+	"tannery": {
+		"name": "Tannery",
+		"description": "Build a proper tannery beside the lower stream — leather goods for the household, light armour for the squires, and trade against neighbouring estates.",
+		"cost_gold": 80,
+		"unlocks": ["cured_leather"],
+		"category": "cultivation",
+		"tier": 3,
+		"prerequisites": ["cotton_cultivation", "forester_guild"],
 	},
 }
 

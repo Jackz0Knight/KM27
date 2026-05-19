@@ -393,23 +393,15 @@ func _build_unit_row(u: Unit) -> Control:
 		vbox.add_child(locked_lbl)
 		return panel
 
-	var task_picker := OptionButton.new()
-	task_picker.add_item("Defend")
-	task_picker.tooltip_text = "Defend: full combat power at home. Train: +1 to the chosen stat next Tick."
-	var train_start: int = task_picker.item_count
-	for stat_key in Stats.STAT_KEYS:
-		task_picker.add_item("Train %s (now %d)" % [stat_key.capitalize(), u.stats.get_value(stat_key)])
-
+	# Assignment chip — single button that reads the current task at a glance.
+	# Click opens a PopupMenu with Defend + one row per trainable stat. No
+	# OptionButton arrow eating real estate on every unit row.
+	var task_btn := Button.new()
+	task_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var saved_task: String = _pending_tasks.get(u.id, Unit.TASK_DEFEND)
-	if saved_task == Unit.TASK_DEFEND:
-		task_picker.select(0)
-	else:
-		var stat_name: String = saved_task.substr(Unit.TASK_TRAIN_PREFIX.length())
-		var idx: int = Stats.STAT_KEYS.find(stat_name)
-		if idx >= 0:
-			task_picker.select(train_start + idx)
-	task_picker.item_selected.connect(_on_task_picked.bind(u.id, train_start))
-	vbox.add_child(task_picker)
+	_style_task_btn(task_btn, u, saved_task)
+	task_btn.pressed.connect(_open_task_popup.bind(u.id, task_btn))
+	vbox.add_child(task_btn)
 
 	var party_btn := Button.new()
 	party_btn.toggle_mode = true
@@ -425,22 +417,75 @@ func _build_unit_row(u: Unit) -> Control:
 		hint.modulate = Color(0.65, 0.65, 0.65)
 		vbox.add_child(hint)
 	elif GameState.current_event == EventKind.AWAY_BATTLE:
-		var away_chk := CheckBox.new()
-		away_chk.text = "Send to Away Battle"
-		away_chk.button_pressed = GameState.pending_away_party.has(u.id)
-		away_chk.toggled.connect(_on_away_party_toggled.bind(u.id))
-		vbox.add_child(away_chk)
+		# Same toggle-button styling as the expedition-party row — keeps the
+		# unit row free of checkboxes.
+		var away_btn := Button.new()
+		away_btn.toggle_mode = true
+		away_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		away_btn.button_pressed = GameState.pending_away_party.has(u.id)
+		_style_away_btn(away_btn, away_btn.button_pressed)
+		away_btn.toggled.connect(_on_away_party_toggled.bind(u.id, away_btn))
+		vbox.add_child(away_btn)
 
 	return panel
 
 
-func _on_task_picked(option_idx: int, unit_id: int, train_start: int) -> void:
-	if option_idx == 0:
+# Set the visible text on the assignment chip based on the current task.
+func _style_task_btn(btn: Button, u: Unit, task: String) -> void:
+	if task == Unit.TASK_DEFEND:
+		btn.text = "⛨  Defend the homestead"
+		btn.add_theme_color_override("font_color", Color(0.82, 0.78, 0.62))
+	elif task.begins_with(Unit.TASK_TRAIN_PREFIX):
+		var stat: String = task.substr(Unit.TASK_TRAIN_PREFIX.length())
+		var current: int = u.stats.get_value(stat)
+		btn.text = "✦  Training %s  (now %d)" % [stat.capitalize(), current]
+		btn.add_theme_color_override("font_color", Color(1.0, 0.84, 0.42))
+	else:
+		btn.text = "○  Idle"
+		btn.add_theme_color_override("font_color", Color(0.62, 0.58, 0.45))
+	btn.tooltip_text = "Click to change this week's assignment."
+
+
+# Open a PopupMenu at the chip button's bottom edge. Defending first, a
+# separator, then one entry per stat with the unit's current value.
+func _open_task_popup(unit_id: int, anchor: Button) -> void:
+	var u: Unit = GameState.find_unit(unit_id)
+	if u == null:
+		return
+	var popup := PopupMenu.new()
+	popup.add_item("⛨  Defend the homestead", 0)
+	popup.add_separator()
+	for i in range(Stats.STAT_KEYS.size()):
+		var stat: String = Stats.STAT_KEYS[i]
+		popup.add_item("✦  Train %s  (now %d)" % [stat.capitalize(), u.stats.get_value(stat)], i + 1)
+	popup.id_pressed.connect(_on_task_popup_picked.bind(unit_id, anchor, popup))
+	popup.close_requested.connect(func(): popup.queue_free())
+	add_child(popup)
+	var p := anchor.get_screen_position() + Vector2(0, anchor.size.y)
+	popup.position = Vector2i(p)
+	popup.popup()
+
+
+func _on_task_popup_picked(id: int, unit_id: int, anchor: Button, popup: PopupMenu) -> void:
+	if id == 0:
 		_pending_tasks[unit_id] = Unit.TASK_DEFEND
 	else:
-		var stat_idx: int = option_idx - train_start
+		var stat_idx: int = id - 1
 		if stat_idx >= 0 and stat_idx < Stats.STAT_KEYS.size():
 			_pending_tasks[unit_id] = Unit.TASK_TRAIN_PREFIX + Stats.STAT_KEYS[stat_idx]
+	var u: Unit = GameState.find_unit(unit_id)
+	if u != null:
+		_style_task_btn(anchor, u, _pending_tasks[unit_id])
+	popup.queue_free()
+
+
+func _style_away_btn(btn: Button, in_party: bool) -> void:
+	if in_party:
+		btn.text = "⚔  Riding to the Away Battle"
+		btn.add_theme_color_override("font_color", Color(1.0, 0.66, 0.34))
+	else:
+		btn.text = "＋  Add to Away Battle"
+		btn.add_theme_color_override("font_color", Color(0.78, 0.74, 0.60))
 
 
 func _on_party_toggled(pressed: bool, unit_id: int, btn: Button) -> void:
@@ -463,12 +508,13 @@ func _style_party_btn(btn: Button, in_party: bool) -> void:
 		btn.add_theme_color_override("font_color", Color(0.78, 0.74, 0.60))
 
 
-func _on_away_party_toggled(pressed: bool, unit_id: int) -> void:
+func _on_away_party_toggled(pressed: bool, unit_id: int, btn: Button) -> void:
 	if pressed:
 		if not GameState.pending_away_party.has(unit_id):
 			GameState.pending_away_party.append(unit_id)
 	else:
 		GameState.pending_away_party.erase(unit_id)
+	_style_away_btn(btn, pressed)
 	_refresh_away_section()
 
 
@@ -483,15 +529,12 @@ func _refresh_away_section() -> void:
 		return
 	away_section.visible = true
 
-	var header := Label.new()
-	header.text = "Away Battle this week"
-	header.add_theme_font_size_override("font_size", 18)
-	away_section.add_child(header)
+	away_section.add_child(_styled_section_header("Away Battle this week", 18))
 
 	var party_size: int = GameState.pending_away_party.size()
 	var party_lbl := Label.new()
-	party_lbl.text = "Party: %d unit(s) (tick units in the list above)" % party_size
-	party_lbl.modulate = Color(0.78, 0.78, 0.78)
+	party_lbl.text = "Party: %d riding" % party_size
+	party_lbl.modulate = Color(0.78, 0.74, 0.60)
 	away_section.add_child(party_lbl)
 
 	var actions := HBoxContainer.new()
@@ -499,7 +542,7 @@ func _refresh_away_section() -> void:
 	away_section.add_child(actions)
 
 	var pillage_btn := Button.new()
-	pillage_btn.text = "Pillage Camp"
+	pillage_btn.text = "⚒  Pillage Camp"
 	pillage_btn.disabled = party_size == 0
 	pillage_btn.pressed.connect(_on_pick_pillage)
 	if GameState.pending_away_mode == "pillage":
@@ -509,7 +552,7 @@ func _refresh_away_section() -> void:
 	var explored_castles: Array = _explored_castles()
 
 	var assault_btn := Button.new()
-	assault_btn.text = "Assault Castle"
+	assault_btn.text = "🏰  Assault Castle"
 	assault_btn.disabled = party_size == 0 or explored_castles.is_empty()
 	assault_btn.pressed.connect(_on_pick_assault)
 	if GameState.pending_away_mode == "assault":
@@ -517,20 +560,16 @@ func _refresh_away_section() -> void:
 	actions.add_child(assault_btn)
 
 	if GameState.pending_away_mode == "assault":
-		var picker := OptionButton.new()
-		picker.add_item("— pick a castle —")
+		# Inline list of castle cards — no dropdown. Each card shows
+		# coordinates, difficulty band, reward bundle; the highlighted card is
+		# the current pending target.
+		var castles_label := Label.new()
+		castles_label.text = "Pick a target — known castles within the realm:"
+		castles_label.modulate = Color(0.78, 0.74, 0.60)
+		castles_label.add_theme_font_size_override("font_size", 13)
+		away_section.add_child(castles_label)
 		for castle in explored_castles:
-			picker.add_item("(%d,%d) diff %d, reward %s" % [
-				castle.x, castle.y, castle.difficulty, castle.reward.describe(),
-			])
-			picker.set_item_metadata(picker.item_count - 1, castle)
-		var current_idx: int = 0
-		for i in range(1, picker.item_count):
-			if picker.get_item_metadata(i) == GameState.pending_assault_castle:
-				current_idx = i
-		picker.select(current_idx)
-		picker.item_selected.connect(_on_assault_castle_picked.bind(picker))
-		away_section.add_child(picker)
+			away_section.add_child(_build_castle_card(castle))
 
 
 func _on_pick_pillage() -> void:
@@ -544,11 +583,116 @@ func _on_pick_assault() -> void:
 	_refresh_away_section()
 
 
-func _on_assault_castle_picked(idx: int, picker: OptionButton) -> void:
-	if idx <= 0:
-		GameState.pending_assault_castle = null
-		return
-	GameState.pending_assault_castle = picker.get_item_metadata(idx)
+func _on_castle_card_picked(castle: Castle) -> void:
+	GameState.pending_assault_castle = castle
+	_refresh_away_section()
+
+
+# A clickable card for one castle. Highlighted when it's the current pending
+# target. Replaces the OptionButton picker entirely.
+func _build_castle_card(castle: Castle) -> Control:
+	var is_target: bool = GameState.pending_assault_castle == castle
+	var diff_band: String = _castle_difficulty_band(castle.difficulty)
+	var diff_color: Color = _castle_difficulty_color(castle.difficulty)
+
+	var btn := Button.new()
+	btn.custom_minimum_size = Vector2(0, 64)
+	btn.toggle_mode = true
+	btn.button_pressed = is_target
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.pressed.connect(_on_castle_card_picked.bind(castle))
+
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.16, 0.12, 0.08, 0.75) if not is_target else Color(0.28, 0.18, 0.08, 0.90)
+	sb.border_color = Color(0.50, 0.36, 0.20) if not is_target else Color(0.95, 0.78, 0.30)
+	sb.border_width_left = 2
+	sb.border_width_right = 2
+	sb.border_width_top = 2
+	sb.border_width_bottom = 2
+	sb.corner_radius_top_left = 6
+	sb.corner_radius_top_right = 6
+	sb.corner_radius_bottom_left = 6
+	sb.corner_radius_bottom_right = 6
+	sb.content_margin_left = 12
+	sb.content_margin_right = 12
+	sb.content_margin_top = 8
+	sb.content_margin_bottom = 8
+	btn.add_theme_stylebox_override("normal", sb)
+	btn.add_theme_stylebox_override("hover", sb)
+	btn.add_theme_stylebox_override("pressed", sb)
+	btn.add_theme_stylebox_override("focus", sb)
+
+	# Pad the card contents away from the button border. MarginContainer is
+	# the cleanest way to do this — the stylebox's content_margin only affects
+	# the Button's own text label, not arbitrary children we add inside.
+	var pad := MarginContainer.new()
+	pad.set_anchors_preset(Control.PRESET_FULL_RECT)
+	pad.add_theme_constant_override("margin_left", 14)
+	pad.add_theme_constant_override("margin_right", 14)
+	pad.add_theme_constant_override("margin_top", 10)
+	pad.add_theme_constant_override("margin_bottom", 10)
+	pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	btn.add_child(pad)
+
+	var content := HBoxContainer.new()
+	content.add_theme_constant_override("separation", 14)
+	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pad.add_child(content)
+
+	# Left column — castle coords + difficulty band.
+	var left := VBoxContainer.new()
+	left.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	left.add_theme_constant_override("separation", 2)
+	content.add_child(left)
+
+	var coord_lbl := Label.new()
+	coord_lbl.text = "🏰  (%d, %d)" % [castle.x, castle.y]
+	coord_lbl.add_theme_font_size_override("font_size", 15)
+	coord_lbl.add_theme_color_override("font_color", Color(0.95, 0.78, 0.30))
+	left.add_child(coord_lbl)
+
+	var diff_lbl := Label.new()
+	diff_lbl.text = "%s · diff %d" % [diff_band, castle.difficulty]
+	diff_lbl.add_theme_font_size_override("font_size", 12)
+	diff_lbl.add_theme_color_override("font_color", diff_color)
+	left.add_child(diff_lbl)
+
+	# Right column — reward bundle.
+	var reward_lbl := Label.new()
+	reward_lbl.text = castle.reward.describe()
+	reward_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	reward_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	reward_lbl.add_theme_font_size_override("font_size", 13)
+	reward_lbl.add_theme_color_override("font_color", Color(0.70, 0.88, 0.60))
+	content.add_child(reward_lbl)
+
+	# Target marker on the right when this is the selected castle.
+	var status_lbl := Label.new()
+	if is_target:
+		status_lbl.text = "✓ Target"
+		status_lbl.add_theme_color_override("font_color", Color(1.0, 0.84, 0.42))
+	else:
+		status_lbl.text = "Pick"
+		status_lbl.add_theme_color_override("font_color", Color(0.62, 0.56, 0.42))
+	status_lbl.add_theme_font_size_override("font_size", 13)
+	status_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	content.add_child(status_lbl)
+
+	return btn
+
+
+func _castle_difficulty_band(d: int) -> String:
+	if d < 60:    return "Lightly held"
+	if d < 110:   return "Garrisoned"
+	if d < 160:   return "Well-defended"
+	return "A formidable seat"
+
+
+func _castle_difficulty_color(d: int) -> Color:
+	if d < 60:    return Color(0.65, 0.88, 0.55)
+	if d < 110:   return Color(0.92, 0.85, 0.45)
+	if d < 160:   return Color(0.95, 0.65, 0.35)
+	return Color(0.95, 0.45, 0.40)
 
 
 func _explored_castles() -> Array:
@@ -963,12 +1107,24 @@ func _do_craft(resource_id: String) -> void:
 
 
 # ---------- Research tab ----------
+#
+# Layout intent: swimlane tree — each ResourceDB.RESEARCH_CATEGORIES key gets
+# its own horizontal row; tier columns grow rightward. Empty cells stay empty
+# so the structure of the tree reads at a glance. Detail panel on the right
+# fills in when an icon is selected.
 
 const RESEARCH_CATEGORY_COLOR: Dictionary = {
-	"fabric": Color(0.50, 0.78, 0.45),
-	"timber": Color(0.78, 0.60, 0.32),
-	"metal":  Color(0.55, 0.70, 0.92),
+	"cultivation": Color(0.55, 0.82, 0.45),
+	"forestry":    Color(0.45, 0.70, 0.32),
+	"metallurgy":  Color(0.62, 0.72, 0.92),
+	"husbandry":   Color(0.86, 0.62, 0.36),
+	"lore":        Color(0.82, 0.72, 0.40),
 }
+const RESEARCH_TIER_MIN: int = 1
+const RESEARCH_TIER_MAX: int = 4
+const RESEARCH_CELL_SIZE: Vector2 = Vector2(108, 108)
+const RESEARCH_CELL_GAP_H: int = 14
+const RESEARCH_CELL_GAP_V: int = 8
 
 var _selected_research_id: String = ""
 
@@ -977,7 +1133,7 @@ func _refresh_research_tab() -> void:
 	for c in research_body.get_children():
 		c.queue_free()
 
-	# Two-column body: tier-rowed icon grid on the left, detail card on the right.
+	# Two-column body: swimlane grid on the left, detail card on the right.
 	var split := HBoxContainer.new()
 	split.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -998,30 +1154,112 @@ func _build_research_grid() -> Control:
 		margin.add_theme_constant_override("margin_" + side, 16)
 	grid_panel.add_child(margin)
 
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 12)
-	margin.add_child(vbox)
+	var outer := VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 4)
+	margin.add_child(outer)
 
-	# Group projects by tier, render each tier as a row of icons.
-	var tiers: Dictionary = {}   # tier int → Array[String] of project_ids
+	# Determine which tier columns to show — the lowest tier in the data, up
+	# through the highest. Keeps the grid compact as the tree grows.
+	var min_tier: int = RESEARCH_TIER_MAX
+	var max_tier: int = RESEARCH_TIER_MIN
 	for pid: String in ResourceDB.RESEARCH_PROJECTS:
 		var t: int = int(ResourceDB.RESEARCH_PROJECTS[pid].get("tier", 1))
-		if not tiers.has(t):
-			tiers[t] = []
-		tiers[t].append(pid)
+		min_tier = mini(min_tier, t)
+		max_tier = maxi(max_tier, t)
 
-	var tier_keys: Array = tiers.keys()
-	tier_keys.sort()
-	for t in tier_keys:
-		vbox.add_child(_styled_section_header("Tier %d" % t, 14))
+	# Tier header row — sits above the swimlanes.
+	var tier_header_row := HBoxContainer.new()
+	tier_header_row.add_theme_constant_override("separation", RESEARCH_CELL_GAP_H)
+	outer.add_child(tier_header_row)
 
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 10)
-		vbox.add_child(row)
-		for pid in tiers[t]:
-			row.add_child(_make_research_icon(pid))
+	# Empty label cell for the category-name column to align with the swimlanes.
+	var cat_col_spacer := Control.new()
+	cat_col_spacer.custom_minimum_size = Vector2(96, 0)
+	tier_header_row.add_child(cat_col_spacer)
+
+	for t in range(min_tier, max_tier + 1):
+		var tier_lbl := Label.new()
+		tier_lbl.text = "❦  Tier %d" % t
+		tier_lbl.custom_minimum_size = Vector2(RESEARCH_CELL_SIZE.x, 0)
+		tier_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tier_lbl.add_theme_font_size_override("font_size", 13)
+		tier_lbl.add_theme_color_override("font_color", Color(0.92, 0.78, 0.42))
+		tier_header_row.add_child(tier_lbl)
+
+	# One row per category — empty cells for tiers with no project in that lane.
+	for category in ResourceDB.RESEARCH_CATEGORIES:
+		outer.add_child(_build_research_swimlane(category, min_tier, max_tier))
 
 	return grid_panel
+
+
+func _build_research_swimlane(category: String, min_tier: int, max_tier: int) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", RESEARCH_CELL_GAP_H)
+
+	# Category name on the left — tier-coloured to match its lane.
+	var color: Color = RESEARCH_CATEGORY_COLOR.get(category, Color(0.7, 0.7, 0.7))
+	var cat_lbl := Label.new()
+	cat_lbl.text = ResourceDB.RESEARCH_CATEGORY_LABELS.get(category, category.capitalize())
+	cat_lbl.custom_minimum_size = Vector2(96, RESEARCH_CELL_SIZE.y)
+	cat_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	cat_lbl.add_theme_font_size_override("font_size", 13)
+	cat_lbl.add_theme_color_override("font_color", color)
+	row.add_child(cat_lbl)
+
+	# Bucket projects in this category by tier so we can fill cells in order.
+	var by_tier: Dictionary = {}
+	for pid: String in ResourceDB.RESEARCH_PROJECTS:
+		var p: Dictionary = ResourceDB.RESEARCH_PROJECTS[pid]
+		if str(p.get("category", "")) != category:
+			continue
+		var t: int = int(p.get("tier", 1))
+		if not by_tier.has(t):
+			by_tier[t] = []
+		by_tier[t].append(pid)
+
+	for t in range(min_tier, max_tier + 1):
+		var cell_list: Array = by_tier.get(t, [])
+		if cell_list.is_empty():
+			row.add_child(_research_empty_cell(color))
+			continue
+		# Multiple projects in one (category, tier) slot stack vertically.
+		var cell_vbox := VBoxContainer.new()
+		cell_vbox.add_theme_constant_override("separation", RESEARCH_CELL_GAP_V)
+		cell_vbox.custom_minimum_size = Vector2(RESEARCH_CELL_SIZE.x, 0)
+		for pid in cell_list:
+			cell_vbox.add_child(_make_research_icon(pid))
+		row.add_child(cell_vbox)
+
+	return row
+
+
+func _research_empty_cell(category_color: Color) -> Control:
+	# Faint dotted placeholder so empty cells read as "nothing here yet" rather
+	# than "missing element." A dim ◦ glyph sits centred in the cell.
+	var c := PanelContainer.new()
+	c.custom_minimum_size = RESEARCH_CELL_SIZE
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0, 0, 0, 0)
+	sb.border_color = category_color.darkened(0.65)
+	sb.border_width_left = 1
+	sb.border_width_right = 1
+	sb.border_width_top = 1
+	sb.border_width_bottom = 1
+	sb.corner_radius_top_left = 6
+	sb.corner_radius_top_right = 6
+	sb.corner_radius_bottom_left = 6
+	sb.corner_radius_bottom_right = 6
+	c.add_theme_stylebox_override("panel", sb)
+	var dot := Label.new()
+	dot.text = "◦"
+	dot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	dot.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	dot.add_theme_color_override("font_color", category_color.darkened(0.55))
+	dot.add_theme_font_size_override("font_size", 22)
+	dot.set_anchors_preset(Control.PRESET_FULL_RECT)
+	c.add_child(dot)
+	return c
 
 
 func _make_research_icon(project_id: String) -> Control:
@@ -1032,7 +1270,7 @@ func _make_research_icon(project_id: String) -> Control:
 	var color: Color = RESEARCH_CATEGORY_COLOR.get(category, Color(0.7, 0.7, 0.7))
 
 	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(96, 96)
+	btn.custom_minimum_size = RESEARCH_CELL_SIZE
 	btn.toggle_mode = true
 	btn.button_pressed = (_selected_research_id == project_id)
 	btn.tooltip_text = proj["name"] + ("  ✓" if is_done else "")
@@ -1136,7 +1374,16 @@ func _build_research_detail() -> Control:
 	var unlock_names: Array[String] = []
 	for rid: String in proj["unlocks"]:
 		var rentry: Dictionary = ResourceDB.RESOURCES.get(rid, {})
-		unlock_names.append(rentry.get("name", rid))
+		# Real recipes have a "name" — placeholder/future unlocks fall back to
+		# the snake_case ID, prettified to title case so it still reads cleanly.
+		var pretty: String = rid.replace("_", " ")
+		# Capitalise the first letter of each word for a cleaner display.
+		var words: PackedStringArray = pretty.split(" ")
+		var titled: Array[String] = []
+		for w in words:
+			if w.length() > 0:
+				titled.append(w[0].to_upper() + w.substr(1))
+		unlock_names.append(rentry.get("name", " ".join(titled)))
 	var unlocks_lbl := Label.new()
 	unlocks_lbl.text = "Unlocks: %s" % ", ".join(unlock_names)
 	unlocks_lbl.modulate = Color(0.65, 0.88, 0.65)
