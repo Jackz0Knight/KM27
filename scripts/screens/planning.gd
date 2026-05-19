@@ -31,7 +31,7 @@ const SettingsPopup = preload("res://scripts/ui/settings_popup.gd")
 @onready var status_lbl: Label            = $Margin/VBox/StatusLabel
 
 # Overview tab.
-@onready var roster_cards: VBoxContainer = $Margin/VBox/Content/Overview/RosterCards
+@onready var roster_cards: VBoxContainer = $Margin/VBox/Content/Overview/OverviewScroll/RosterCards
 
 # Tactics tab.
 @onready var tactics_upcoming_list: VBoxContainer = $Margin/VBox/Content/Tactics/TacticsUpcoming/UpcomingList

@@ -47,11 +47,11 @@ const STAT_BLURBS: Dictionary = {
 
 @onready var header_lbl: Label = $Margin/VBox/Header
 @onready var sub_header_lbl: Label = $Margin/VBox/SubHeader
-@onready var chronicle_slot: VBoxContainer = $Margin/VBox/Columns/LeftCol/ChronicleSlot
-@onready var stats_total_lbl: Label = $Margin/VBox/Columns/MidCol/StatsTotal
-@onready var stats_blocks: VBoxContainer = $Margin/VBox/Columns/MidCol/StatsBlocks
-@onready var task_info: VBoxContainer = $Margin/VBox/Columns/RightCol/TaskInfo
-@onready var history_info: VBoxContainer = $Margin/VBox/Columns/RightCol/HistoryScroll/HistoryInfo
+@onready var chronicle_slot: VBoxContainer = $Margin/VBox/ColumnsScroll/Columns/LeftCol/ChronicleSlot
+@onready var stats_total_lbl: Label = $Margin/VBox/ColumnsScroll/Columns/MidCol/StatsTotal
+@onready var stats_blocks: VBoxContainer = $Margin/VBox/ColumnsScroll/Columns/MidCol/StatsBlocks
+@onready var task_info: VBoxContainer = $Margin/VBox/ColumnsScroll/Columns/RightCol/TaskInfo
+@onready var history_info: VBoxContainer = $Margin/VBox/ColumnsScroll/Columns/RightCol/HistoryScroll/HistoryInfo
 @onready var back_btn: Button = $Margin/VBox/TopBar/BackBtn
 @onready var settings_btn: Button = $Margin/VBox/TopBar/SettingsBtn
 

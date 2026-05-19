@@ -56,18 +56,24 @@ text = "—"
 theme_override_font_sizes/font_size = 18
 modulate = Color(0.78, 0.78, 0.78, 1)
 
-[node name="Columns" type="HBoxContainer" parent="Margin/VBox"]
+[node name="ColumnsScroll" type="ScrollContainer" parent="Margin/VBox"]
 layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Columns" type="HBoxContainer" parent="Margin/VBox/ColumnsScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 18
 
-[node name="LeftCol" type="VBoxContainer" parent="Margin/VBox/Columns"]
+[node name="LeftCol" type="VBoxContainer" parent="Margin/VBox/ColumnsScroll/Columns"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_stretch_ratio = 1.1
 theme_override_constants/separation = 10
 
-[node name="ChronicleSlot" type="VBoxContainer" parent="Margin/VBox/Columns/LeftCol"]
+[node name="ChronicleSlot" type="VBoxContainer" parent="Margin/VBox/ColumnsScroll/Columns/LeftCol"]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 8
@@ -78,18 +84,18 @@ size_flags_horizontal = 3
 size_flags_stretch_ratio = 1.0
 theme_override_constants/separation = 8
 
-[node name="StatsHeader" type="Label" parent="Margin/VBox/Columns/MidCol"]
+[node name="StatsHeader" type="Label" parent="Margin/VBox/ColumnsScroll/Columns/MidCol"]
 layout_mode = 2
 text = "Stats"
 theme_override_font_sizes/font_size = 22
 theme_override_colors/font_color = Color(0.92, 0.84, 0.55, 1)
 
-[node name="StatsTotal" type="Label" parent="Margin/VBox/Columns/MidCol"]
+[node name="StatsTotal" type="Label" parent="Margin/VBox/ColumnsScroll/Columns/MidCol"]
 layout_mode = 2
 text = "Total: ?"
 modulate = Color(0.78, 0.78, 0.78, 1)
 
-[node name="StatsBlocks" type="VBoxContainer" parent="Margin/VBox/Columns/MidCol"]
+[node name="StatsBlocks" type="VBoxContainer" parent="Margin/VBox/ColumnsScroll/Columns/MidCol"]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 10
@@ -100,27 +106,27 @@ size_flags_horizontal = 3
 size_flags_stretch_ratio = 0.9
 theme_override_constants/separation = 10
 
-[node name="TaskHeader" type="Label" parent="Margin/VBox/Columns/RightCol"]
+[node name="TaskHeader" type="Label" parent="Margin/VBox/ColumnsScroll/Columns/RightCol"]
 layout_mode = 2
 text = "Current Status"
 theme_override_font_sizes/font_size = 22
 theme_override_colors/font_color = Color(0.92, 0.84, 0.55, 1)
 
-[node name="TaskInfo" type="VBoxContainer" parent="Margin/VBox/Columns/RightCol"]
+[node name="TaskInfo" type="VBoxContainer" parent="Margin/VBox/ColumnsScroll/Columns/RightCol"]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="HistoryHeader" type="Label" parent="Margin/VBox/Columns/RightCol"]
+[node name="HistoryHeader" type="Label" parent="Margin/VBox/ColumnsScroll/Columns/RightCol"]
 layout_mode = 2
 text = "Recent Activity"
 theme_override_font_sizes/font_size = 22
 theme_override_colors/font_color = Color(0.92, 0.84, 0.55, 1)
 
-[node name="HistoryScroll" type="ScrollContainer" parent="Margin/VBox/Columns/RightCol"]
+[node name="HistoryScroll" type="ScrollContainer" parent="Margin/VBox/ColumnsScroll/Columns/RightCol"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="HistoryInfo" type="VBoxContainer" parent="Margin/VBox/Columns/RightCol/HistoryScroll"]
+[node name="HistoryInfo" type="VBoxContainer" parent="Margin/VBox/ColumnsScroll/Columns/RightCol/HistoryScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 4

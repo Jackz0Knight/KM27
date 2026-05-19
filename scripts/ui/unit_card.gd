@@ -85,6 +85,15 @@ static func build(
 	name_block.add_theme_constant_override("separation", 2)
 	header_row.add_child(name_block)
 
+	# When a chooser button is wired up, render it inline with the name so the
+	# user can recruit without scrolling past the chronicle that follows.
+	if on_choose.is_valid() and choose_label != "":
+		var choose_btn := Button.new()
+		choose_btn.text = choose_label
+		choose_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		choose_btn.pressed.connect(on_choose)
+		header_row.add_child(choose_btn)
+
 	# Name — include earned epithet when set.
 	var display_name: String = unit.unit_name
 	if unit.epithet != "":
@@ -213,10 +222,7 @@ static func build(
 			oath_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
 			vbox.add_child(oath_lbl)
 
-	if on_choose.is_valid() and choose_label != "":
-		var btn := Button.new()
-		btn.text = choose_label
-		btn.pressed.connect(on_choose)
-		vbox.add_child(btn)
+	# (Choose button is now rendered in the header row so it stays visible
+	# without scrolling past the chronicle.)
 
 	return panel

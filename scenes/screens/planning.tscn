@@ -120,10 +120,15 @@ layout_mode = 2
 text = "Click a name to open the Knight's full overview."
 modulate = Color(0.72, 0.72, 0.72, 1)
 
-[node name="RosterCards" type="VBoxContainer" parent="Margin/VBox/Content/Overview"]
+[node name="OverviewScroll" type="ScrollContainer" parent="Margin/VBox/Content/Overview"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="RosterCards" type="VBoxContainer" parent="Margin/VBox/Content/Overview/OverviewScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 10
 
 [node name="Tactics" type="VBoxContainer" parent="Margin/VBox/Content"]
