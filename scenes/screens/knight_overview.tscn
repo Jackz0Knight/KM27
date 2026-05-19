@@ -78,7 +78,7 @@ layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 8
 
-[node name="MidCol" type="VBoxContainer" parent="Margin/VBox/Columns"]
+[node name="MidCol" type="VBoxContainer" parent="Margin/VBox/ColumnsScroll/Columns"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_stretch_ratio = 1.0
@@ -100,7 +100,7 @@ layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 10
 
-[node name="RightCol" type="VBoxContainer" parent="Margin/VBox/Columns"]
+[node name="RightCol" type="VBoxContainer" parent="Margin/VBox/ColumnsScroll/Columns"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_stretch_ratio = 0.9
