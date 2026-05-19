@@ -74,6 +74,8 @@ func _serialise_state() -> Dictionary:
 			"banner_line": u.banner_line,
 			"origin_text": u.origin_text,
 			"oath": u.oath,
+			"weapon_id": u.weapon_id,
+			"armour_id": u.armour_id,
 		})
 
 	var expeditions_data: Array = []
@@ -232,7 +234,9 @@ func _restore_state(data: Dictionary) -> void:
 		u.epithet = str(rd.get("epithet", ""))
 		u.banner_line = str(rd.get("banner_line", ""))
 		u.origin_text = str(rd.get("origin_text", ""))
-		u.oath = str(rd.get("oath", ""))
+		u.oath      = str(rd.get("oath", ""))
+		u.weapon_id = str(rd.get("weapon_id", ""))
+		u.armour_id = str(rd.get("armour_id", ""))
 		GameState.roster.append(u)
 
 	# Restore expeditions
