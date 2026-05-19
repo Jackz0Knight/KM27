@@ -85,14 +85,16 @@ static func build(
 	name_block.add_theme_constant_override("separation", 2)
 	header_row.add_child(name_block)
 
-	# When a chooser button is wired up, render it inline with the name so the
-	# user can recruit without scrolling past the chronicle that follows.
+	# Chooser button is rendered on its own row right under the header so it
+	# stays visible without scrolling past the chronicle, while not bloating
+	# the header row's min-width (which would push the 3-across HBox past the
+	# viewport — see commit history for the chooser overflow fix).
 	if on_choose.is_valid() and choose_label != "":
 		var choose_btn := Button.new()
 		choose_btn.text = choose_label
-		choose_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		choose_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		choose_btn.pressed.connect(on_choose)
-		header_row.add_child(choose_btn)
+		vbox.add_child(choose_btn)
 
 	# Name — include earned epithet when set.
 	var display_name: String = unit.unit_name
@@ -149,15 +151,17 @@ static func build(
 	# (the detail screen) keeps the numbers visible.
 	var grid := GridContainer.new()
 	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 20)
+	grid.add_theme_constant_override("h_separation", 12)
 	grid.add_theme_constant_override("v_separation", 2)
 	for stat_key in Stats.STAT_KEYS:
 		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 6)
+		row.add_theme_constant_override("separation", 4)
 
+		# Tightened from 110 → 96 (still fits "Determination" / "Swordsmanship")
+		# so three cards-across fit within the 1280-wide viewport on the chooser.
 		var name_lbl := Label.new()
 		name_lbl.text = "%s" % String(stat_key).capitalize()
-		name_lbl.custom_minimum_size = Vector2(110, 0)
+		name_lbl.custom_minimum_size = Vector2(96, 0)
 		name_lbl.modulate = Color(0.72, 0.70, 0.58)
 		row.add_child(name_lbl)
 
