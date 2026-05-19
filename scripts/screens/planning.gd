@@ -781,10 +781,7 @@ func _refresh_crafting_tab() -> void:
 		c.queue_free()
 
 	# Raw materials stockpile — only show resources the player has actually gathered.
-	var raw_header := Label.new()
-	raw_header.text = "Raw Materials"
-	raw_header.add_theme_font_size_override("font_size", 16)
-	crafting_vbox.add_child(raw_header)
+	crafting_vbox.add_child(_styled_section_header("Raw Materials"))
 
 	var gathered: Array[String] = []
 	for id: String in ResourceDB.RESOURCES:
@@ -838,11 +835,7 @@ func _refresh_crafting_tab() -> void:
 		if rows_for_type.is_empty():
 			continue
 		any_recipe_anywhere = true
-
-		var type_hdr := Label.new()
-		type_hdr.text = type_labels[res_type]
-		type_hdr.add_theme_font_size_override("font_size", 16)
-		crafting_vbox.add_child(type_hdr)
+		crafting_vbox.add_child(_styled_section_header(type_labels[res_type]))
 		for row in rows_for_type:
 			crafting_vbox.add_child(row)
 
@@ -889,6 +882,17 @@ func _build_recipe_row(id: String, entry: Dictionary, res_type: int) -> Control:
 	row.add_child(craft_btn)
 
 	return row
+
+
+# Shared styling for runtime-built section headers. Same fleuron prefix +
+# warm-gold colour we use on the tscn-defined headers, so dynamic and static
+# sections read with one voice.
+func _styled_section_header(text: String, font_size: int = 16) -> Label:
+	var lbl := Label.new()
+	lbl.text = "❦  %s" % text
+	lbl.add_theme_font_size_override("font_size", font_size)
+	lbl.add_theme_color_override("font_color", Color(0.92, 0.78, 0.42))
+	return lbl
 
 
 # Small tier-coloured swatch with a one-glyph type hint. Drawn as a Label
@@ -1009,11 +1013,7 @@ func _build_research_grid() -> Control:
 	var tier_keys: Array = tiers.keys()
 	tier_keys.sort()
 	for t in tier_keys:
-		var tier_lbl := Label.new()
-		tier_lbl.text = "Tier %d" % t
-		tier_lbl.add_theme_font_size_override("font_size", 14)
-		tier_lbl.modulate = Color(0.72, 0.62, 0.40)
-		vbox.add_child(tier_lbl)
+		vbox.add_child(_styled_section_header("Tier %d" % t, 14))
 
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
@@ -1288,18 +1288,71 @@ func _refresh_calendar_tab() -> void:
 
 	var entries: Array = GameState.run_history.duplicate()
 	entries.reverse()
-	for entry in entries:
-		var bits: PackedStringArray = PackedStringArray()
-		bits.append("Y%d W%d (%d/48)" % [entry["year"], entry["week"], entry["week_of_year"]])
-		bits.append(entry["event_label"])
-		bits.append(entry["outcome"])
-		if int(entry.get("player_total", 0)) > 0 or int(entry.get("enemy_total", 0)) > 0:
-			bits.append("%d vs %d" % [entry["player_total"], entry["enemy_total"]])
-		if entry.get("reward_str", "") != "":
-			bits.append("+ %s" % entry["reward_str"])
-		var lbl := Label.new()
-		lbl.text = " · ".join(bits)
-		history_list.add_child(lbl)
+	for i in range(entries.size()):
+		var entry: Dictionary = entries[i]
+		history_list.add_child(_build_history_row(entry))
+		# Subtle separator between weeks — fades to nothing at the edges, sits
+		# at low alpha so it reads as a flourish rather than a hard line.
+		if i < entries.size() - 1:
+			var sep := HSeparator.new()
+			sep.modulate = Color(0.45, 0.36, 0.20, 0.30)
+			history_list.add_child(sep)
+
+
+func _build_history_row(entry: Dictionary) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+
+	# Heraldic bullet — gold dot at left.
+	var bullet := Label.new()
+	bullet.text = "❦"
+	bullet.modulate = Color(0.72, 0.58, 0.30)
+	bullet.custom_minimum_size = Vector2(20, 0)
+	row.add_child(bullet)
+
+	# Year/week chip — small fixed-width column.
+	var when_lbl := Label.new()
+	when_lbl.text = "Y%d W%d  (%d/48)" % [entry["year"], entry["week"], entry["week_of_year"]]
+	when_lbl.custom_minimum_size = Vector2(150, 0)
+	when_lbl.modulate = Color(0.78, 0.72, 0.55)
+	row.add_child(when_lbl)
+
+	# Event label.
+	var event_lbl := Label.new()
+	event_lbl.text = str(entry["event_label"])
+	event_lbl.custom_minimum_size = Vector2(220, 0)
+	event_lbl.modulate = Color(0.88, 0.82, 0.65)
+	row.add_child(event_lbl)
+
+	# Outcome chip — colour-coded.
+	var outcome: String = str(entry["outcome"])
+	var outcome_lbl := Label.new()
+	outcome_lbl.text = outcome
+	outcome_lbl.custom_minimum_size = Vector2(220, 0)
+	outcome_lbl.modulate = _outcome_color(outcome)
+	row.add_child(outcome_lbl)
+
+	# Tail — score + reward, dim.
+	var tail_bits: PackedStringArray = PackedStringArray()
+	if int(entry.get("player_total", 0)) > 0 or int(entry.get("enemy_total", 0)) > 0:
+		tail_bits.append("%d vs %d" % [entry["player_total"], entry["enemy_total"]])
+	if entry.get("reward_str", "") != "":
+		tail_bits.append("+ %s" % entry["reward_str"])
+	var tail_lbl := Label.new()
+	tail_lbl.text = " · ".join(tail_bits) if not tail_bits.is_empty() else ""
+	tail_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tail_lbl.modulate = Color(0.60, 0.55, 0.42)
+	row.add_child(tail_lbl)
+
+	return row
+
+
+func _outcome_color(outcome: String) -> Color:
+	if outcome.begins_with("Won") or outcome.begins_with("Victory"):
+		return Color(0.55, 0.88, 0.55)
+	if outcome.begins_with("Lost") or outcome.begins_with("Defeat"):
+		return Color(0.92, 0.55, 0.45)
+	return Color(0.78, 0.74, 0.60)
 
 
 func _add_upcoming_line(text: String, faded: bool) -> void:

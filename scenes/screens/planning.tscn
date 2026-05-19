@@ -83,8 +83,9 @@ theme_override_constants/separation = 12
 
 [node name="OverviewHeader" type="Label" parent="Margin/VBox/Content/Overview/HeaderRow"]
 layout_mode = 2
-text = "Roster"
+text = "❦  Roster"
 theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.92, 0.78, 0.42, 1)
 
 [node name="HeaderSpacer" type="Control" parent="Margin/VBox/Content/Overview/HeaderRow"]
 layout_mode = 2
@@ -132,8 +133,9 @@ theme_override_constants/separation = 4
 
 [node name="UpcomingHeader" type="Label" parent="Margin/VBox/Content/Tactics/TacticsUpcoming"]
 layout_mode = 2
-text = "Situation Report"
+text = "❦  Situation Report"
 theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.92, 0.78, 0.42, 1)
 
 [node name="UpcomingList" type="VBoxContainer" parent="Margin/VBox/Content/Tactics/TacticsUpcoming"]
 layout_mode = 2
@@ -165,8 +167,9 @@ theme_override_constants/separation = 8
 
 [node name="AssignmentHeader" type="Label" parent="Margin/VBox/Content/TownMap/LeftPane"]
 layout_mode = 2
-text = "Assignments"
+text = "❦  Assignments"
 theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.92, 0.78, 0.42, 1)
 
 [node name="UnitScroll" type="ScrollContainer" parent="Margin/VBox/Content/TownMap/LeftPane"]
 layout_mode = 2
@@ -231,8 +234,9 @@ text = "Recenter Map"
 
 [node name="ExpHeader" type="Label" parent="Margin/VBox/Content/TownMap/RightPane"]
 layout_mode = 2
-text = "Active Expeditions"
+text = "❦  Active Expeditions"
 theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.92, 0.78, 0.42, 1)
 
 [node name="ExpeditionList" type="VBoxContainer" parent="Margin/VBox/Content/TownMap/RightPane"]
 layout_mode = 2
@@ -322,8 +326,9 @@ theme_override_constants/separation = 12
 
 [node name="UpcomingHeader" type="Label" parent="Margin/VBox/Content/Calendar"]
 layout_mode = 2
-text = "Upcoming"
+text = "❦  Upcoming"
 theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.92, 0.78, 0.42, 1)
 
 [node name="UpcomingList" type="VBoxContainer" parent="Margin/VBox/Content/Calendar"]
 layout_mode = 2
@@ -331,8 +336,9 @@ theme_override_constants/separation = 2
 
 [node name="HistoryHeader" type="Label" parent="Margin/VBox/Content/Calendar"]
 layout_mode = 2
-text = "History"
+text = "❦  History"
 theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.92, 0.78, 0.42, 1)
 
 [node name="HistoryScroll" type="ScrollContainer" parent="Margin/VBox/Content/Calendar"]
 layout_mode = 2

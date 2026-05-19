@@ -55,8 +55,9 @@ theme_override_font_sizes/font_size = 18
 
 [node name="BattleBreakdownHeader" type="Label" parent="Margin/VBox/Scroll/Body"]
 layout_mode = 2
-text = "Battle Breakdown"
+text = "❦  Battle Breakdown"
 theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.92, 0.78, 0.42, 1)
 
 [node name="BattleBreakdown" type="VBoxContainer" parent="Margin/VBox/Scroll/Body"]
 layout_mode = 2
@@ -64,8 +65,9 @@ theme_override_constants/separation = 4
 
 [node name="RewardsHeader" type="Label" parent="Margin/VBox/Scroll/Body"]
 layout_mode = 2
-text = "Rewards"
+text = "❦  Rewards"
 theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.92, 0.78, 0.42, 1)
 
 [node name="Rewards" type="VBoxContainer" parent="Margin/VBox/Scroll/Body"]
 layout_mode = 2
@@ -77,8 +79,9 @@ theme_override_constants/separation = 4
 
 [node name="DeltasHeader" type="Label" parent="Margin/VBox/Scroll/Body"]
 layout_mode = 2
-text = "Stat Changes"
+text = "❦  Stat Changes"
 theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.92, 0.78, 0.42, 1)
 
 [node name="Deltas" type="VBoxContainer" parent="Margin/VBox/Scroll/Body"]
 layout_mode = 2
@@ -86,8 +89,9 @@ theme_override_constants/separation = 2
 
 [node name="ReturnsHeader" type="Label" parent="Margin/VBox/Scroll/Body"]
 layout_mode = 2
-text = "Expedition Returns"
+text = "❦  Expedition Returns"
 theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.92, 0.78, 0.42, 1)
 
 [node name="Returns" type="VBoxContainer" parent="Margin/VBox/Scroll/Body"]
 layout_mode = 2

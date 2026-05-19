@@ -245,9 +245,7 @@ func _render_chronicle_card(unit: Unit) -> void:
 	body_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
 	house_block.add_child(body_lbl)
 
-	var sep_top := HSeparator.new()
-	sep_top.modulate = Color(0.5, 0.42, 0.25, 0.5)
-	vbox.add_child(sep_top)
+	vbox.add_child(_fleuron_divider())
 
 	# Origin
 	if unit.origin_text != "":
@@ -259,9 +257,7 @@ func _render_chronicle_card(unit: Unit) -> void:
 
 	# Banner & Oath in a two-row info strip
 	if unit.banner_line != "" or unit.oath != "":
-		var sep := HSeparator.new()
-		sep.modulate = Color(0.5, 0.42, 0.25, 0.5)
-		vbox.add_child(sep)
+		vbox.add_child(_fleuron_divider())
 
 	if unit.banner_line != "":
 		var hbox := HBoxContainer.new()
@@ -336,6 +332,32 @@ func _render_history(unit: Unit) -> void:
 		shown += 1
 		if shown >= 12:
 			break
+
+
+# Same fleuron divider used on the chooser cards — centred glyph + faint rules.
+func _fleuron_divider() -> Control:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 10)
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	var left := HSeparator.new()
+	left.modulate = Color(0.55, 0.45, 0.25, 0.45)
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(left)
+
+	var glyph := Label.new()
+	glyph.text = "❦"
+	glyph.modulate = Color(0.78, 0.62, 0.30)
+	glyph.add_theme_font_size_override("font_size", 14)
+	row.add_child(glyph)
+
+	var right := HSeparator.new()
+	right.modulate = Color(0.55, 0.45, 0.25, 0.45)
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(right)
+
+	return row
 
 
 func _add_info_line(parent: VBoxContainer, text: String) -> void:

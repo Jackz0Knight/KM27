@@ -130,9 +130,8 @@ static func build(
 		name_block.add_child(house_lbl)
 
 	var task_lbl := Label.new()
-	var loc: String = "expedition #%d" % unit.expedition_id if unit.is_on_expedition() else "at home"
-	task_lbl.text = "Status: %s · %s" % [unit.current_task, loc]
-	task_lbl.modulate = Color(0.72, 0.72, 0.72)
+	task_lbl.text = _status_line_for(unit)
+	task_lbl.modulate = Color(0.78, 0.74, 0.62)
 	vbox.add_child(task_lbl)
 
 	# Injury indicator.
@@ -207,9 +206,7 @@ static func build(
 			oath = Chronicle.generate_oath(unit)
 
 		if origin != "" or oath != "":
-			var sep := HSeparator.new()
-			sep.modulate = Color(0.5, 0.42, 0.25, 0.4)
-			vbox.add_child(sep)
+			vbox.add_child(_fleuron_divider())
 
 		if origin != "":
 			var origin_lbl := Label.new()
@@ -230,3 +227,47 @@ static func build(
 	# without scrolling past the chronicle.)
 
 	return panel
+
+
+# A centred heraldic fleuron flanked by faint rules — used between the stats
+# grid and the chronicle prose on chooser cards. Looks like a manuscript
+# section break, not a generic horizontal line.
+static func _fleuron_divider() -> Control:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 10)
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	var left_rule := HSeparator.new()
+	left_rule.modulate = Color(0.55, 0.45, 0.25, 0.45)
+	left_rule.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(left_rule)
+
+	var glyph := Label.new()
+	glyph.text = "❦"
+	glyph.modulate = Color(0.78, 0.62, 0.30)
+	glyph.add_theme_font_size_override("font_size", 14)
+	row.add_child(glyph)
+
+	var right_rule := HSeparator.new()
+	right_rule.modulate = Color(0.55, 0.45, 0.25, 0.45)
+	right_rule.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(right_rule)
+
+	return row
+
+
+# Status line with a small glyph prefix. The glyph reads at a glance — the
+# text behind it carries the precise state for players who need it.
+static func _status_line_for(unit: Unit) -> String:
+	if unit.is_injured():
+		# Injury takes priority over task because it visually affects stats too.
+		return "✚  Recovering — at the surgeon"
+	if unit.is_on_expedition():
+		return "⚑  Abroad — expedition #%d" % unit.expedition_id
+	if unit.is_training():
+		var stat: String = unit.training_target().capitalize()
+		return "✦  Training %s" % stat
+	if unit.current_task == Unit.TASK_DEFEND:
+		return "⛨  Defending the homestead"
+	return "○  Idle — at home"

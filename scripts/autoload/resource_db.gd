@@ -129,26 +129,49 @@ func best_for_type(inventory: Dictionary, res_type: int) -> String:
 
 
 # Returns a BBCode string for the persistent resource HUD.
-# Gold (gold), then best held resource per type with tier colour.
+# Gold + best-held resource per type, each prefixed with the same tier glyph
+# we use in the Crafting tab so the HUD reads like a proper inventory strip
+# even when slots are empty.
 func resource_hud_bbcode(gold: int, inventory: Dictionary) -> String:
-	var parts: Array[String] = []
-	parts.append("[color=#FFD61A]Gold: %d[/color]" % gold)
-	var type_labels: Dictionary = {
+	const TYPE_LABEL: Dictionary = {
 		ResType.FABRIC: "Fabric",
 		ResType.TIMBER: "Timber",
 		ResType.METAL:  "Metal",
 	}
+	const TYPE_GLYPH: Dictionary = {
+		ResType.FABRIC: "◆",
+		ResType.TIMBER: "▲",
+		ResType.METAL:  "■",
+	}
+	# Use the lowest tier's colour as the muted "no holdings yet" tint so each
+	# slot still reads as belonging to its type when empty.
+	const TIER1_HEX: Dictionary = {
+		ResType.FABRIC: "#7A8B5C",
+		ResType.TIMBER: "#8B6A45",
+		ResType.METAL:  "#7E8294",
+	}
+
+	var parts: Array[String] = []
+	parts.append("[color=#FFD61A]✦ Gold:[/color] [color=#F1E2A4]%d[/color]" % gold)
+
 	for res_type: int in [ResType.FABRIC, ResType.TIMBER, ResType.METAL]:
+		var glyph: String = TYPE_GLYPH[res_type]
+		var name: String = TYPE_LABEL[res_type]
 		var best_id: String = best_for_type(inventory, res_type)
 		if best_id == "":
-			parts.append("[color=#555555]— %s —[/color]" % type_labels[res_type])
+			# Empty slot — muted glyph + label + em-dash. No more naked dashes.
+			parts.append(
+				"[color=%s]%s[/color] [color=#5C544A]%s —[/color]"
+				% [TIER1_HEX[res_type], glyph, name]
+			)
 		else:
 			var entry: Dictionary = RESOURCES[best_id]
 			var tc: Color = color_for_tier(entry["tier"])
 			var hex: String = "#" + tc.to_html(false)
 			var amt: int = inventory.get(best_id, 0)
-			parts.append("[color=%s]%s[/color]: %d" % [hex, entry["name"], amt])
-	return "  ".join(parts)
+			parts.append("[color=%s]%s %s:[/color] %d" % [hex, glyph, entry["name"], amt])
+
+	return "   ".join(parts)
 
 
 func color_for_tier(tier: int) -> Color:

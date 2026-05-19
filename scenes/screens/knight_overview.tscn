@@ -86,7 +86,7 @@ theme_override_constants/separation = 8
 
 [node name="StatsHeader" type="Label" parent="Margin/VBox/ColumnsScroll/Columns/MidCol"]
 layout_mode = 2
-text = "Stats"
+text = "❦  Stats"
 theme_override_font_sizes/font_size = 22
 theme_override_colors/font_color = Color(0.92, 0.84, 0.55, 1)
 
@@ -108,7 +108,7 @@ theme_override_constants/separation = 10
 
 [node name="TaskHeader" type="Label" parent="Margin/VBox/ColumnsScroll/Columns/RightCol"]
 layout_mode = 2
-text = "Current Status"
+text = "❦  Current Status"
 theme_override_font_sizes/font_size = 22
 theme_override_colors/font_color = Color(0.92, 0.84, 0.55, 1)
 
@@ -118,7 +118,7 @@ theme_override_constants/separation = 4
 
 [node name="HistoryHeader" type="Label" parent="Margin/VBox/ColumnsScroll/Columns/RightCol"]
 layout_mode = 2
-text = "Recent Activity"
+text = "❦  Recent Activity"
 theme_override_font_sizes/font_size = 22
 theme_override_colors/font_color = Color(0.92, 0.84, 0.55, 1)
 
