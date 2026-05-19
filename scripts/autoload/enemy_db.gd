@@ -337,7 +337,7 @@ func _midpoint_actor(p_id: int, type_id: String, week_bonus: int) -> EnemyActor:
 	var s: Stats = Stats.new()
 	for k in Stats.STAT_KEYS:
 		var range_arr = entry["stat_ranges"].get(k, [1, 2])
-		var mid: int = (int(range_arr[0]) + int(range_arr[1])) / 2 + week_bonus
+		var mid: int = roundi((float(range_arr[0]) + float(range_arr[1])) / 2.0) + week_bonus
 		s.set_value(k, mid)
 	var wid: String = entry.get("default_weapon_id", "unarmed")
 	var aid: String = entry.get("default_armour_id", "unarmoured")

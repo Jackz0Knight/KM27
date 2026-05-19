@@ -45,8 +45,8 @@ func set_house(house_id: String, body_type: String = "") -> void:
 	queue_redraw()
 
 
-func set_show_body(show: bool) -> void:
-	_show_body = show
+func set_show_body(body_visible: bool) -> void:
+	_show_body = body_visible
 	queue_redraw()
 
 
@@ -166,11 +166,11 @@ func _draw_charge(rect: Rect2, house: Dictionary) -> void:
 		"swords":
 			# Two crossed blades + small pommel circles.
 			var blade_w: float = maxf(h * 0.06, 1.5)
-			var len: float = h * 0.34
-			var p1a: Vector2 = Vector2(cx - len * 0.6, cy - len * 0.6)
-			var p1b: Vector2 = Vector2(cx + len * 0.6, cy + len * 0.6)
-			var p2a: Vector2 = Vector2(cx + len * 0.6, cy - len * 0.6)
-			var p2b: Vector2 = Vector2(cx - len * 0.6, cy + len * 0.6)
+			var blade_len: float = h * 0.34
+			var p1a: Vector2 = Vector2(cx - blade_len * 0.6, cy - blade_len * 0.6)
+			var p1b: Vector2 = Vector2(cx + blade_len * 0.6, cy + blade_len * 0.6)
+			var p2a: Vector2 = Vector2(cx + blade_len * 0.6, cy - blade_len * 0.6)
+			var p2b: Vector2 = Vector2(cx - blade_len * 0.6, cy + blade_len * 0.6)
 			draw_line(p1a, p1b, col, blade_w, true)
 			draw_line(p2a, p2b, col, blade_w, true)
 			draw_circle(p1a, blade_w * 1.4, col)

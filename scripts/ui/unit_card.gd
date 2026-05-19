@@ -67,16 +67,16 @@ static func build(
 	vbox.add_child(header_row)
 
 	if unit.house_id != "":
-		var banner := BannerIcon.new()
+		var banner_icon := BannerIcon.new()
 		if show_chronicle:
-			banner.custom_minimum_size = Vector2(72, 92)
+			banner_icon.custom_minimum_size = Vector2(72, 92)
 		else:
-			banner.custom_minimum_size = Vector2(44, 56)
-		banner.set_show_body(true)
-		banner.set_unit(unit)
+			banner_icon.custom_minimum_size = Vector2(44, 56)
+		banner_icon.set_show_body(true)
+		banner_icon.set_unit(unit)
 		var banner_wrap := VBoxContainer.new()
 		banner_wrap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		banner_wrap.add_child(banner)
+		banner_wrap.add_child(banner_icon)
 		header_row.add_child(banner_wrap)
 
 	var name_block := VBoxContainer.new()
