@@ -7,7 +7,7 @@ extends Control
 # castle, keep for town, "?" fog for unknown). Pure custom _draw() — no
 # image assets.
 
-enum Kind { TERRAIN, CASTLE, TOWN, UNKNOWN }
+enum Kind { TERRAIN, CASTLE, TOWN, UNKNOWN, FOGGED }
 
 var _kind: int = Kind.TERRAIN
 var _terrain: int = 0
@@ -33,6 +33,8 @@ func _draw() -> void:
 	match _kind:
 		Kind.UNKNOWN:
 			_draw_unknown(sz)
+		Kind.FOGGED:
+			_draw_fogged(sz)
 		Kind.TOWN:
 			_draw_keep(sz)
 		Kind.CASTLE:
@@ -47,16 +49,26 @@ func _draw() -> void:
 # ── Special tiles ─────────────────────────────────────────────────────────
 
 func _draw_unknown(sz: Vector2) -> void:
-	# A subtle "?" rendered in muted ink — the question is the icon.
-	var col := Color(0.55, 0.50, 0.42, 0.65)
+	# Deep unknown — a faint, ghostly "?" on a near-black tile.
+	_draw_question_mark(sz, Color(0.45, 0.40, 0.32, 0.55), 0.18)
+
+
+func _draw_fogged(sz: Vector2) -> void:
+	# Fog-of-war — adjacent to an explored tile, still hidden but visibly
+	# reachable. Brighter, slightly larger "?" plus a subtle hint dot
+	# pattern so it reads as "you could send scouts here."
+	var hint := Color(0.85, 0.74, 0.42, 0.85)
+	_draw_question_mark(sz, hint, 0.22)
+
+
+# Shared question-mark renderer — used by both unknown and fogged so the
+# silhouette stays consistent and only the colour/size differs.
+func _draw_question_mark(sz: Vector2, col: Color, radius_frac: float) -> void:
 	var cx: float = sz.x * 0.5
 	var cy: float = sz.y * 0.5
-	var r: float = sz.y * 0.18
-	# Top arc of the question mark.
+	var r: float = sz.y * radius_frac
 	draw_arc(Vector2(cx, cy - r * 0.4), r, PI * 1.2, TAU * 0.95, 14, col, maxf(sz.y * 0.06, 1.5), true)
-	# Stem going down to the dot.
 	draw_line(Vector2(cx, cy + r * 0.1), Vector2(cx, cy + r * 0.5), col, maxf(sz.y * 0.06, 1.5), true)
-	# Dot.
 	draw_circle(Vector2(cx, cy + r * 0.85), maxf(sz.y * 0.05, 1.5), col)
 
 

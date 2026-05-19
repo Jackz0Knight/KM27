@@ -8,6 +8,26 @@ extends Resource
 enum Terrain { TOWN, VILLAGE, PLAINS, FOREST, HILLS, MOUNTAIN, BEACH, OCEAN }
 enum Knowledge { UNKNOWN, EXPLORED, EXPEDITION_ACTIVE }
 
+
+# Derived fog state — true when the tile is still UNKNOWN but borders at least
+# one EXPLORED tile. The map view renders these differently so the player can
+# see "this is the next ring you could send scouts into" without persisting an
+# extra knowledge state (and without touching save format).
+static func is_fogged_in(world: World, tx: int, ty: int) -> bool:
+	if world == null:
+		return false
+	var t: MapTile = world.get_tile(tx, ty)
+	if t == null or t.knowledge != Knowledge.UNKNOWN:
+		return false
+	for dx in [-1, 0, 1]:
+		for dy in [-1, 0, 1]:
+			if dx == 0 and dy == 0:
+				continue
+			var neigh: MapTile = world.get_tile(tx + dx, ty + dy)
+			if neigh != null and neigh.knowledge == Knowledge.EXPLORED:
+				return true
+	return false
+
 var x: int = 0
 var y: int = 0
 var terrain: Terrain = Terrain.PLAINS

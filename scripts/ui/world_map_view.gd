@@ -24,24 +24,25 @@ func render(world: World, selected: Vector2i = Vector2i(-1, -1)) -> void:
 		child.queue_free()
 	for y in range(World.SIZE):
 		for x in range(World.SIZE):
-			add_child(_make_tile_button(world.tiles[x][y], selected))
+			add_child(_make_tile_button(world, world.tiles[x][y], selected))
 
 
-func _make_tile_button(tile: MapTile, selected: Vector2i) -> Button:
+func _make_tile_button(world: World, tile: MapTile, selected: Vector2i) -> Button:
 	var btn := Button.new()
 	btn.custom_minimum_size = TILE_SIZE
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.text = ""   # Icon overlay handles all visual content.
 
 	var is_known: bool = tile.knowledge == MapTile.Knowledge.EXPLORED
+	var is_fogged: bool = (not is_known) and MapTile.is_fogged_in(world, tile.x, tile.y)
 	var is_selected: bool = selected.x == tile.x and selected.y == tile.y
 
 	# Background tint by tile type.
 	var bg: Color
 	var kind: int
 	if not is_known:
-		bg = Color(0.18, 0.16, 0.14)
-		kind = TileIcon.Kind.UNKNOWN
+		bg = Color(0.22, 0.20, 0.16) if is_fogged else Color(0.14, 0.12, 0.10)
+		kind = TileIcon.Kind.FOGGED if is_fogged else TileIcon.Kind.UNKNOWN
 	elif tile.terrain == MapTile.Terrain.TOWN:
 		bg = Color(0.86, 0.66, 0.30)
 		kind = TileIcon.Kind.TOWN
@@ -118,7 +119,10 @@ func _terrain_color(t: int) -> Color:
 
 func _tooltip_for(tile: MapTile) -> String:
 	if tile.knowledge != MapTile.Knowledge.EXPLORED:
-		return "(%d,%d) — Unknown" % [tile.x, tile.y]
+		# Note: we don't have `world` in scope here, so we can't tell fogged
+		# from true unknown — the per-tile button does, and rendering already
+		# differentiates them. The tooltip stays a generic Unknown hint.
+		return "(%d,%d) — Unknown — send scouts to reveal" % [tile.x, tile.y]
 	var bits: PackedStringArray = PackedStringArray()
 	bits.append("(%d,%d) %s" % [tile.x, tile.y, MapTile.Terrain.keys()[tile.terrain]])
 	if tile.castle != null:

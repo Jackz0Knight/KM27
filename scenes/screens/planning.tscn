@@ -68,39 +68,6 @@ fit_content = true
 scroll_active = false
 custom_minimum_size = Vector2(0, 24)
 
-[node name="IntroPanel" type="PanelContainer" parent="Margin/VBox"]
-layout_mode = 2
-visible = false
-
-[node name="IntroMargin" type="MarginContainer" parent="Margin/VBox/IntroPanel"]
-layout_mode = 2
-theme_override_constants/margin_left = 18
-theme_override_constants/margin_right = 18
-theme_override_constants/margin_top = 14
-theme_override_constants/margin_bottom = 14
-
-[node name="IntroVBox" type="VBoxContainer" parent="Margin/VBox/IntroPanel/IntroMargin"]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="IntroTitle" type="Label" parent="Margin/VBox/IntroPanel/IntroMargin/IntroVBox"]
-layout_mode = 2
-text = "Your Journey Begins…"
-theme_override_font_sizes/font_size = 24
-theme_override_colors/font_color = Color(1, 0.84, 0.42, 1)
-
-[node name="IntroBody" type="Label" parent="Margin/VBox/IntroPanel/IntroMargin/IntroVBox"]
-layout_mode = 2
-text = "Spring of 1627. Your household holds the centre tile of a quiet realm. The Squires are at hand and your chosen Knight has taken the field. Send scouts to learn the land, train your hand for the duel, and steel yourselves — the tournaments will not wait."
-autowrap_mode = 3
-modulate = Color(0.88, 0.88, 0.88, 1)
-
-[node name="IntroDismiss" type="Button" parent="Margin/VBox/IntroPanel/IntroMargin/IntroVBox"]
-layout_mode = 2
-text = "Begin"
-custom_minimum_size = Vector2(120, 32)
-size_flags_horizontal = 4
-
 [node name="Content" type="TabContainer" parent="Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
@@ -110,10 +77,34 @@ tabs_visible = false
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="OverviewHeader" type="Label" parent="Margin/VBox/Content/Overview"]
+[node name="HeaderRow" type="HBoxContainer" parent="Margin/VBox/Content/Overview"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="OverviewHeader" type="Label" parent="Margin/VBox/Content/Overview/HeaderRow"]
 layout_mode = 2
 text = "Roster"
 theme_override_font_sizes/font_size = 18
+
+[node name="HeaderSpacer" type="Control" parent="Margin/VBox/Content/Overview/HeaderRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="EventChip" type="PanelContainer" parent="Margin/VBox/Content/Overview/HeaderRow"]
+layout_mode = 2
+
+[node name="EventChipMargin" type="MarginContainer" parent="Margin/VBox/Content/Overview/HeaderRow/EventChip"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_bottom = 4
+
+[node name="EventChipLabel" type="Label" parent="Margin/VBox/Content/Overview/HeaderRow/EventChip/EventChipMargin"]
+layout_mode = 2
+text = "Upcoming: —"
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(1, 0.84, 0.42, 1)
 
 [node name="OverviewHint" type="Label" parent="Margin/VBox/Content/Overview"]
 layout_mode = 2
@@ -356,6 +347,63 @@ theme_override_constants/separation = 2
 layout_mode = 2
 text = ""
 modulate = Color(0.85, 0.85, 0.7, 1)
+
+[node name="IntroPanel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+visible = false
+z_index = 90
+
+[node name="IntroBackdrop" type="ColorRect" parent="./IntroPanel"]
+layout_mode = 2
+color = Color(0.05, 0.04, 0.03, 0.92)
+
+[node name="IntroCenter" type="CenterContainer" parent="./IntroPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="IntroCard" type="PanelContainer" parent="./IntroPanel/IntroCenter"]
+layout_mode = 2
+custom_minimum_size = Vector2(620, 0)
+
+[node name="IntroMargin" type="MarginContainer" parent="./IntroPanel/IntroCenter/IntroCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 36
+theme_override_constants/margin_right = 36
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_bottom = 28
+
+[node name="IntroVBox" type="VBoxContainer" parent="./IntroPanel/IntroCenter/IntroCard/IntroMargin"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="IntroTitle" type="Label" parent="./IntroPanel/IntroCenter/IntroCard/IntroMargin/IntroVBox"]
+layout_mode = 2
+text = "Your Journey Begins…"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 28
+theme_override_colors/font_color = Color(1, 0.84, 0.42, 1)
+
+[node name="IntroBody" type="Label" parent="./IntroPanel/IntroCenter/IntroCard/IntroMargin/IntroVBox"]
+layout_mode = 2
+text = "Spring of 1627. Your household holds the centre tile of a quiet realm. The Squires are at hand and your chosen Knight has taken the field. Send scouts to learn the land, train your hand for the duel, and steel yourselves — the tournaments will not wait."
+autowrap_mode = 3
+horizontal_alignment = 1
+modulate = Color(0.88, 0.88, 0.88, 1)
+
+[node name="IntroDismiss" type="Button" parent="./IntroPanel/IntroCenter/IntroCard/IntroMargin/IntroVBox"]
+layout_mode = 2
+text = "Begin"
+custom_minimum_size = Vector2(140, 36)
+size_flags_horizontal = 4
 
 [node name="InfoOverlay" type="PanelContainer" parent="."]
 layout_mode = 1

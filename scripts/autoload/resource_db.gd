@@ -174,18 +174,27 @@ const RESEARCH_PROJECTS: Dictionary = {
 		"description": "Commission a study of cotton preparation — enables fine cloth weaving from gathered cotton.",
 		"cost_gold": 40,
 		"unlocks": ["cloth"],
+		"category": "fabric",
+		"tier": 2,
+		"prerequisites": [],
 	},
 	"alloy_research": {
 		"name": "Alloy Research",
 		"description": "Learn to combine tin and copper into bronze — the first step in serious metallurgy.",
 		"cost_gold": 60,
 		"unlocks": ["bronze_ingot"],
+		"category": "metal",
+		"tier": 2,
+		"prerequisites": [],
 	},
 	"blast_furnace": {
 		"name": "Blast Furnace",
 		"description": "Commission a proper furnace capable of refining iron ore and coal into steel.",
 		"cost_gold": 120,
 		"unlocks": ["steel_ingot"],
+		"category": "metal",
+		"tier": 3,
+		"prerequisites": ["alloy_research"],
 	},
 }
 

@@ -25,13 +25,14 @@ const SettingsPopup = preload("res://scripts/ui/settings_popup.gd")
 @onready var settings_btn: Button         = $Margin/VBox/TopBar/SettingsBtn
 @onready var context_lbl: Label           = $Margin/VBox/ContextLabel
 @onready var resources_lbl: RichTextLabel = $Margin/VBox/ResourcesLabel
-@onready var intro_panel: PanelContainer  = $Margin/VBox/IntroPanel
-@onready var intro_dismiss_btn: Button    = $Margin/VBox/IntroPanel/IntroMargin/IntroVBox/IntroDismiss
+@onready var intro_panel: PanelContainer  = $IntroPanel
+@onready var intro_dismiss_btn: Button    = $IntroPanel/IntroCenter/IntroCard/IntroMargin/IntroVBox/IntroDismiss
 @onready var content: TabContainer        = $Margin/VBox/Content
 @onready var status_lbl: Label            = $Margin/VBox/StatusLabel
 
 # Overview tab.
 @onready var roster_cards: VBoxContainer = $Margin/VBox/Content/Overview/OverviewScroll/RosterCards
+@onready var event_chip_lbl: Label = $Margin/VBox/Content/Overview/HeaderRow/EventChip/EventChipMargin/EventChipLabel
 
 # Tactics tab.
 @onready var tactics_upcoming_list: VBoxContainer = $Margin/VBox/Content/Tactics/TacticsUpcoming/UpcomingList
@@ -181,15 +182,20 @@ func _refresh_all() -> void:
 # ---------- Header ----------
 
 func _refresh_header() -> void:
-	var event_label: String = EventKind.label(GameState.current_event)
-	if GameState.current_event == EventKind.BATTLE_EVENT and GameState.current_battle_event != "":
-		event_label = "%s — %s" % [event_label, BattleEvent.label(GameState.current_battle_event)]
-	context_lbl.text = "Year %d, Week %d (week %d / 48) — %s" % [
-		GameState.current_year(), GameState.week,
-		GameState.current_week_of_year(), event_label,
+	# Event has its own chip on the Overview tab — keep the year/week line clean.
+	context_lbl.text = "Year %d, Week %d (week %d / 48)" % [
+		GameState.current_year(), GameState.week, GameState.current_week_of_year(),
 	]
 	status_lbl.text = ""
 	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory))
+	_refresh_event_chip()
+
+
+func _refresh_event_chip() -> void:
+	var event_label: String = EventKind.label(GameState.current_event)
+	if GameState.current_event == EventKind.BATTLE_EVENT and GameState.current_battle_event != "":
+		event_label = "%s — %s" % [event_label, BattleEvent.label(GameState.current_battle_event)]
+	event_chip_lbl.text = "Upcoming · %s" % event_label
 
 
 # ---------- Overview tab ----------
@@ -405,11 +411,13 @@ func _build_unit_row(u: Unit) -> Control:
 	task_picker.item_selected.connect(_on_task_picked.bind(u.id, train_start))
 	vbox.add_child(task_picker)
 
-	var send_chk := CheckBox.new()
-	send_chk.text = "Add to next expedition party"
-	send_chk.button_pressed = _expedition_party.has(u.id)
-	send_chk.toggled.connect(_on_party_toggled.bind(u.id))
-	vbox.add_child(send_chk)
+	var party_btn := Button.new()
+	party_btn.toggle_mode = true
+	party_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	party_btn.button_pressed = _expedition_party.has(u.id)
+	_style_party_btn(party_btn, party_btn.button_pressed)
+	party_btn.toggled.connect(_on_party_toggled.bind(u.id, party_btn))
+	vbox.add_child(party_btn)
 
 	if EventKind.is_tournament(GameState.current_event):
 		var hint := Label.new()
@@ -435,13 +443,24 @@ func _on_task_picked(option_idx: int, unit_id: int, train_start: int) -> void:
 			_pending_tasks[unit_id] = Unit.TASK_TRAIN_PREFIX + Stats.STAT_KEYS[stat_idx]
 
 
-func _on_party_toggled(pressed: bool, unit_id: int) -> void:
+func _on_party_toggled(pressed: bool, unit_id: int, btn: Button) -> void:
 	if pressed:
 		if not _expedition_party.has(unit_id):
 			_expedition_party.append(unit_id)
 	else:
 		_expedition_party.erase(unit_id)
+	_style_party_btn(btn, pressed)
 	_refresh_action_buttons()
+
+
+# Toggle styling: gold checkmark when in party, subdued plus when not.
+func _style_party_btn(btn: Button, in_party: bool) -> void:
+	if in_party:
+		btn.text = "✓ In Expedition Party"
+		btn.add_theme_color_override("font_color", Color(1.0, 0.84, 0.42))
+	else:
+		btn.text = "＋ Send on Expedition"
+		btn.add_theme_color_override("font_color", Color(0.78, 0.74, 0.60))
 
 
 func _on_away_party_toggled(pressed: bool, unit_id: int) -> void:
@@ -573,7 +592,10 @@ func _refresh_selection() -> void:
 				tile.castle.difficulty, tile.castle.reward.describe(),
 			])
 	else:
-		bits.append("Knowledge: Unknown — Explore to reveal")
+		if MapTile.is_fogged_in(GameState.world, tile.x, tile.y):
+			bits.append("Knowledge: Fogged — within scouting reach")
+		else:
+			bits.append("Knowledge: Unknown — too distant to scout yet")
 	if tile.active_expedition != null:
 		bits.append("Active: %s" % tile.active_expedition.describe())
 	selection_lbl.text = " · ".join(bits)
@@ -597,7 +619,10 @@ func _can_explore() -> bool:
 	var tile: MapTile = GameState.world.get_tile(_selected.x, _selected.y)
 	if tile == null or tile.active_expedition != null:
 		return false
-	return tile.knowledge == MapTile.Knowledge.UNKNOWN
+	# Only fogged tiles (adjacent to a known one) are scoutable. This makes
+	# the map develop outward in a ring rather than letting scouts teleport
+	# to the far edge on day one.
+	return MapTile.is_fogged_in(GameState.world, tile.x, tile.y)
 
 
 func _can_gather() -> bool:
@@ -769,59 +794,47 @@ func _refresh_crafting_tab() -> void:
 			var entry: Dictionary = ResourceDB.RESOURCES[id]
 			if not entry.has("type") or entry["type"] != res_type:
 				continue
+			# Hide research-locked recipes entirely. Recipes that need research
+			# unlock will reappear from the Research tab once unlocked, so this
+			# keeps the crafting menu focused on what the player can actually do.
 			if not ResourceDB.is_craftable(id, GameState.researched):
-				# Hidden if: research locked AND no inputs AND never crafted
-				if not _recipe_should_be_visible(id, entry):
-					continue
+				continue
 			any_shown = true
 
-			var is_craftable_now: bool = ResourceDB.is_craftable(id, GameState.researched)
 			var row := HBoxContainer.new()
 			row.add_theme_constant_override("separation", 10)
-			if not is_craftable_now:
-				row.modulate = Color(0.50, 0.50, 0.50)
 			crafting_vbox.add_child(row)
+
+			# Tier-colored swatch icon — small visual anchor next to the name.
+			row.add_child(_make_recipe_icon(entry["tier"], res_type))
 
 			# Clickable tier-coloured name → info popup.
 			var name_btn := LinkButton.new()
 			name_btn.text = entry["name"]
-			name_btn.add_theme_color_override(
-				"font_color",
-				ResourceDB.color_for_tier(entry["tier"]) if is_craftable_now else Color(0.45, 0.45, 0.45),
-			)
+			name_btn.add_theme_color_override("font_color", ResourceDB.color_for_tier(entry["tier"]))
 			name_btn.custom_minimum_size = Vector2(140, 0)
 			name_btn.pressed.connect(_show_resource_popup.bind(id))
 			row.add_child(name_btn)
 
-			# Research gate indicator
-			if not is_craftable_now:
-				var gate = entry.get("research", "")
-				var gate_str: String = str(gate).replace("_", " ").capitalize() if gate != null else ""
-				var gate_lbl := Label.new()
-				gate_lbl.text = "🔒 Requires: %s" % gate_str
-				gate_lbl.modulate = Color(0.65, 0.55, 0.35)
-				gate_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-				row.add_child(gate_lbl)
-			else:
-				# Recipe inputs with current stock.
-				var recipe: Dictionary = entry["recipe"]
-				var recipe_parts: PackedStringArray = PackedStringArray()
-				for input_id: String in recipe:
-					var input_entry: Dictionary = ResourceDB.RESOURCES.get(input_id, {})
-					var input_name: String = input_entry.get("name", input_id)
-					var have: int = GameState.inventory.get(input_id, 0)
-					recipe_parts.append("%s ×%d (have %d)" % [input_name, recipe[input_id], have])
-				var recipe_lbl := Label.new()
-				recipe_lbl.text = " + ".join(recipe_parts)
-				recipe_lbl.modulate = Color(0.72, 0.72, 0.72)
-				recipe_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-				row.add_child(recipe_lbl)
+			# Recipe inputs with current stock.
+			var recipe: Dictionary = entry["recipe"]
+			var recipe_parts: PackedStringArray = PackedStringArray()
+			for input_id: String in recipe:
+				var input_entry: Dictionary = ResourceDB.RESOURCES.get(input_id, {})
+				var input_name: String = input_entry.get("name", input_id)
+				var have: int = GameState.inventory.get(input_id, 0)
+				recipe_parts.append("%s ×%d (have %d)" % [input_name, recipe[input_id], have])
+			var recipe_lbl := Label.new()
+			recipe_lbl.text = " + ".join(recipe_parts)
+			recipe_lbl.modulate = Color(0.72, 0.72, 0.72)
+			recipe_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			row.add_child(recipe_lbl)
 
-				var craft_btn := Button.new()
-				craft_btn.text = "Craft"
-				craft_btn.disabled = not ResourceDB.can_afford(id, GameState.inventory)
-				craft_btn.pressed.connect(_on_craft.bind(id))
-				row.add_child(craft_btn)
+			var craft_btn := Button.new()
+			craft_btn.text = "Craft"
+			craft_btn.disabled = not ResourceDB.can_afford(id, GameState.inventory)
+			craft_btn.pressed.connect(_on_craft.bind(id))
+			row.add_child(craft_btn)
 
 		if not any_shown:
 			var none_lbl := Label.new()
@@ -830,18 +843,37 @@ func _refresh_crafting_tab() -> void:
 			crafting_vbox.add_child(none_lbl)
 
 
-# Returns true if a recipe should be visible even when not yet craftable.
-# Visible when: player has any ingredient OR has crafted this before.
-func _recipe_should_be_visible(id: String, entry: Dictionary) -> bool:
-	if GameState.crafted_ids.has(id):
-		return true
-	var recipe = entry.get("recipe")   # untyped — may be null for gather-only resources
-	if recipe == null or not recipe is Dictionary:
-		return false
-	for input_id: String in recipe:
-		if GameState.inventory.get(input_id, 0) > 0:
-			return true
-	return false
+# Small tier-coloured swatch with a one-glyph type hint. Drawn as a Label
+# inside a tinted background — cheap "icon" placeholder until real art lands.
+func _make_recipe_icon(tier: int, res_type: int) -> Control:
+	const TYPE_GLYPH: Dictionary = {
+		ResourceDB.ResType.FABRIC: "◆",
+		ResourceDB.ResType.TIMBER: "▲",
+		ResourceDB.ResType.METAL:  "■",
+	}
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(28, 28)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = ResourceDB.color_for_tier(tier).darkened(0.45)
+	sb.border_color = ResourceDB.color_for_tier(tier)
+	sb.border_width_left = 1
+	sb.border_width_right = 1
+	sb.border_width_top = 1
+	sb.border_width_bottom = 1
+	sb.corner_radius_top_left = 4
+	sb.corner_radius_top_right = 4
+	sb.corner_radius_bottom_left = 4
+	sb.corner_radius_bottom_right = 4
+	panel.add_theme_stylebox_override("panel", sb)
+
+	var lbl := Label.new()
+	lbl.text = TYPE_GLYPH.get(res_type, "·")
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.add_theme_color_override("font_color", ResourceDB.color_for_tier(tier))
+	lbl.add_theme_font_size_override("font_size", 14)
+	panel.add_child(lbl)
+	return panel
 
 
 func _on_craft(resource_id: String) -> void:
@@ -880,68 +912,204 @@ func _do_craft(resource_id: String) -> void:
 
 # ---------- Research tab ----------
 
+const RESEARCH_CATEGORY_COLOR: Dictionary = {
+	"fabric": Color(0.50, 0.78, 0.45),
+	"timber": Color(0.78, 0.60, 0.32),
+	"metal":  Color(0.55, 0.70, 0.92),
+}
+
+var _selected_research_id: String = ""
+
+
 func _refresh_research_tab() -> void:
 	for c in research_body.get_children():
 		c.queue_free()
 
-	var intro := Label.new()
-	intro.text = "Spend gold to unlock new crafting recipes. Researched projects persist for the run."
-	intro.modulate = Color(0.72, 0.68, 0.55)
-	intro.autowrap_mode = TextServer.AUTOWRAP_WORD
-	research_body.add_child(intro)
-	research_body.add_child(HSeparator.new())
+	# Two-column body: tier-rowed icon grid on the left, detail card on the right.
+	var split := HBoxContainer.new()
+	split.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	split.add_theme_constant_override("separation", 18)
+	research_body.add_child(split)
 
-	var any_project: bool = false
-	for project_id: String in ResourceDB.RESEARCH_PROJECTS:
-		any_project = true
-		var proj: Dictionary = ResourceDB.RESEARCH_PROJECTS[project_id]
-		var is_done: bool = GameState.researched.has(project_id)
+	split.add_child(_build_research_grid())
+	split.add_child(_build_research_detail())
 
-		var entry_box := VBoxContainer.new()
-		entry_box.add_theme_constant_override("separation", 4)
-		if is_done:
-			entry_box.modulate = Color(0.55, 0.55, 0.55)
-		research_body.add_child(entry_box)
 
-		var name_row := HBoxContainer.new()
-		name_row.add_theme_constant_override("separation", 10)
-		entry_box.add_child(name_row)
+func _build_research_grid() -> Control:
+	var grid_panel := PanelContainer.new()
+	grid_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
-		var name_lbl := Label.new()
-		name_lbl.text = proj["name"] + (" ✓" if is_done else "")
-		name_lbl.add_theme_font_size_override("font_size", 15)
-		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		name_row.add_child(name_lbl)
+	var margin := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 16)
+	grid_panel.add_child(margin)
 
-		if not is_done:
-			var btn := Button.new()
-			btn.text = "Research (%d gold)" % proj["cost_gold"]
-			btn.disabled = GameState.gold < proj["cost_gold"]
-			btn.pressed.connect(_on_research.bind(project_id))
-			name_row.add_child(btn)
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 12)
+	margin.add_child(vbox)
 
-		var desc_lbl := Label.new()
-		desc_lbl.text = proj["description"]
-		desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
-		desc_lbl.modulate = Color(0.75, 0.72, 0.60)
-		entry_box.add_child(desc_lbl)
+	# Group projects by tier, render each tier as a row of icons.
+	var tiers: Dictionary = {}   # tier int → Array[String] of project_ids
+	for pid: String in ResourceDB.RESEARCH_PROJECTS:
+		var t: int = int(ResourceDB.RESEARCH_PROJECTS[pid].get("tier", 1))
+		if not tiers.has(t):
+			tiers[t] = []
+		tiers[t].append(pid)
 
-		var unlock_names: Array[String] = []
-		for rid: String in proj["unlocks"]:
-			var rentry: Dictionary = ResourceDB.RESOURCES.get(rid, {})
-			unlock_names.append(rentry.get("name", rid))
-		var unlocks_lbl := Label.new()
-		unlocks_lbl.text = "Unlocks: %s" % ", ".join(unlock_names)
-		unlocks_lbl.modulate = Color(0.65, 0.88, 0.65)
-		entry_box.add_child(unlocks_lbl)
+	var tier_keys: Array = tiers.keys()
+	tier_keys.sort()
+	for t in tier_keys:
+		var tier_lbl := Label.new()
+		tier_lbl.text = "Tier %d" % t
+		tier_lbl.add_theme_font_size_override("font_size", 14)
+		tier_lbl.modulate = Color(0.72, 0.62, 0.40)
+		vbox.add_child(tier_lbl)
 
-		research_body.add_child(HSeparator.new())
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		vbox.add_child(row)
+		for pid in tiers[t]:
+			row.add_child(_make_research_icon(pid))
 
-	if not any_project:
-		var none_lbl := Label.new()
-		none_lbl.text = "No research projects available."
-		none_lbl.modulate = Color(0.5, 0.5, 0.5)
-		research_body.add_child(none_lbl)
+	return grid_panel
+
+
+func _make_research_icon(project_id: String) -> Control:
+	var proj: Dictionary = ResourceDB.RESEARCH_PROJECTS[project_id]
+	var is_done: bool = GameState.researched.has(project_id)
+	var prereqs_met: bool = _research_prereqs_met(proj)
+	var category: String = str(proj.get("category", ""))
+	var color: Color = RESEARCH_CATEGORY_COLOR.get(category, Color(0.7, 0.7, 0.7))
+
+	var btn := Button.new()
+	btn.custom_minimum_size = Vector2(96, 96)
+	btn.toggle_mode = true
+	btn.button_pressed = (_selected_research_id == project_id)
+	btn.tooltip_text = proj["name"] + ("  ✓" if is_done else "")
+
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = color.darkened(0.55 if not is_done else 0.30)
+	sb.border_color = color if prereqs_met or is_done else color.darkened(0.4)
+	sb.border_width_left = 2
+	sb.border_width_right = 2
+	sb.border_width_top = 2
+	sb.border_width_bottom = 2
+	sb.corner_radius_top_left = 6
+	sb.corner_radius_top_right = 6
+	sb.corner_radius_bottom_left = 6
+	sb.corner_radius_bottom_right = 6
+	btn.add_theme_stylebox_override("normal", sb)
+	btn.add_theme_stylebox_override("hover", sb)
+	btn.add_theme_stylebox_override("pressed", sb)
+	btn.add_theme_stylebox_override("focus", sb)
+	if not prereqs_met and not is_done:
+		btn.modulate = Color(0.55, 0.55, 0.55)
+
+	# Glyph inside the icon — checkmark if done, lock if gated, plus otherwise.
+	var glyph: String = "✓" if is_done else ("🔒" if not prereqs_met else "✚")
+	var glyph_lbl := Label.new()
+	glyph_lbl.text = glyph
+	glyph_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	glyph_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	glyph_lbl.add_theme_color_override("font_color", color.lightened(0.15))
+	glyph_lbl.add_theme_font_size_override("font_size", 32)
+	glyph_lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
+	glyph_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	btn.add_child(glyph_lbl)
+
+	btn.pressed.connect(_on_research_icon_clicked.bind(project_id))
+	return btn
+
+
+func _on_research_icon_clicked(project_id: String) -> void:
+	_selected_research_id = project_id
+	_refresh_research_tab()
+
+
+func _research_prereqs_met(proj: Dictionary) -> bool:
+	for prereq in proj.get("prerequisites", []):
+		if not GameState.researched.has(prereq):
+			return false
+	return true
+
+
+func _build_research_detail() -> Control:
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(320, 0)
+	panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+	var margin := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 16)
+	panel.add_child(margin)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	margin.add_child(vbox)
+
+	if _selected_research_id == "" or not ResourceDB.RESEARCH_PROJECTS.has(_selected_research_id):
+		var hint := Label.new()
+		hint.text = "Pick a project to see its details."
+		hint.modulate = Color(0.65, 0.60, 0.45)
+		hint.autowrap_mode = TextServer.AUTOWRAP_WORD
+		vbox.add_child(hint)
+		return panel
+
+	var proj: Dictionary = ResourceDB.RESEARCH_PROJECTS[_selected_research_id]
+	var is_done: bool = GameState.researched.has(_selected_research_id)
+	var prereqs_met: bool = _research_prereqs_met(proj)
+
+	var title := Label.new()
+	title.text = proj["name"] + ("  ✓" if is_done else "")
+	title.add_theme_font_size_override("font_size", 18)
+	title.modulate = Color(1.0, 0.84, 0.42)
+	vbox.add_child(title)
+
+	var desc := Label.new()
+	desc.text = proj["description"]
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD
+	desc.modulate = Color(0.82, 0.76, 0.58)
+	vbox.add_child(desc)
+
+	var prereqs: Array = proj.get("prerequisites", [])
+	if not prereqs.is_empty():
+		var prereq_names: Array[String] = []
+		for pid in prereqs:
+			var pproj: Dictionary = ResourceDB.RESEARCH_PROJECTS.get(pid, {})
+			prereq_names.append(pproj.get("name", pid))
+		var prereq_lbl := Label.new()
+		prereq_lbl.text = "Requires: %s" % ", ".join(prereq_names)
+		prereq_lbl.modulate = Color(0.85, 0.55, 0.30) if not prereqs_met else Color(0.6, 0.85, 0.6)
+		prereq_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+		vbox.add_child(prereq_lbl)
+
+	var unlock_names: Array[String] = []
+	for rid: String in proj["unlocks"]:
+		var rentry: Dictionary = ResourceDB.RESOURCES.get(rid, {})
+		unlock_names.append(rentry.get("name", rid))
+	var unlocks_lbl := Label.new()
+	unlocks_lbl.text = "Unlocks: %s" % ", ".join(unlock_names)
+	unlocks_lbl.modulate = Color(0.65, 0.88, 0.65)
+	unlocks_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+	vbox.add_child(unlocks_lbl)
+
+	vbox.add_child(HSeparator.new())
+
+	if is_done:
+		var done_lbl := Label.new()
+		done_lbl.text = "Already researched."
+		done_lbl.modulate = Color(0.55, 0.55, 0.55)
+		vbox.add_child(done_lbl)
+	else:
+		var btn := Button.new()
+		btn.text = "Research — %d gold" % int(proj["cost_gold"])
+		btn.disabled = (not prereqs_met) or GameState.gold < int(proj["cost_gold"])
+		btn.pressed.connect(_on_research.bind(_selected_research_id))
+		vbox.add_child(btn)
+
+	return panel
 
 
 func _on_research(project_id: String) -> void:
