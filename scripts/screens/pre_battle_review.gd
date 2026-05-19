@@ -379,22 +379,40 @@ func _on_formation_changed() -> void:
 func _update_forecast() -> void:
 	if _forecast_lbl == null or _forecast_participants.is_empty():
 		return
-	var enemy: int = _battle_enemy_power()
-	var preview: Dictionary = Combat.resolve_formation(
-		_forecast_participants, GameState.formation, enemy, _is_home_battle()
-	)
-	var verdict: String = "Win" if preview["won"] else "Loss"
-	var bracket_color: Color = OutcomeBracket.color_for(preview["player_total"], preview["enemy_after_intimidation"])
-	var bracket_label: String = OutcomeBracket.label_for(preview["player_total"], preview["enemy_after_intimidation"])
-	_forecast_lbl.text = "Power: %d  vs  %d enemy (after intim. %d)  →  %s" % [
-		preview["player_total"],
-		preview["enemy_power"],
-		preview["enemy_after_intimidation"],
-		verdict,
+
+	# Build player CombatUnits, applying home-battle 0.75× to non-Defend units.
+	var is_home: bool = _is_home_battle()
+	var player_cus: Array = []
+	for u: Unit in _forecast_participants:
+		var mult: float = 1.0
+		if is_home and u.current_task != Unit.TASK_DEFEND:
+			mult = 0.75
+		player_cus.append(CombatUnit.new(u, "", "", mult))
+
+	# Preview party uses midpoint averages — no RNG consumed, safe for live UI.
+	var event_key: String = _forecast_event_key()
+	var enemy_cus: Array = EnemyDB.preview_party(event_key, GameState.week)
+
+	var analysis: Dictionary = CombatSim.analyze(player_cus, enemy_cus)
+	var pct: int = roundi(analysis["win_probability"] * 100.0)
+
+	_forecast_lbl.text = "Forecast: %d%% chance  ·  Score %.1f vs %.1f enemy" % [
+		pct, analysis["player_score"], analysis["enemy_score"],
 	]
-	_forecast_lbl.modulate = bracket_color
-	_forecast_slots_lbl.text = "%s  ·  Slots: %d/4 filled" % [bracket_label, _count_filled_slots()]
-	_forecast_slots_lbl.modulate = bracket_color
+	_forecast_lbl.modulate = analysis["color"]
+	_forecast_slots_lbl.text = "%s  ·  Slots: %d/4 filled" % [analysis["label"], _count_filled_slots()]
+	_forecast_slots_lbl.modulate = analysis["color"]
+
+
+func _forecast_event_key() -> String:
+	match GameState.current_event:
+		EventKind.HOME_BATTLE:   return "home_battle"
+		EventKind.AWAY_BATTLE:   return "pillage"
+		EventKind.TOURNAMENT:    return "tournament"
+		EventKind.GRAND_TOURNAMENT: return "tournament"
+	if GameState.current_battle_event == "bandit_ambush":
+		return "bandit_ambush"
+	return "pillage"
 
 
 func _count_filled_slots() -> int:

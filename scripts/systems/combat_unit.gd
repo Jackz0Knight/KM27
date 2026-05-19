@@ -27,7 +27,9 @@ extends RefCounted
 #   Horsemanship → mounted combat speed and charge bonus
 
 
-var unit:   Unit
+# Accepts Unit or EnemyActor — both expose .id, .unit_name, .stats,
+# .weapon_id, .armour_id. Untyped so the sim is agnostic about side.
+var unit
 var weapon: Dictionary   # entry from Weapon.CATALOGUE
 var armour: Dictionary   # entry from Armour.CATALOGUE
 
@@ -51,22 +53,23 @@ var current_hp:     int
 var current_morale: int
 
 
-func _init(p_unit: Unit, weapon_id: String = "", armour_id: String = "") -> void:
+# power_mult: applied to HP and damage after derivation. Use 0.75 for
+# at-home units not on Defend during a Home Battle (GDD §13).
+func _init(p_unit, weapon_id: String = "", armour_id: String = "", power_mult: float = 1.0) -> void:
 	unit = p_unit
 	var wid: String = weapon_id if weapon_id != "" else p_unit.weapon_id
 	var aid: String = armour_id if armour_id != "" else p_unit.armour_id
 	weapon = Weapon.get_entry(wid if wid != "" else "unarmed")
 	armour = Armour.get_entry(aid if aid != "" else "unarmoured")
-	_derive()
+	_derive(power_mult)
 
 
-func _derive() -> void:
+func _derive(power_mult: float = 1.0) -> void:
 	var s: Stats = unit.stats
 	var skill: int = s.get_value(weapon.get("primary_skill", "swordsmanship"))
 
 	# Health pool: Strength for body, Bravery for fighting spirit / pain tolerance.
 	max_hp = s.strength * 3 + s.bravery * 2
-	current_hp = max_hp
 
 	# Initiative: Speed is the primary driver; Technique and weapon skill add
 	# precision that also translates to reaction time.
@@ -119,6 +122,13 @@ func _derive() -> void:
 
 	morale_pool    = s.bravery * 3 + s.determination * 2
 	current_morale = morale_pool
+
+	# Apply power multiplier last (e.g. 0.75 for non-Defend home battle units).
+	if power_mult != 1.0:
+		max_hp     = maxi(1, roundi(float(max_hp)     * power_mult))
+		damage_min = maxi(1, roundi(float(damage_min) * power_mult))
+		damage_max = maxi(1, roundi(float(damage_max) * power_mult))
+	current_hp = max_hp
 
 
 func is_alive() -> bool:

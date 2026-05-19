@@ -84,24 +84,23 @@ static func _resolve_away(gs: Node, result: Dictionary) -> void:
 		result["notes"].append("No party committed — Away Battle skipped.")
 		return
 
-	var enemy: int = 0
 	if gs.pending_away_mode == "assault":
 		if gs.pending_assault_castle == null:
 			result["notes"].append("Assault chosen but no castle selected — skipped.")
 			return
-		enemy = gs.pending_assault_castle.difficulty
 		result["notes"].append("Assaulting castle (%d,%d) diff %d." % [
 			gs.pending_assault_castle.x, gs.pending_assault_castle.y,
 			gs.pending_assault_castle.difficulty,
 		])
 	else:
-		enemy = Combat.enemy_power_pillage(gs.week)
-		result["notes"].append("Pillage Camp — enemy power %d." % enemy)
+		result["notes"].append("Pillage Camp.")
 
-	var combat: Dictionary = Combat.resolve_formation(party, gs.formation, enemy, false)
-	_fill_combat(result, combat)
+	var player_cus: Array = _player_cus(party)
+	var enemy_cus: Array  = EnemyDB.roll_combat_party("pillage", gs.week)
+	var sim: Dictionary   = CombatSim.run(player_cus, enemy_cus)
+	_fill_from_sim(result, sim)
 
-	var bracket: int = OutcomeBracket.bracket_for(combat["player_total"], combat["enemy_after_intimidation"])
+	var bracket: int = _bracket_from_sim(sim, player_cus)
 	var injuries: Array[Dictionary] = OutcomeBracket.maybe_apply_injuries(party, bracket)
 	if not injuries.is_empty():
 		result["injuries"] = injuries
@@ -111,7 +110,7 @@ static func _resolve_away(gs: Node, result: Dictionary) -> void:
 				inj["stat"].capitalize(), inj["weeks_remaining"],
 			])
 
-	if combat["won"]:
+	if result["won"]:
 		if gs.pending_away_mode == "assault":
 			var castle: Castle = gs.pending_assault_castle
 			result["reward"] = castle.reward.duplicate_bundle()
@@ -133,28 +132,27 @@ static func _resolve_away(gs: Node, result: Dictionary) -> void:
 
 static func _resolve_home(gs: Node, result: Dictionary) -> void:
 	var party: Array[Unit] = gs.at_home_units()
-	var enemy: int = Combat.enemy_power_home(gs.week)
-	result["notes"].append("Defending homestead — enemy power %d." % enemy)
+	result["notes"].append("Defending homestead.")
 
 	if party.is_empty():
-		# No defenders at all. GDD §2: lose Home Battle → game over.
 		result["fought"] = true
 		result["won"] = false
-		result["enemy_total"] = enemy
-		result["enemy_pre_intim"] = enemy
 		result["notes"].append("No defenders at home — homestead breached.")
 		result["is_game_over"] = true
 		return
 
-	var combat: Dictionary = Combat.resolve_formation(party, gs.formation, enemy, true)
-	_fill_combat(result, combat)
+	# Apply the home-battle 0.75× penalty to non-Defend units.
+	var player_cus: Array = _player_cus_home(party)
+	var enemy_cus: Array  = EnemyDB.roll_combat_party("home_battle", gs.week)
+	var sim: Dictionary   = CombatSim.run(player_cus, enemy_cus)
+	_fill_from_sim(result, sim)
 
-	var bracket: int = OutcomeBracket.bracket_for(combat["player_total"], combat["enemy_after_intimidation"])
+	var bracket: int = _bracket_from_sim(sim, player_cus)
 	var injuries: Array[Dictionary] = OutcomeBracket.maybe_apply_injuries(party, bracket)
 	if not injuries.is_empty():
 		result["injuries"] = injuries
 
-	if combat["won"]:
+	if result["won"]:
 		result["reward"] = Combat.roll_home_win_reward(gs.week)
 		for u in party:
 			var old_ep: String = u.epithet
@@ -184,25 +182,24 @@ static func _resolve_battle_event(gs: Node, result: Dictionary) -> void:
 
 static func _resolve_bandit_ambush(gs: Node, result: Dictionary) -> void:
 	var party: Array[Unit] = gs.at_home_units()
-	var enemy: int = Combat.enemy_power_bandit_ambush(gs.week)
-	result["notes"].append("Bandits at the gate — enemy power %d." % enemy)
+	result["notes"].append("Bandits at the gate.")
 	if party.is_empty():
 		result["fought"] = true
 		result["won"] = false
-		result["enemy_total"] = enemy
-		result["enemy_pre_intim"] = enemy
 		result["notes"].append("No one home — bandits help themselves.")
 		return
 
-	var combat: Dictionary = Combat.resolve_formation(party, gs.formation, enemy, true)
-	_fill_combat(result, combat)
+	var player_cus: Array = _player_cus_home(party)
+	var enemy_cus: Array  = EnemyDB.roll_combat_party("bandit_ambush", gs.week)
+	var sim: Dictionary   = CombatSim.run(player_cus, enemy_cus)
+	_fill_from_sim(result, sim)
 
-	var bracket: int = OutcomeBracket.bracket_for(combat["player_total"], combat["enemy_after_intimidation"])
+	var bracket: int = _bracket_from_sim(sim, player_cus)
 	var injuries: Array[Dictionary] = OutcomeBracket.maybe_apply_injuries(party, bracket)
 	if not injuries.is_empty():
 		result["injuries"] = injuries
 
-	if combat["won"]:
+	if result["won"]:
 		result["reward"] = Combat.roll_bandit_ambush_reward(gs.week)
 		for u in party:
 			var old_ep: String = u.epithet
@@ -351,6 +348,53 @@ static func _away_party(gs: Node) -> Array[Unit]:
 	return out
 
 
+# Populate result from a CombatSim run. player_total/enemy_total are HP
+# remainders — used by weekly_summary for the "X vs Y" display line.
+# per_unit is left empty until battle_log is migrated to the sim turn_log.
+static func _fill_from_sim(result: Dictionary, sim: Dictionary) -> void:
+	result["fought"] = true
+	result["won"] = sim["winner"] == "player"
+	result["player_total"] = sim["player_hp_remaining"]
+	result["enemy_total"] = sim["enemy_hp_remaining"]
+	result["enemy_pre_intim"] = sim["enemy_hp_remaining"]
+	result["intimidation_reduction"] = 0
+	result["per_unit"] = []
+	result["sim_result"] = sim
+	for note in sim["notes"]:
+		result["notes"].append(note)
+
+
+# Derive OutcomeBracket injury bracket from HP remaining after the sim.
+static func _bracket_from_sim(sim: Dictionary, player_cus: Array) -> int:
+	if sim["winner"] != "player":
+		return OutcomeBracket.Bracket.RED
+	var hp_start: int = 0
+	for cu: CombatUnit in player_cus:
+		hp_start += cu.max_hp
+	if hp_start == 0:
+		return OutcomeBracket.Bracket.RED
+	var pct: float = float(sim["player_hp_remaining"]) / float(hp_start)
+	return OutcomeBracket.Bracket.GREEN if pct >= 0.50 else OutcomeBracket.Bracket.ORANGE
+
+
+# Build CombatUnits for a plain away party (no home-battle penalty).
+static func _player_cus(party: Array) -> Array:
+	var out: Array = []
+	for u: Unit in party:
+		out.append(CombatUnit.new(u))
+	return out
+
+
+# Build CombatUnits for a home-battle party, applying 0.75× to non-Defend units.
+static func _player_cus_home(party: Array) -> Array:
+	var out: Array = []
+	for u: Unit in party:
+		var mult: float = 1.0 if u.current_task == Unit.TASK_DEFEND else 0.75
+		out.append(CombatUnit.new(u, "", "", mult))
+	return out
+
+
+# Kept for tournament resolution which still uses the scalar model.
 static func _fill_combat(result: Dictionary, combat: Dictionary) -> void:
 	result["fought"] = true
 	result["won"] = combat["won"]
