@@ -15,12 +15,14 @@ const SUB_TYPES: Array[String] = [
 	"merchant_caravan",
 	"refugee_caravan",
 	"noble_petition",
+	"village_raid",
+	"tavern_riot",
 ]
 
 # Weight pool used by roll_sub_type. "story_event" is a gateway entry —
 # when it wins the roll, we defer to StoryEventDB to pick a specific story.
-# Three copies of "story_event" gives stories roughly a third of all battle
-# event weeks; the six hard-coded sub-types share the remaining two-thirds.
+# Three copies of "story_event" gives stories roughly a quarter of all
+# battle event weeks; the eight hard-coded sub-types share the remainder.
 const ROLL_POOL: Array[String] = [
 	"bandit_ambush",
 	"champion_duel",
@@ -28,6 +30,8 @@ const ROLL_POOL: Array[String] = [
 	"merchant_caravan",
 	"refugee_caravan",
 	"noble_petition",
+	"village_raid",
+	"tavern_riot",
 	"story_event",
 	"story_event",
 	"story_event",
@@ -61,11 +65,18 @@ static func label(sub_type: String) -> String:
 		"merchant_caravan": return "Merchant Caravan"
 		"refugee_caravan": return "Refugees at the Gate"
 		"noble_petition": return "A Noble's Petition"
+		"village_raid": return "A Village Under Attack"
+		"tavern_riot": return "A Tavern Riot"
 	return "Battle Event"
 
 
 static func is_combat(sub_type: String) -> bool:
-	return sub_type == "bandit_ambush" or sub_type == "champion_duel"
+	return (
+		sub_type == "bandit_ambush"
+		or sub_type == "champion_duel"
+		or sub_type == "village_raid"
+		or sub_type == "tavern_riot"
+	)
 
 
 # ---------- non-combat rewards ----------

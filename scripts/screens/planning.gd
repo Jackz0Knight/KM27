@@ -398,6 +398,8 @@ func _formation_advice() -> String:
 				"merchant_caravan": return "→ No combat — pick a bundle on the summary screen"
 				"refugee_caravan": return "→ No combat — the household's response plays out automatically"
 				"noble_petition": return "→ No combat — court courtesy, resolved on the summary"
+				"village_raid": return "→ Use Attack formation — riding out to defend a village"
+				"tavern_riot": return "→ Use Defense formation — light combat near the village inn"
 		EventKind.TOURNAMENT:
 			return "→ Select up to 4 units on the Pre-Battle screen"
 		EventKind.GRAND_TOURNAMENT:

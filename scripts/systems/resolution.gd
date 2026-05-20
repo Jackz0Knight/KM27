@@ -328,6 +328,10 @@ static func _resolve_battle_event(gs: Node, result: Dictionary) -> void:
 			_resolve_refugee_caravan(gs, result)
 		"noble_petition":
 			_resolve_noble_petition(gs, result)
+		"village_raid":
+			_resolve_village_raid(gs, result)
+		"tavern_riot":
+			_resolve_tavern_riot(gs, result)
 		_:
 			result["notes"].append("Unknown Battle Event sub-type.")
 
@@ -476,6 +480,100 @@ static func _resolve_noble_petition(gs: Node, result: Dictionary) -> void:
 	else:
 		result["notes"].append("A noble's envoy arrived, drank deep, and rode out at dawn with vague promises.")
 		result["petition_outcome"] = "courtesy"
+
+
+# A Village Under Attack — a real fight on the home side. The household
+# rides to defend a nearby village. Strong combat (uses the home_battle
+# enemy template) but the reward is village-grateful: gold purse + small
+# bundle + a meaningful reputation bump on the win. Loss costs reputation
+# and contributes no reward — symmetric with how home-battle losses read
+# on the chip.
+static func _resolve_village_raid(gs: Node, result: Dictionary) -> void:
+	var party: Array[Unit] = gs.at_home_units()
+	result["notes"].append("Riding to defend the village.")
+	if party.is_empty():
+		result["fought"] = true
+		result["won"] = false
+		result["notes"].append("No one home to ride — the village burns without you.")
+		_log_reputation_crossing(result, gs.adjust_reputation(-3))
+		return
+
+	var player_cus: Array = _player_cus_home(party)
+	var enemy_cus: Array  = EnemyDB.roll_combat_party("home_battle", gs.week)
+	var sim: Dictionary   = CombatSim.run(player_cus, enemy_cus)
+	_fill_from_sim(result, sim)
+
+	var bracket: int = _bracket_from_sim(sim, player_cus)
+	var injuries: Array[Dictionary] = OutcomeBracket.maybe_apply_injuries(party, bracket)
+	if not injuries.is_empty():
+		result["injuries"] = injuries
+
+	if result["won"]:
+		# Gold purse from the saved village + a small bundle of cloth and
+		# timber pressed on the riders before they leave.
+		var purse: int = 14 + floori(gs.week / 6.0)
+		gs.gold += purse
+		result["notes"].append("Village saved — +%d gold pressed on the household." % purse)
+		var bundle := ResourceBundle.new()
+		for key in ResourceBundle.KEYS:
+			bundle.set(key, RNG.randi_range(1, 2 + floori(gs.week / 12.0)))
+		result["reward"] = bundle
+		for u in party:
+			var old_ep: String = u.epithet
+			Chronicle.grant_epithet(u, Chronicle.TAG_HOME_BATTLE_WON)
+			if u.epithet != "" and old_ep == "":
+				result["notes"].append("%s earns the epithet '%s'." % [u.unit_name, u.epithet])
+		_apply_item_drop(result, ItemDrops.roll_home_defence_drop(gs))
+		_log_reputation_crossing(result, gs.adjust_reputation(4))
+	else:
+		result["notes"].append("Village lost — the household rides home in silence.")
+		_log_reputation_crossing(result, gs.adjust_reputation(-2))
+
+
+# A Tavern Riot — light combat that doubles as a discipline lesson. The
+# household marshal quells a brawl at the nearest inn before it spreads to
+# the village proper. Combat uses the bandit-ambush template (gentler than
+# a home-battle band); the reward is a small purse + a roster-wide loyalty
+# tick from the shared show of force.
+static func _resolve_tavern_riot(gs: Node, result: Dictionary) -> void:
+	var party: Array[Unit] = gs.at_home_units()
+	result["notes"].append("The marshal rides to the village inn.")
+	if party.is_empty():
+		result["fought"] = true
+		result["won"] = false
+		result["notes"].append("No one home — the riot burns itself out by morning, the inn does not.")
+		_log_reputation_crossing(result, gs.adjust_reputation(-1))
+		return
+
+	var player_cus: Array = _player_cus_home(party)
+	var enemy_cus: Array  = EnemyDB.roll_combat_party("bandit_ambush", gs.week)
+	var sim: Dictionary   = CombatSim.run(player_cus, enemy_cus)
+	_fill_from_sim(result, sim)
+
+	var bracket: int = _bracket_from_sim(sim, player_cus)
+	var injuries: Array[Dictionary] = OutcomeBracket.maybe_apply_injuries(party, bracket)
+	if not injuries.is_empty():
+		result["injuries"] = injuries
+
+	if result["won"]:
+		var purse: int = 6 + floori(gs.week / 8.0)
+		gs.gold += purse
+		result["notes"].append("Riot quelled — innkeeper presses %d gold on the marshal." % purse)
+		# Roster-wide loyalty tick — the show of unity at a small action
+		# matters more than the action itself.
+		for u in party:
+			if u.stats.try_increment("loyalty", u.potential_ability):
+				pass   # silent; the marshal does not announce these
+		result["notes"].append("Household discipline tightens. (+1 Loyalty across the roster, where caps allow.)")
+		for u in party:
+			var old_ep: String = u.epithet
+			Chronicle.grant_epithet(u, Chronicle.TAG_HOME_BATTLE_WON)
+			if u.epithet != "" and old_ep == "":
+				result["notes"].append("%s earns the epithet '%s'." % [u.unit_name, u.epithet])
+		_log_reputation_crossing(result, gs.adjust_reputation(1))
+	else:
+		result["notes"].append("Riot spills into the street — the inn is half-wrecked by dawn.")
+		_log_reputation_crossing(result, gs.adjust_reputation(-1))
 
 
 # ---------- Tournament ----------

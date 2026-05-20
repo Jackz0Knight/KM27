@@ -143,6 +143,8 @@ func _battle_enemy_power() -> int:
 			match GameState.current_battle_event:
 				"bandit_ambush": return Combat.enemy_power_bandit_ambush(GameState.week)
 				"champion_duel": return Combat.enemy_power_champion_duel(GameState.week)
+				"village_raid":  return Combat.enemy_power_home(GameState.week)
+				"tavern_riot":   return Combat.enemy_power_bandit_ambush(GameState.week)
 		EventKind.TOURNAMENT:
 			return Combat.enemy_power_tournament(GameState.week)
 		EventKind.GRAND_TOURNAMENT:
@@ -180,6 +182,10 @@ func _enemy_flavor_text(ev: int, sub: String) -> String:
 						return "Orc skirmishers. They tested the outer wall first."
 				"champion_duel":
 					return "A travelling champion — reputation arrives before him, as always."
+				"village_raid":
+					return "A war band has reached the next village over. They will move on yours next, if at all."
+				"tavern_riot":
+					return "Drunken brawlers turned dangerous — the marshal expects more steel than reason."
 		EventKind.TOURNAMENT:
 			if GameState.tournament_streak >= 2:
 				return "The field is watching. Every house has a stake in the result."
@@ -207,6 +213,8 @@ func _stakes_text(ev: int, sub: String) -> String:
 				"merchant_caravan": return "Pick one of three bundles on the Weekly Summary screen."
 				"refugee_caravan": return "Roll: shelter (costs gold, may earn loyalty) or pass through (small kindness in cloth) or turned away (no effect)."
 				"noble_petition": return "A courtesy visit. Often a small purse + etiquette nudge for the host; sometimes only the wine bill."
+				"village_raid": return "Win → gold + bundle + +4 reputation. Loss → −2 reputation, no reward."
+				"tavern_riot": return "Win → small purse + +1 Loyalty roster-wide + +1 reputation. Loss → −1 reputation."
 		EventKind.TOURNAMENT:
 			var note: String = ""
 			if GameState.tournament_streak >= 1:
@@ -359,6 +367,10 @@ func _refresh_setup() -> void:
 						_build_simple_note("Refugees at the Gate — the household's choice will play out automatically; outcome on the Weekly Summary.")
 					"noble_petition":
 						_build_simple_note("A Noble's Petition — courtesy visit. Outcome on the Weekly Summary.")
+					"village_raid":
+						_build_formation_editor(GameState.combat_participants(), "A nearby village is under attack — slot your defenders to ride out.")
+					"tavern_riot":
+						_build_formation_editor(GameState.combat_participants(), "The marshal rides to the inn — slot your party to quell the riot.")
 					_:
 						_build_simple_note("Battle Event with no setup.")
 		EventKind.TOURNAMENT:
@@ -489,8 +501,9 @@ func _forecast_event_key() -> String:
 			return "pillage"
 		EventKind.TOURNAMENT:    return "tournament"
 		EventKind.GRAND_TOURNAMENT: return "tournament"
-	if GameState.current_battle_event == "bandit_ambush":
-		return "bandit_ambush"
+	match GameState.current_battle_event:
+		"bandit_ambush", "tavern_riot": return "bandit_ambush"
+		"village_raid":                  return "home_battle"
 	return "pillage"
 
 
