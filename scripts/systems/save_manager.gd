@@ -30,6 +30,25 @@ func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
 
 
+# Lightweight metadata sniff for the Title-screen "Continue" confirm dialog
+# and any future save-slot UI. Returns {} when no save exists. Reading the
+# whole file is fine — saves are small.
+func peek_save() -> Dictionary:
+	if not has_save():
+		return {}
+	var data: Dictionary = _read_json(SAVE_PATH)
+	if data.is_empty():
+		return {}
+	var week: int = int(data.get("week", 1))
+	return {
+		"week": week,
+		"year": Calendar.year_for(week),
+		"week_of_year": Calendar.week_of_year(week),
+		"gold": int(data.get("gold", 0)),
+		"tournament_streak": int(data.get("tournament_streak", 0)),
+	}
+
+
 func load_game() -> bool:
 	if not has_save():
 		return false

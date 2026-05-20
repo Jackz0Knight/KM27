@@ -37,6 +37,7 @@ func _ready() -> void:
 	_refresh_tick_recap()
 	_refresh_roster()
 	_refresh_confirm_button()
+	ScreenFade.fade_in(self)
 
 
 func _seed_formation_from_default() -> void:
@@ -310,6 +311,8 @@ func _refresh_roster() -> void:
 func _refresh_setup() -> void:
 	_forecast_lbl = null
 	_forecast_slots_lbl = null
+	_forecast_bar = null
+	_forecast_bar_style = null
 	_forecast_participants = []
 	for child in setup_pane.get_children():
 		child.queue_free()
@@ -341,6 +344,8 @@ func _refresh_setup() -> void:
 
 var _forecast_lbl: Label = null
 var _forecast_slots_lbl: Label = null
+var _forecast_bar: ProgressBar = null
+var _forecast_bar_style: StyleBoxFlat = null
 var _forecast_participants: Array = []
 
 
@@ -364,6 +369,37 @@ func _build_formation_editor(participants: Array, blurb: String) -> void:
 	editor.formation_changed.connect(_on_formation_changed)
 
 	_forecast_participants = participants
+
+	# Win-probability gauge — horizontal bar tinted by OutcomeBracket. Bar sits
+	# above the text so the eye picks up the colour first; precise percentage
+	# stays in the label underneath for players who want the number.
+	_forecast_bar = ProgressBar.new()
+	_forecast_bar.min_value = 0.0
+	_forecast_bar.max_value = 100.0
+	_forecast_bar.show_percentage = false
+	_forecast_bar.custom_minimum_size = Vector2(0, 14)
+	_forecast_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_forecast_bar_style = StyleBoxFlat.new()
+	_forecast_bar_style.bg_color = OutcomeBracket.COLOR_GREEN
+	_forecast_bar_style.corner_radius_top_left = 4
+	_forecast_bar_style.corner_radius_top_right = 4
+	_forecast_bar_style.corner_radius_bottom_left = 4
+	_forecast_bar_style.corner_radius_bottom_right = 4
+	_forecast_bar.add_theme_stylebox_override("fill", _forecast_bar_style)
+	var bg_style := StyleBoxFlat.new()
+	bg_style.bg_color = Color(0.18, 0.14, 0.10, 1.0)
+	bg_style.border_color = Color(0.42, 0.32, 0.16, 1.0)
+	bg_style.border_width_left = 1
+	bg_style.border_width_right = 1
+	bg_style.border_width_top = 1
+	bg_style.border_width_bottom = 1
+	bg_style.corner_radius_top_left = 4
+	bg_style.corner_radius_top_right = 4
+	bg_style.corner_radius_bottom_left = 4
+	bg_style.corner_radius_bottom_right = 4
+	_forecast_bar.add_theme_stylebox_override("background", bg_style)
+	setup_pane.add_child(_forecast_bar)
+
 	_forecast_lbl = Label.new()
 	setup_pane.add_child(_forecast_lbl)
 	_forecast_slots_lbl = Label.new()
@@ -395,13 +431,23 @@ func _update_forecast() -> void:
 
 	var analysis: Dictionary = CombatSim.analyze(player_cus, enemy_cus)
 	var pct: int = roundi(analysis["win_probability"] * 100.0)
+	var col: Color = analysis["color"]
+
+	if _forecast_bar != null:
+		# Tween the bar fill so the number doesn't snap on each slot tweak —
+		# 0.18s is fast enough not to lag behind the player's eye but slow
+		# enough to register as a deliberate update.
+		var t: Tween = _forecast_bar.create_tween()
+		t.tween_property(_forecast_bar, "value", float(pct), 0.18)
+		if _forecast_bar_style != null:
+			_forecast_bar_style.bg_color = col
 
 	_forecast_lbl.text = "Forecast: %d%% chance  ·  Score %.1f vs %.1f enemy" % [
 		pct, analysis["player_score"], analysis["enemy_score"],
 	]
-	_forecast_lbl.modulate = analysis["color"]
+	_forecast_lbl.modulate = col
 	_forecast_slots_lbl.text = "%s  ·  Slots: %d/4 filled" % [analysis["label"], _count_filled_slots()]
-	_forecast_slots_lbl.modulate = analysis["color"]
+	_forecast_slots_lbl.modulate = col
 
 
 func _forecast_event_key() -> String:
@@ -600,3 +646,14 @@ func _on_confirm() -> void:
 
 func _on_settings() -> void:
 	SettingsPopup.show_for(self)
+
+
+# Enter triggers the primary action (To Battle / Continue) so the player can
+# burn through a string of non-combat weeks with the keyboard.
+func _unhandled_input(event: InputEvent) -> void:
+	if not (event is InputEventKey) or not event.pressed or event.echo:
+		return
+	if event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER:
+		if not confirm_btn.disabled:
+			_on_confirm()
+			accept_event()

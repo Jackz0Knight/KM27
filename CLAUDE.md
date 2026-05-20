@@ -122,6 +122,9 @@ When the task is "tune X" or "add a new Y", these are the canonical files to ope
 | Heraldry drawing primitives | `scripts/ui/banner_icon.gd` — pure custom `_draw()`, scales freely |
 | Knight starting bonus, stat ranges, PA ranges | `scripts/systems/roster_generator.gd` |
 | Save format / serialisation | `scripts/systems/save_manager.gd` |
+| Shared UI palette / semantic colours | `scripts/autoload/palette.gd` — gold, parchment, success/warn/danger, slot-zone tints, tournament-chip ramp |
+| Audio bus volumes + UI SFX | `scripts/autoload/master_audio.gd` — three buses, `play_click()` SFX synthesised on first use |
+| Screen entry animation | `scripts/ui/screen_fade.gd` — `ScreenFade.fade_in(self)` from any screen `_ready()` |
 
 ## EventBus Signals
 
@@ -167,7 +170,12 @@ The binary path is whitelisted in `.claude/settings.local.json` (gitignored — 
 | **F1** | Toggle dev toolbar overlay. `DevToolbar` is autoloaded but `queue_free()`s itself in non-debug builds, so this is debug-only. Add resources, set gold, advance N weeks, force-queue an event, edit unit stats live. |
 | **F6** (in Godot editor) | Run the focused dev scene. `scenes/dev/world_dump.tscn` validates Phase 1 world gen + determinism; `scenes/dev/event_roll_test.tscn` runs the 50-week event roller test. |
 | **F11** | Toggle windowed/fullscreen. Handled in `GameState._input` so it works on every screen. |
-| **Title → Continue** | Appears when `user://savegame.json` exists (`SaveManager.has_save()`). |
+| **1–5** (Planning) | Switch main tabs (Overview / Tactics / Map / Crafting / Research). |
+| **C** (Planning) | Toggle the Calendar pane. |
+| **Enter** (Planning / Pre-Battle / Weekly Summary) | Trigger the screen's primary action (Advance Time / To Battle / Next Week). On Weekly Summary's first press, skips the staggered fade. |
+| **Esc** | Close the settings popup, dismiss the intro splash, close the resource info overlay, or return from Knight Overview. Also cancels Confirm dialogs. |
+| **Right-click on a knight icon** (formation editor) | Opens an "Assign to slot…" popup — keyboard / touchpad alternative to drag-drop. |
+| **Title → Continue** | Appears when `user://savegame.json` exists. Opens a confirm dialog showing the saved year/week/gold/streak via `SaveManager.peek_save()` before loading. |
 | **Title → Quick Start (Dev)** | Debug-only. Jumps to week 10, gold 200, all stats 8, T1 stock — bypasses the Knight chooser. |
 
 ## Codebase Pitfalls

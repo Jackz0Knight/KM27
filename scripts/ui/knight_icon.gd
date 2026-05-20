@@ -6,12 +6,13 @@ extends PanelContainer
 # optional — when set, clicking the icon (without dragging) opens that
 # unit's Knight Overview screen.
 
-const KNIGHT_COLOR: Color = Color(0.95, 0.75, 0.35, 1.0)     # warm gold — knighted
-const SQUIRE_COLOR: Color = Color(0.62, 0.58, 0.50, 1.0)     # aged pewter — squire
 const ICON_SIZE: Vector2 = Vector2(74, 74)
 
 var unit: Unit
 var on_click: Callable = Callable()
+# Set by FormationEditor when this icon is hosted inside one. Right-clicking
+# the icon then opens a "Assign to slot…" popup (alternative to drag-drop).
+var on_assign_request: Callable = Callable()
 
 
 func _ready() -> void:
@@ -20,12 +21,12 @@ func _ready() -> void:
 	custom_minimum_size = ICON_SIZE
 	# Background colour by class.
 	var style := StyleBoxFlat.new()
-	style.bg_color = KNIGHT_COLOR if unit.unit_class == Unit.UnitClass.KNIGHT else SQUIRE_COLOR
+	style.bg_color = Palette.KNIGHT if unit.unit_class == Unit.UnitClass.KNIGHT else Palette.SQUIRE
 	style.corner_radius_top_left = 6
 	style.corner_radius_top_right = 6
 	style.corner_radius_bottom_left = 6
 	style.corner_radius_bottom_right = 6
-	style.border_color = Color(0.15, 0.12, 0.08, 0.8)
+	style.border_color = Palette.INK_BORDER
 	style.border_width_left = 2
 	style.border_width_right = 2
 	style.border_width_top = 2
@@ -90,6 +91,13 @@ func _get_drag_data(_at_position: Vector2) -> Variant:
 
 
 func _gui_input(event: InputEvent) -> void:
+	# Right-click → assignment popup (formation editor wires this). Cheap to
+	# allow on every icon — if no host installed a callback the event is a no-op.
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+		if on_assign_request.is_valid():
+			on_assign_request.call(self)
+			accept_event()
+		return
 	if not on_click.is_valid():
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:

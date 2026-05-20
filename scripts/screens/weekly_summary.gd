@@ -571,3 +571,27 @@ func _record_completed_run(outcome: String) -> void:
 
 func _on_settings() -> void:
 	SettingsPopup.show_for(self)
+
+
+# Spacebar / Enter both skip the staggered fade-in and advance to the next
+# week; matches the visible Next Week button. Esc on a Merchant Caravan week
+# is intentionally inert — the player must pick a bundle before continuing.
+func _unhandled_input(event: InputEvent) -> void:
+	if not (event is InputEventKey) or not event.pressed or event.echo:
+		return
+	if event.keycode != KEY_ENTER and event.keycode != KEY_KP_ENTER and event.keycode != KEY_SPACE:
+		return
+	if not _anim_done:
+		# First press — skip the fade. Reveal every section instantly and
+		# let the player press again to actually proceed.
+		for sec in _anim_sections:
+			sec.modulate.a = 1.0
+		_anim_done = true
+		set_process(false)
+		_refresh_next_button(GameState.last_battle_result)
+		resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory))
+		accept_event()
+		return
+	if not next_btn.disabled:
+		_on_next()
+		accept_event()

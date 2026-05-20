@@ -20,6 +20,8 @@ const TAB_NAMES: Array[String] = ["Overview", "Tactics", "Map", "Crafting", "Res
 const SettingsPopup = preload("res://scripts/ui/settings_popup.gd")
 
 @onready var tabs: TabBar                 = $Margin/VBox/TopBar/Tabs
+@onready var tournament_chip: PanelContainer = $Margin/VBox/TopBar/TournamentChip
+@onready var tournament_chip_lbl: Label   = $Margin/VBox/TopBar/TournamentChip/TournamentChipMargin/TournamentChipLabel
 @onready var calendar_btn: Button         = $Margin/VBox/TopBar/CalendarBtn
 @onready var advance_btn: Button          = $Margin/VBox/TopBar/AdvanceBtn
 @onready var settings_btn: Button         = $Margin/VBox/TopBar/SettingsBtn
@@ -105,6 +107,8 @@ func _ready() -> void:
 	_default_pending_tasks()
 	_show_intro_if_first_week()
 	_refresh_all()
+	advance_btn.tooltip_text = "Lock in this week's plans and resolve the Tick. (Enter)"
+	ScreenFade.fade_in(self)
 
 
 func _build_tabs() -> void:
@@ -189,6 +193,58 @@ func _refresh_header() -> void:
 	status_lbl.text = ""
 	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory))
 	_refresh_event_chip()
+	_refresh_tournament_chip()
+
+
+# Persistent countdown in the top bar so the tournament is always at the
+# player's elbow, not buried two tabs deep on Tactics. Goes warm-amber by
+# default and bright gold + bigger text when a Grand Tournament is imminent.
+func _refresh_tournament_chip() -> void:
+	if tournament_chip == null:
+		return
+	var next_t: int = _next_tournament_week()
+	if next_t <= 0:
+		tournament_chip.visible = false
+		return
+	tournament_chip.visible = true
+	var weeks_away: int = next_t - GameState.week
+	var is_grand: bool = GameState.tournament_streak >= 2
+	var prefix: String = "★ GRAND TOURNAMENT" if is_grand else "Tournament"
+	if weeks_away <= 0:
+		tournament_chip_lbl.text = "%s — THIS WEEK" % prefix
+	elif weeks_away == 1:
+		tournament_chip_lbl.text = "%s — next week (W%d)" % [prefix, next_t]
+	else:
+		tournament_chip_lbl.text = "%s in %d weeks (W%d)" % [prefix, weeks_away, next_t]
+
+	# Colour ramp: Grand-imminent → bright gold; ≤2 weeks → warm amber;
+	# otherwise → muted parchment. Same shape as the rest of the top bar so
+	# the chip reads as part of the row, not an interrupt.
+	var sb := StyleBoxFlat.new()
+	sb.border_width_left = 2
+	sb.border_width_right = 2
+	sb.border_width_top = 2
+	sb.border_width_bottom = 2
+	sb.corner_radius_top_left = 6
+	sb.corner_radius_top_right = 6
+	sb.corner_radius_bottom_left = 6
+	sb.corner_radius_bottom_right = 6
+	if is_grand or weeks_away <= 0:
+		sb.bg_color = Palette.CHIP_IMMINENT_BG
+		sb.border_color = Palette.CHIP_IMMINENT_BORDER
+		tournament_chip_lbl.add_theme_color_override("font_color", Palette.CHIP_IMMINENT_TEXT)
+		tournament_chip_lbl.add_theme_font_size_override("font_size", 15)
+	elif weeks_away <= 2:
+		sb.bg_color = Palette.CHIP_SOON_BG
+		sb.border_color = Palette.CHIP_SOON_BORDER
+		tournament_chip_lbl.add_theme_color_override("font_color", Palette.CHIP_SOON_TEXT)
+		tournament_chip_lbl.add_theme_font_size_override("font_size", 14)
+	else:
+		sb.bg_color = Palette.CHIP_FAR_BG
+		sb.border_color = Palette.CHIP_FAR_BORDER
+		tournament_chip_lbl.add_theme_color_override("font_color", Palette.CHIP_FAR_TEXT)
+		tournament_chip_lbl.add_theme_font_size_override("font_size", 13)
+	tournament_chip.add_theme_stylebox_override("panel", sb)
 
 
 func _refresh_event_chip() -> void:
@@ -972,8 +1028,10 @@ func _refresh_crafting_tab() -> void:
 				continue
 			if not ResourceDB.is_craftable(id, GameState.researched):
 				continue
-			if not ResourceDB.can_afford(id, GameState.inventory):
-				continue
+			# Show ALL unlocked recipes — affordable or not. The Craft button
+			# disables itself for short-on-materials recipes with a tooltip
+			# explaining which input is short, so the player learns the recipe
+			# without needing the Research tab to remind them.
 			rows_for_type.append(_build_recipe_row(id, entry, res_type))
 
 		if rows_for_type.is_empty():
@@ -985,7 +1043,7 @@ func _refresh_crafting_tab() -> void:
 
 	if not any_recipe_anywhere:
 		var none_lbl := Label.new()
-		none_lbl.text = "The workshop stands idle — your scouts have brought back nothing the smiths can put hands to. Gather more raw materials, or unlock a new craft from the Research tab."
+		none_lbl.text = "The workshop stands idle — no recipes are unlocked. Visit the Research tab to learn your first craft."
 		none_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
 		none_lbl.modulate = Color(0.58, 0.52, 0.40)
 		crafting_vbox.add_child(none_lbl)
@@ -998,34 +1056,84 @@ func _build_recipe_row(id: String, entry: Dictionary, res_type: int) -> Control:
 	# Tier-colored swatch icon — small visual anchor next to the name.
 	row.add_child(_make_recipe_icon(entry["tier"], res_type))
 
-	# Clickable tier-coloured name → info popup.
+	# Clickable tier-coloured name → info popup. Hover also shows the same
+	# detail body as a quick-reference tooltip so players don't need to click
+	# every recipe to see what it does.
 	var name_btn := LinkButton.new()
 	name_btn.text = entry["name"]
 	name_btn.add_theme_color_override("font_color", ResourceDB.color_for_tier(entry["tier"]))
 	name_btn.custom_minimum_size = Vector2(140, 0)
 	name_btn.pressed.connect(_show_resource_popup.bind(id))
+	var name_tip: String = _recipe_tooltip(id, entry)
+	name_btn.tooltip_text = name_tip
 	row.add_child(name_btn)
 
-	# Recipe inputs with current stock.
+	# Recipe inputs with current stock — shortfall coloured red so the eye
+	# lands on the missing material instantly.
 	var recipe: Dictionary = entry["recipe"]
 	var recipe_parts: PackedStringArray = PackedStringArray()
 	for input_id: String in recipe:
 		var input_entry: Dictionary = ResourceDB.RESOURCES.get(input_id, {})
 		var input_name: String = input_entry.get("name", input_id)
 		var have: int = GameState.inventory.get(input_id, 0)
-		recipe_parts.append("%s ×%d (have %d)" % [input_name, recipe[input_id], have])
-	var recipe_lbl := Label.new()
-	recipe_lbl.text = " + ".join(recipe_parts)
-	recipe_lbl.modulate = Color(0.72, 0.72, 0.72)
-	recipe_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(recipe_lbl)
+		var need: int = int(recipe[input_id])
+		if have < need:
+			recipe_parts.append("[color=#E07050]%s ×%d (have %d)[/color]" % [input_name, need, have])
+		else:
+			recipe_parts.append("%s ×%d (have %d)" % [input_name, need, have])
+	var recipe_rtl := RichTextLabel.new()
+	recipe_rtl.bbcode_enabled = true
+	recipe_rtl.fit_content = true
+	recipe_rtl.scroll_active = false
+	recipe_rtl.parse_bbcode(" + ".join(recipe_parts))
+	recipe_rtl.modulate = Color(0.82, 0.78, 0.62)
+	recipe_rtl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	recipe_rtl.tooltip_text = name_tip
+	row.add_child(recipe_rtl)
 
 	var craft_btn := Button.new()
 	craft_btn.text = "Craft"
-	craft_btn.pressed.connect(_on_craft.bind(id))
+	var affordable: bool = ResourceDB.can_afford(id, GameState.inventory)
+	craft_btn.disabled = not affordable
+	if affordable:
+		craft_btn.tooltip_text = "Craft 1 × %s." % entry["name"]
+		craft_btn.pressed.connect(_on_craft.bind(id))
+	else:
+		craft_btn.tooltip_text = _recipe_shortfall_text(id, entry)
 	row.add_child(craft_btn)
 
 	return row
+
+
+# Tooltip body shared by the recipe name and the inputs row — answers
+# "what does this make and what does it need?" without opening the popup.
+func _recipe_tooltip(id: String, entry: Dictionary) -> String:
+	var bits: Array[String] = []
+	bits.append("%s — Tier %d" % [entry["name"], int(entry["tier"])])
+	var recipe: Dictionary = entry.get("recipe", {})
+	if not recipe.is_empty():
+		var input_parts: Array[String] = []
+		for input_id: String in recipe:
+			var ie: Dictionary = ResourceDB.RESOURCES.get(input_id, {})
+			input_parts.append("%s ×%d" % [ie.get("name", input_id), int(recipe[input_id])])
+		bits.append("Needs: " + " + ".join(input_parts))
+	bits.append("Click name for full details.")
+	return "\n".join(bits)
+
+
+# "Short by N Plant Fibres" — the exact list of what's missing, ordered by
+# how short you are so the player can prioritise which material to gather.
+func _recipe_shortfall_text(id: String, entry: Dictionary) -> String:
+	var shortfalls: Array[String] = []
+	for input_id: String in entry.get("recipe", {}):
+		var need: int = int(entry["recipe"][input_id])
+		var have: int = GameState.inventory.get(input_id, 0)
+		if have < need:
+			var ie: Dictionary = ResourceDB.RESOURCES.get(input_id, {})
+			shortfalls.append("%s ×%d more" % [ie.get("name", input_id), need - have])
+	if shortfalls.is_empty():
+		return ""
+	return "Need: " + ", ".join(shortfalls)
 
 
 # Shared styling for runtime-built section headers. Same fleuron prefix +
@@ -1645,3 +1753,45 @@ func _do_advance() -> void:
 
 func _on_settings() -> void:
 	SettingsPopup.show_for(self)
+
+
+# Keyboard shortcuts:
+#   1-5         switch main tabs (Overview / Tactics / Map / Crafting / Research)
+#   C           toggle Calendar pane
+#   Esc         close intro splash or info overlay
+#   Enter       advance time (matches the primary action of the screen)
+func _unhandled_input(event: InputEvent) -> void:
+	if not (event is InputEventKey) or not event.pressed or event.echo:
+		return
+	# When any modal is up the underlying screen ignores hotkeys — the modal
+	# owns the keys (intro splash has its own dismiss button, info overlay
+	# closes on Esc below).
+	if intro_panel != null and intro_panel.visible:
+		if event.keycode == KEY_ESCAPE:
+			_on_dismiss_intro()
+			accept_event()
+		return
+	if info_overlay != null and info_overlay.visible:
+		if event.keycode == KEY_ESCAPE:
+			info_overlay.visible = false
+			accept_event()
+		return
+
+	# `tabs.current_tab = X` already fires `tab_changed`, which is wired to
+	# `_on_tab_changed` — so just nudge the tab bar and the rest happens.
+	match event.keycode:
+		KEY_1:
+			tabs.current_tab = TAB_OVERVIEW; accept_event()
+		KEY_2:
+			tabs.current_tab = TAB_TACTICS; accept_event()
+		KEY_3:
+			tabs.current_tab = TAB_MAP; accept_event()
+		KEY_4:
+			tabs.current_tab = TAB_CRAFTING; accept_event()
+		KEY_5:
+			tabs.current_tab = TAB_RESEARCH; accept_event()
+		KEY_C:
+			_on_calendar_btn(); accept_event()
+		KEY_ENTER, KEY_KP_ENTER:
+			if not advance_btn.disabled:
+				_on_advance(); accept_event()

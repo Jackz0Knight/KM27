@@ -36,6 +36,13 @@ const STAT_TOOLTIPS: Dictionary = {
 }
 
 
+# Subtle hover lift — used by every UnitCard. Pure modulate tween so layout
+# never shifts; the scale-pop reads as "this card is active" without elbowing
+# its neighbours in the row.
+const HOVER_BRIGHT: Color = Color(1.08, 1.06, 1.02, 1.0)
+const HOVER_DURATION: float = 0.12
+
+
 # show_chronicle: when true, render the unit's origin paragraph and oath below
 # the stats (used on the Knight Chooser so recruitment feels like hiring a person).
 static func build(
@@ -47,6 +54,11 @@ static func build(
 ) -> Control:
 	var panel := PanelContainer.new()
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	# Two short tweens — brighten on hover, snap back on exit. We stash them
+	# as metadata so a fast mouse-over-and-off doesn't leave a dangling tween.
+	panel.mouse_entered.connect(_on_card_hover.bind(panel, true))
+	panel.mouse_exited.connect(_on_card_hover.bind(panel, false))
 
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 12)
@@ -227,6 +239,20 @@ static func build(
 	# without scrolling past the chronicle.)
 
 	return panel
+
+
+# Hover lift handler. Cancels any prior tween on the panel so toggling on/off
+# quickly never leaves the card stuck at a half-brightened modulate.
+static func _on_card_hover(panel: Control, entered: bool) -> void:
+	if not is_instance_valid(panel):
+		return
+	var prior: Tween = panel.get_meta("_hover_tween", null)
+	if prior != null and prior.is_valid():
+		prior.kill()
+	var tween: Tween = panel.create_tween()
+	var target: Color = HOVER_BRIGHT if entered else Color(1, 1, 1, 1)
+	tween.tween_property(panel, "modulate", target, HOVER_DURATION)
+	panel.set_meta("_hover_tween", tween)
 
 
 # A centred heraldic fleuron flanked by faint rules — used between the stats

@@ -26,6 +26,7 @@ func _ready() -> void:
 		cards.add_child(UnitCard.build(unit))
 
 	continue_btn.pressed.connect(_on_continue)
+	ScreenFade.fade_in(self)
 
 
 func _on_continue() -> void:

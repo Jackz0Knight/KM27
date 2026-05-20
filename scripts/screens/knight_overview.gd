@@ -70,6 +70,7 @@ func _ready() -> void:
 	settings_btn.pressed.connect(_on_settings)
 
 	_render(unit)
+	ScreenFade.fade_in(self)
 
 
 func _render(unit: Unit) -> void:
@@ -374,3 +375,12 @@ func _on_back() -> void:
 
 func _on_settings() -> void:
 	SettingsPopup.show_for(self)
+
+
+# Esc → back to Planning, matching the visible Back button.
+func _unhandled_input(event: InputEvent) -> void:
+	if not (event is InputEventKey) or not event.pressed or event.echo:
+		return
+	if event.keycode == KEY_ESCAPE:
+		_on_back()
+		accept_event()

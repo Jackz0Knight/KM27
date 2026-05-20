@@ -10,6 +10,7 @@ extends Control
 func _ready() -> void:
 	new_run_btn.pressed.connect(_on_new_run)
 	_render()
+	ScreenFade.fade_in(self, 0.6)
 
 
 func _render() -> void:
