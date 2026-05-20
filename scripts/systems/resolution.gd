@@ -171,6 +171,11 @@ static func _resolve_home(gs: Node, result: Dictionary) -> void:
 # ---------- Battle Event ----------
 
 static func _resolve_battle_event(gs: Node, result: Dictionary) -> void:
+	# Story events take precedence — their sub_type starts with "story:" so
+	# the match statement below would always miss them.
+	if StoryEventDB.is_story_sub_type(gs.current_battle_event):
+		StoryEventDB.resolve(gs, StoryEventDB.story_id_from_sub_type(gs.current_battle_event), result)
+		return
 	match gs.current_battle_event:
 		"bandit_ambush":
 			_resolve_bandit_ambush(gs, result)

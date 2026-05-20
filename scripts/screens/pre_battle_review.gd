@@ -187,6 +187,8 @@ func _stakes_text(ev: int, sub: String) -> String:
 				return "Win → seize the castle and claim its reward. Loss → return empty-handed."
 			return "Win → pillage reward. Loss → return empty-handed."
 		EventKind.BATTLE_EVENT:
+			if StoryEventDB.is_story_sub_type(sub):
+				return "A chronicle moment — no combat. The household's response plays out automatically; outcome on the Weekly Summary."
 			match sub:
 				"bandit_ambush": return "Win → loot reward. No game-over risk."
 				"champion_duel": return "Win → +1 to chosen stat. Loss → no penalty."
@@ -325,21 +327,26 @@ func _refresh_setup() -> void:
 		EventKind.HOME_BATTLE:
 			_build_formation_editor(GameState.combat_participants(), "All at-home units defend (Defend = full power, others = 75%).")
 		EventKind.BATTLE_EVENT:
-			match GameState.current_battle_event:
-				"bandit_ambush":
-					_build_formation_editor(GameState.combat_participants(), "Bandits at the gate — slot your defenders.")
-				"champion_duel":
-					_build_champion_picker()
-				"bountiful_harvest":
-					_build_simple_note("Bountiful Harvest — a small bundle will arrive automatically.")
-				"merchant_caravan":
-					_build_simple_note("Merchant Caravan — you'll pick a bundle on the Weekly Summary.")
-				"refugee_caravan":
-					_build_simple_note("Refugees at the Gate — the household's choice will play out automatically; outcome on the Weekly Summary.")
-				"noble_petition":
-					_build_simple_note("A Noble's Petition — courtesy visit. Outcome on the Weekly Summary.")
-				_:
-					_build_simple_note("Battle Event with no setup.")
+			if StoryEventDB.is_story_sub_type(GameState.current_battle_event):
+				var sid: String = StoryEventDB.story_id_from_sub_type(GameState.current_battle_event)
+				var intro: String = StoryEventDB.intro_for(sid)
+				_build_simple_note("%s\n\nOutcome unfolds on the Weekly Summary." % intro)
+			else:
+				match GameState.current_battle_event:
+					"bandit_ambush":
+						_build_formation_editor(GameState.combat_participants(), "Bandits at the gate — slot your defenders.")
+					"champion_duel":
+						_build_champion_picker()
+					"bountiful_harvest":
+						_build_simple_note("Bountiful Harvest — a small bundle will arrive automatically.")
+					"merchant_caravan":
+						_build_simple_note("Merchant Caravan — you'll pick a bundle on the Weekly Summary.")
+					"refugee_caravan":
+						_build_simple_note("Refugees at the Gate — the household's choice will play out automatically; outcome on the Weekly Summary.")
+					"noble_petition":
+						_build_simple_note("A Noble's Petition — courtesy visit. Outcome on the Weekly Summary.")
+					_:
+						_build_simple_note("Battle Event with no setup.")
 		EventKind.TOURNAMENT:
 			_build_tournament_picker(false)
 		EventKind.GRAND_TOURNAMENT:
@@ -618,6 +625,8 @@ func _build_simple_note(text: String) -> void:
 	var lbl := Label.new()
 	lbl.text = text
 	lbl.modulate = Color(0.78, 0.78, 0.78)
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	setup_pane.add_child(lbl)
 
 

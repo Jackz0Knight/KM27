@@ -219,7 +219,7 @@ func roll_current_event() -> int:
 	current_event = EventRoller.roll(week, tournament_streak)
 	current_battle_event = ""
 	if current_event == EventKind.BATTLE_EVENT:
-		current_battle_event = BattleEvent.roll_sub_type()
+		current_battle_event = BattleEvent.roll_sub_type(self)
 	EventBus.event_rolled.emit(current_event)
 	return current_event
 

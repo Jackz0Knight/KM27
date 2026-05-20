@@ -173,8 +173,16 @@ func _render_outcome(r: Dictionary) -> void:
 		return
 
 	if not r.get("fought", false):
-		outcome_lbl.text = "%s — no battle this week." % EventKind.label(r["event_kind"])
-		outcome_lbl.modulate = Color(0.78, 0.78, 0.78, 0.0)
+		# Story events get their full chronicle label here instead of the
+		# generic "Battle Event — no battle this week." line; the prose notes
+		# carry the rest of the meaning underneath.
+		if StoryEventDB.is_story_sub_type(r.get("sub_event", "")):
+			var sid: String = StoryEventDB.story_id_from_sub_type(r["sub_event"])
+			outcome_lbl.text = "❦  %s" % StoryEventDB.label_for(sid)
+			outcome_lbl.modulate = Color(0.92, 0.78, 0.42, 0.0)
+		else:
+			outcome_lbl.text = "%s — no battle this week." % EventKind.label(r["event_kind"])
+			outcome_lbl.modulate = Color(0.78, 0.78, 0.78, 0.0)
 		return
 
 	if r["won"]:
@@ -202,14 +210,22 @@ func _render_battle_breakdown(r: Dictionary) -> void:
 	var has_tourney: bool = not r.get("tournament_per_unit", []).is_empty()
 	var is_duel: bool = r.get("sub_event", "") == "champion_duel"
 	var fought: bool = r.get("fought", false)
+	# Story events are non-combat but their chronicle notes are the point of
+	# the event — surface them in this section so the player isn't scrolling
+	# for the prose.
+	var is_story: bool = StoryEventDB.is_story_sub_type(r.get("sub_event", ""))
 
 	# Hide the whole section (header + body) when there's nothing useful to show.
-	if not (has_formation or has_tourney or is_duel or fought):
+	if not (has_formation or has_tourney or is_duel or fought or is_story):
 		battle_breakdown_header.visible = false
 		battle_breakdown.visible = false
 		return
 	battle_breakdown_header.visible = true
 	battle_breakdown.visible = true
+	if is_story and not fought:
+		battle_breakdown_header.text = "❦  Chronicle"
+	else:
+		battle_breakdown_header.text = "Battle Breakdown"
 
 	if has_formation:
 		_render_formation_rows(r)

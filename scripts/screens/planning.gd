@@ -389,6 +389,8 @@ func _formation_advice() -> String:
 		EventKind.AWAY_BATTLE:
 			return "→ Use Attack formation for your away party"
 		EventKind.BATTLE_EVENT:
+			if StoryEventDB.is_story_sub_type(GameState.current_battle_event):
+				return "→ A chronicle moment — no combat, no setup required"
 			match GameState.current_battle_event:
 				"bandit_ambush": return "→ Use Defense formation"
 				"champion_duel": return "→ Pick your strongest Str+Bra+Sword unit as champion"

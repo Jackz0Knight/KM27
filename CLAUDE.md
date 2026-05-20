@@ -124,6 +124,7 @@ When the task is "tune X" or "add a new Y", these are the canonical files to ope
 | Personal trait roster + stat/PA modifiers | `scripts/data/trait_pool.gd` (`TRAITS` dict) |
 | Origin / oath / epithet prose pools | `scripts/systems/chronicle.gd` |
 | Battle event sub-types + non-combat resolution | `scripts/systems/battle_event.gd` + `scripts/systems/resolution.gd` |
+| Random story events (chronicle moments + effect primitives) | `scripts/data/story_event_db.gd` (`EVENTS` dict — pure data; resolver dispatches kinds: gold, gold_range, random_unit_stat, all_units_stat, random_unit_injury, reward_resources, inventory_add, pa_delta) |
 | Weapon catalog + rarity / power_rating | `scripts/data/weapon.gd` |
 | Armour catalog + rarity / power_rating | `scripts/data/armour.gd` |
 | Item drop probabilities / rarity pools | `scripts/systems/item_drops.gd` |
