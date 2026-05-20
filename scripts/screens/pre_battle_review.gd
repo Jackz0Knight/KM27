@@ -192,6 +192,8 @@ func _stakes_text(ev: int, sub: String) -> String:
 				"champion_duel": return "Win → +1 to chosen stat. Loss → no penalty."
 				"bountiful_harvest": return "Free resource gift — no combat needed."
 				"merchant_caravan": return "Pick one of three bundles on the Weekly Summary screen."
+				"refugee_caravan": return "Roll: shelter (costs gold, may earn loyalty) or pass through (small kindness in cloth) or turned away (no effect)."
+				"noble_petition": return "A courtesy visit. Often a small purse + etiquette nudge for the host; sometimes only the wine bill."
 		EventKind.TOURNAMENT:
 			var note: String = ""
 			if GameState.tournament_streak >= 1:
@@ -332,6 +334,10 @@ func _refresh_setup() -> void:
 					_build_simple_note("Bountiful Harvest — a small bundle will arrive automatically.")
 				"merchant_caravan":
 					_build_simple_note("Merchant Caravan — you'll pick a bundle on the Weekly Summary.")
+				"refugee_caravan":
+					_build_simple_note("Refugees at the Gate — the household's choice will play out automatically; outcome on the Weekly Summary.")
+				"noble_petition":
+					_build_simple_note("A Noble's Petition — courtesy visit. Outcome on the Weekly Summary.")
 				_:
 					_build_simple_note("Battle Event with no setup.")
 		EventKind.TOURNAMENT:

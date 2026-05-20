@@ -72,6 +72,11 @@ static func _roll_knight(unit_id: int) -> Unit:
 	u.body_type = BodyType.random_body_type()
 	u.weapon_id = "longsword"
 	u.armour_id = "leather"
+	# Trait is rolled AFTER house lean — house biases the baseline, trait
+	# colours the individual on top of that baseline. Stat clamp uses the
+	# full 20 cap so a knight can plausibly stretch beyond the roll band.
+	u.trait_id = TraitPool.roll()
+	TraitPool.apply(u, u.trait_id, Stats.STAT_CAP)
 	_enrich(u)
 	return u
 
@@ -91,6 +96,10 @@ static func _roll_squire(unit_id: int) -> Unit:
 	u.body_type = BodyType.random_body_type()
 	u.weapon_id = "shortsword"
 	u.armour_id = "unarmoured"
+	# Squires use a tighter ceiling so a trait can't push them out of the
+	# squire roll band; the trait still adds personality, just not headroom.
+	u.trait_id = TraitPool.roll()
+	TraitPool.apply(u, u.trait_id, SQUIRE_STAT_MAX + 2)
 	_enrich(u)
 	return u
 

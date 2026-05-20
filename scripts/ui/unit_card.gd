@@ -141,6 +141,17 @@ static func build(
 		house_lbl.add_theme_font_size_override("font_size", 12)
 		name_block.add_child(house_lbl)
 
+	# Personal trait — one short label below the house line so the eye reads
+	# "house · body · motto" then "trait." Trait tooltip carries the prose
+	# blurb so chooser players can see the personality before committing.
+	if unit.trait_id != "" and TraitPool.is_valid(unit.trait_id):
+		var trait_lbl := Label.new()
+		trait_lbl.text = "❖ %s" % TraitPool.name_for(unit.trait_id)
+		trait_lbl.modulate = Color(0.85, 0.72, 0.45)
+		trait_lbl.add_theme_font_size_override("font_size", 12)
+		trait_lbl.tooltip_text = TraitPool.description_for(unit.trait_id)
+		name_block.add_child(trait_lbl)
+
 	var task_lbl := Label.new()
 	task_lbl.text = _status_line_for(unit)
 	task_lbl.modulate = Color(0.78, 0.74, 0.62)

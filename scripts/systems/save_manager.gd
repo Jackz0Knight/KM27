@@ -95,6 +95,7 @@ func _serialise_state() -> Dictionary:
 			"oath": u.oath,
 			"weapon_id": u.weapon_id,
 			"armour_id": u.armour_id,
+			"trait_id": u.trait_id,
 		})
 
 	var expeditions_data: Array = []
@@ -271,6 +272,11 @@ func _restore_state(data: Dictionary) -> void:
 		u.oath      = str(rd.get("oath", ""))
 		u.weapon_id = str(rd.get("weapon_id", ""))
 		u.armour_id = str(rd.get("armour_id", ""))
+		# Trait — only restore valid ids so a renamed/removed trait in a
+		# newer build doesn't leave a broken descriptor on a loaded knight.
+		var saved_trait: String = str(rd.get("trait_id", ""))
+		if saved_trait != "" and TraitPool.is_valid(saved_trait):
+			u.trait_id = saved_trait
 		GameState.roster.append(u)
 
 	# Restore expeditions

@@ -394,6 +394,8 @@ func _formation_advice() -> String:
 				"champion_duel": return "→ Pick your strongest Str+Bra+Sword unit as champion"
 				"bountiful_harvest": return "→ No combat — harvest arrives automatically"
 				"merchant_caravan": return "→ No combat — pick a bundle on the summary screen"
+				"refugee_caravan": return "→ No combat — the household's response plays out automatically"
+				"noble_petition": return "→ No combat — court courtesy, resolved on the summary"
 		EventKind.TOURNAMENT:
 			return "→ Select up to 4 units on the Pre-Battle screen"
 		EventKind.GRAND_TOURNAMENT:

@@ -37,6 +37,12 @@ var banner_line: String = ""
 var origin_text: String = ""
 var oath: String = ""
 
+# Personal trait — one snake_case key into `TraitPool.TRAITS`. Rolled at
+# unit creation, applied once as stat_mods + pa_mod, and surfaced on cards
+# as a one-line descriptor + flavour. Empty for units created before the
+# trait system (old saves); UI tolerates that case.
+var trait_id: String = ""
+
 # Household + body type — rolled at unit creation by RosterGenerator. Drives
 # the visual crest rendered by BannerIcon plus the implicit stat lean.
 # Body type rolls independently of house (a Brann knight can still be Lean).

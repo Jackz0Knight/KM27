@@ -121,6 +121,9 @@ When the task is "tune X" or "add a new Y", these are the canonical files to ope
 | Body type silhouette shape | `scripts/data/body_type.gd` (`draw_silhouette`) |
 | Heraldry drawing primitives | `scripts/ui/banner_icon.gd` — pure custom `_draw()`, scales freely |
 | Knight starting bonus, stat ranges, PA ranges | `scripts/systems/roster_generator.gd` |
+| Personal trait roster + stat/PA modifiers | `scripts/data/trait_pool.gd` (`TRAITS` dict) |
+| Origin / oath / epithet prose pools | `scripts/systems/chronicle.gd` |
+| Battle event sub-types + non-combat resolution | `scripts/systems/battle_event.gd` + `scripts/systems/resolution.gd` |
 | Weapon catalog + rarity / power_rating | `scripts/data/weapon.gd` |
 | Armour catalog + rarity / power_rating | `scripts/data/armour.gd` |
 | Item drop probabilities / rarity pools | `scripts/systems/item_drops.gd` |

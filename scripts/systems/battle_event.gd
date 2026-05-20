@@ -13,6 +13,8 @@ const SUB_TYPES: Array[String] = [
 	"champion_duel",
 	"bountiful_harvest",
 	"merchant_caravan",
+	"refugee_caravan",
+	"noble_petition",
 ]
 
 
@@ -26,6 +28,8 @@ static func label(sub_type: String) -> String:
 		"champion_duel": return "Travelling Champion's Duel"
 		"bountiful_harvest": return "Bountiful Harvest"
 		"merchant_caravan": return "Merchant Caravan"
+		"refugee_caravan": return "Refugees at the Gate"
+		"noble_petition": return "A Noble's Petition"
 	return "Battle Event"
 
 

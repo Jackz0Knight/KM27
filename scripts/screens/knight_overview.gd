@@ -247,6 +247,24 @@ func _render_chronicle_card(unit: Unit) -> void:
 	body_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
 	house_block.add_child(body_lbl)
 
+	# Trait — name + full prose description. The chronicle card is the place
+	# the player goes when they want to know "who is this knight?"; the trait
+	# blurb earns its space here even when it's truncated to a glyph on
+	# smaller cards.
+	if unit.trait_id != "" and TraitPool.is_valid(unit.trait_id):
+		var trait_name := Label.new()
+		trait_name.text = "❖ %s" % TraitPool.name_for(unit.trait_id)
+		trait_name.add_theme_font_size_override("font_size", 14)
+		trait_name.modulate = Color(0.95, 0.78, 0.45)
+		house_block.add_child(trait_name)
+
+		var trait_desc := Label.new()
+		trait_desc.text = TraitPool.description_for(unit.trait_id)
+		trait_desc.add_theme_font_size_override("font_size", 12)
+		trait_desc.modulate = Color(0.78, 0.72, 0.55)
+		trait_desc.autowrap_mode = TextServer.AUTOWRAP_WORD
+		house_block.add_child(trait_desc)
+
 	vbox.add_child(_fleuron_divider())
 
 	# Origin

@@ -325,6 +325,15 @@ static func generate_origin(unit: Unit) -> String:
 		"A tournament knight by training, {n} has more wins in the lists than on the field. He arrived here because the lists grew too comfortable and he recognised the danger in that.",
 		"{n} came highly recommended by a lord who could not afford to keep him. The recommendation was sincere; the inability to keep him was more informative.",
 		"A younger son of a minor house, {n} holds no inheritance and expects none. What he holds is a sword and an instruction that said, in brief, make something of yourself.",
+		"{n} took his vows in a chapel his grandfather built and his father lost. The chapel is still there. The land around it is not.",
+		"Twice promised, twice freed — {n}'s first engagement died of a fever and his second of a politics. He arrived here travelling light and travelling alone.",
+		"{n} earned his spurs in a campaign nobody now remembers, against an enemy nobody now names. His commander died of old age. The lessons did not.",
+		"A bastard acknowledged late but acknowledged in writing, {n} carries the household seal alongside his own. He uses both sparingly, and never together.",
+		"{n} spent six years in a foreign court as a hostage-pageboy. Came home reading three languages, weighing his words in all of them, and trusting none of his audience.",
+		"Lost his first lord at the Bone Ford, his second to plague, and his third to a quarrel he refuses to discuss. He is in no hurry to acquire a fourth.",
+		"{n} returned from a pilgrimage four years late, wearing different armour and not explaining the difference. The household chronicler has stopped asking.",
+		"Raised on a frontier estate where every passing year brought either fire or famine, {n} learned to fight before to read and reads now with the patience of a man who learned both late.",
+		"{n} spent his youth in the lists and his manhood at the border. He still has the cheekbones of the lists and the hands of the border.",
 	]
 
 	const ORIGINS_SQUIRE: Array[String] = [
@@ -336,6 +345,14 @@ static func generate_origin(unit: Unit) -> String:
 		"Quiet and technically minded, {n} spent his adolescence in a scriptorium before a priest recommended military service as a cure for excessive stillness. The cure is ongoing.",
 		"From the eastern provinces, {n} rides differently than the western-trained knights expect and fights differently than they're ready for. He has stopped explaining this and started using it.",
 		"{n} is the newest of the household's additions and the most earnest. The earnestness will either season into something useful or be trained out of him. Both outcomes are acceptable.",
+		"A village reeve's clever boy, {n} keeps the household ledgers in his head and the household quarrels in his hand. So far the ledger is winning.",
+		"{n} grew up on a tournament circuit, holding horses and counting purses. He knows the lists already; he is still learning the field.",
+		"Sent in lieu of taxes by a holding too poor to pay them, {n} arrived with an absurdly polite letter and a slightly less polite mother behind him.",
+		"A foundling raised in a hedge-knight's care, {n} learned the forms one summer at a time. The summers were never quite long enough.",
+		"{n} talked his way past the gatekeeper, the steward, and the chamberlain before someone had the sense to put a sword in his hand and a roof over his head.",
+		"A poacher's son with the eyes of a hawk and the reflexes of a hare, {n} has never missed a target he chose to aim at. Choosing is the hard part.",
+		"{n} came down from the hill country with two letters of grievance, one of recommendation, and a knack for staying out of arguments he didn't start.",
+		"The runt of a large fighting family, {n} has spent his childhood being beaten by his older brothers and is grateful, in retrospect, for the calibration.",
 	]
 
 	var pool: Array[String] = (
@@ -467,13 +484,32 @@ static func grant_epithet(unit: Unit, event_tag: String) -> void:
 		return
 
 	const EPITHETS: Dictionary = {
-		"tournament_win":          ["the Steadfast", "the Lance", "the Day's Victor", "the Listed"],
-		"grand_tournament_win":    ["the Realm-Winner", "Victor of the Grand", "the Champion"],
-		"duel_win":                ["the Duelist", "the Quiet Lance", "the Answerer"],
-		"home_battle_survived":    ["the Bulwark", "the Wall", "the Unfleeing"],
-		"home_battle_won":         ["the Defender", "the Gate-Holder"],
-		"pillage_win":             ["the Bold", "the Opportunist"],
-		"assault_win":             ["the Castle-Taker", "the Resolved"],
+		"tournament_win":          [
+			"the Steadfast", "the Lance", "the Day's Victor", "the Listed",
+			"the Held-Field", "the Crested", "the Banner-Marshal",
+		],
+		"grand_tournament_win":    [
+			"the Realm-Winner", "Victor of the Grand", "the Champion",
+			"the Crowned-in-Steel", "the Sung-Of",
+		],
+		"duel_win":                [
+			"the Duelist", "the Quiet Lance", "the Answerer",
+			"the Counter-Strike", "the Sure-Hand",
+		],
+		"home_battle_survived":    [
+			"the Bulwark", "the Wall", "the Unfleeing", "the Last-Standing",
+		],
+		"home_battle_won":         [
+			"the Defender", "the Gate-Holder", "the Hearth-Keeper",
+			"the Threshold-Won",
+		],
+		"pillage_win":             [
+			"the Bold", "the Opportunist", "the Far-Rider", "the Tax-Taker",
+		],
+		"assault_win":             [
+			"the Castle-Taker", "the Resolved", "the Breaker-of-Gates",
+			"the Tower-Climber",
+		],
 	}
 
 	var pool: Array = EPITHETS.get(event_tag, [])

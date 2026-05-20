@@ -180,6 +180,10 @@ static func _resolve_battle_event(gs: Node, result: Dictionary) -> void:
 			_resolve_bountiful_harvest(gs, result)
 		"merchant_caravan":
 			_resolve_merchant_caravan(gs, result)
+		"refugee_caravan":
+			_resolve_refugee_caravan(gs, result)
+		"noble_petition":
+			_resolve_noble_petition(gs, result)
 		_:
 			result["notes"].append("Unknown Battle Event sub-type.")
 
@@ -271,6 +275,63 @@ static func _resolve_merchant_caravan(gs: Node, result: Dictionary) -> void:
 	gs.merchant_offers = BattleEvent.roll_caravan_offers(gs.week, 3)
 	result["notes"].append("Merchant Caravan — pick a bundle on the summary.")
 	# Reward is decided by the Weekly Summary's picker, not here.
+
+
+# Refugees at the Gate. Three weighted outcomes:
+#   sheltered  — costs gold, a random at-home unit gains +1 loyalty
+#   passing    — free, a small reward bundle in coin/cloth
+#   turned_away — flavour only, no cost, no reward
+# Outcome is rolled once; the Weekly Summary surfaces the prose.
+static func _resolve_refugee_caravan(gs: Node, result: Dictionary) -> void:
+	var roll: float = RNG.randf_range(0.0, 1.0)
+	var defenders: Array[Unit] = gs.at_home_units()
+	result["fought"] = false
+	result["won"] = true
+	if roll < 0.40 and gs.gold >= 10:
+		# Sheltered them. Costs gold, witnesses a small kindness.
+		var cost: int = 10
+		gs.gold = maxi(0, gs.gold - cost)
+		result["notes"].append("Refugees sheltered at the gate. The kitchen ran lean and warm.")
+		if not defenders.is_empty():
+			var witness: Unit = defenders[RNG.randi_range(0, defenders.size() - 1)]
+			if witness.stats.try_increment("loyalty", witness.potential_ability):
+				result["notes"].append("%s stood at the gate. He saw it, and a stat changed quietly. (+1 Loyalty)" % witness.unit_name)
+		result["refugee_outcome"] = "sheltered"
+		result["refugee_cost"] = cost
+	elif roll < 0.80:
+		# They moved on — left a small payment in thanks.
+		var bundle := ResourceBundle.new()
+		bundle.set("wood", 1 + floori(gs.week / 18.0))
+		bundle.set("fibres", 1 + floori(gs.week / 22.0))
+		result["reward"] = bundle
+		result["notes"].append("Refugees passed in the night and left their thanks in cloth and kindling.")
+		result["refugee_outcome"] = "passing"
+	else:
+		# Turned away. No cost, no reward. A note for the chronicler.
+		result["notes"].append("Refugees turned away — the household is not yet a sanctuary.")
+		result["refugee_outcome"] = "turned_away"
+
+
+# A Noble's Petition. Half the time the household earns favour (gold + a
+# random unit's etiquette polished); the other half it's a courtesy visit
+# that costs nothing and rewards nothing. Either way it's a chronicle beat.
+static func _resolve_noble_petition(gs: Node, result: Dictionary) -> void:
+	var defenders: Array[Unit] = gs.at_home_units()
+	var roll: float = RNG.randf_range(0.0, 1.0)
+	result["fought"] = false
+	result["won"] = true
+	if roll < 0.55:
+		var purse: int = 12 + floori(gs.week / 4.0)
+		gs.gold += purse
+		result["notes"].append("A neighbouring lord's envoy paid call — a small purse for hospitality. (+%d gold)" % purse)
+		if not defenders.is_empty():
+			var host: Unit = defenders[RNG.randi_range(0, defenders.size() - 1)]
+			if host.stats.try_increment("etiquette", host.potential_ability):
+				result["notes"].append("%s hosted the table. Watched, listened, learned. (+1 Etiquette)" % host.unit_name)
+		result["petition_outcome"] = "honoured"
+	else:
+		result["notes"].append("A noble's envoy arrived, drank deep, and rode out at dawn with vague promises.")
+		result["petition_outcome"] = "courtesy"
 
 
 # ---------- Tournament ----------
