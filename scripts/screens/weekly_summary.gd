@@ -277,6 +277,10 @@ func _render_tournament_rows(r: Dictionary) -> void:
 			Combat.TOURNAMENT_BASE_POWER,
 			entry["str"], entry["tec"], entry["skill"],
 		]
+		var weap_p: int = int(entry.get("weapon_power", 0))
+		var arm_p: int = int(entry.get("armour_power", 0))
+		if weap_p > 0 or arm_p > 0:
+			build_str += "  (+%d kit)" % (weap_p + arm_p)
 		battle_breakdown.add_child(_breakdown_row(
 			[unit_name, build_str, "%d" % entry["total"]], false,
 		))
@@ -331,6 +335,27 @@ func _render_rewards(r: Dictionary) -> void:
 		var lbl := Label.new()
 		lbl.text = "Castle (%d,%d) seized — removed from the world." % [castle.x, castle.y]
 		lbl.modulate = Color(0.85, 0.85, 0.6)
+		rewards_list.add_child(lbl)
+
+	# Item drop from ItemDrops loot roll — rarity-tinted so heirlooms read at
+	# a glance against the rest of the rewards section.
+	var drop: Dictionary = r.get("item_drop", {})
+	if not drop.is_empty():
+		var slot: String = str(drop.get("slot", ""))
+		var id: String = str(drop.get("id", ""))
+		var rarity_col: Color = (
+			Weapon.rarity_color(id) if slot == "weapon" else Armour.rarity_color(id)
+		)
+		var rarity_lbl: String = (
+			Weapon.rarity_label(id) if slot == "weapon" else Armour.rarity_label(id)
+		)
+		var item_name: String = (
+			Weapon.display_name(id) if slot == "weapon" else Armour.display_name(id)
+		)
+		var glyph: String = "⚔" if slot == "weapon" else "🛡"
+		var lbl := Label.new()
+		lbl.text = "%s %s (%s) — added to the armoury" % [glyph, item_name, rarity_lbl]
+		lbl.modulate = rarity_col
 		rewards_list.add_child(lbl)
 
 	if r.get("sub_event", "") == "champion_duel" and r.get("won", false):

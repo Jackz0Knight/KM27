@@ -70,6 +70,8 @@ static func _blank_result(gs: Node) -> Dictionary:
 		"notes": [],
 		"injuries": [],
 		"tournament_gold": 0,
+		# Item loot rolled by ItemDrops on win paths. Dict (slot/id) or {}.
+		"item_drop": {},
 	}
 
 
@@ -124,6 +126,7 @@ static func _resolve_away(gs: Node, result: Dictionary) -> void:
 			Chronicle.grant_epithet(u, tag)
 			if u.epithet != "" and old_ep == "":
 				result["notes"].append("%s earns the epithet '%s'." % [u.unit_name, u.epithet])
+		_apply_item_drop(result, ItemDrops.roll_away_drop(gs, gs.pending_away_mode))
 	else:
 		result["notes"].append("Battle lost — no reward.")
 
@@ -159,6 +162,7 @@ static func _resolve_home(gs: Node, result: Dictionary) -> void:
 			Chronicle.grant_epithet(u, Chronicle.TAG_HOME_BATTLE_WON)
 			if u.epithet != "" and old_ep == "":
 				result["notes"].append("%s earns the epithet '%s'." % [u.unit_name, u.epithet])
+		_apply_item_drop(result, ItemDrops.roll_home_defence_drop(gs))
 	else:
 		result["is_game_over"] = true
 		result["notes"].append("Homestead breached — GAME OVER.")
@@ -206,6 +210,7 @@ static func _resolve_bandit_ambush(gs: Node, result: Dictionary) -> void:
 			Chronicle.grant_epithet(u, Chronicle.TAG_HOME_BATTLE_WON)
 			if u.epithet != "" and old_ep == "":
 				result["notes"].append("%s earns the epithet '%s'." % [u.unit_name, u.epithet])
+		_apply_item_drop(result, ItemDrops.roll_ambush_drop(gs))
 	else:
 		result["notes"].append("Bandits drove us off — no loot.")
 
@@ -316,6 +321,7 @@ static func _resolve_tournament(gs: Node, result: Dictionary, is_grand: bool) ->
 				Chronicle.grant_epithet(u, Chronicle.TAG_GRAND_TOURNAMENT_WIN)
 				if u.epithet != "" and old_ep == "":
 					result["notes"].append("%s earns the epithet '%s'." % [u.unit_name, u.epithet])
+			_apply_item_drop(result, ItemDrops.roll_grand_tournament_drop(gs))
 		else:
 			gs.tournament_streak += 1
 			result["notes"].append("Tournament won — streak now %d." % gs.tournament_streak)
@@ -329,6 +335,7 @@ static func _resolve_tournament(gs: Node, result: Dictionary, is_grand: bool) ->
 				Chronicle.grant_epithet(u, Chronicle.TAG_TOURNAMENT_WIN)
 				if u.epithet != "" and old_ep == "":
 					result["notes"].append("%s earns the epithet '%s'." % [u.unit_name, u.epithet])
+			_apply_item_drop(result, ItemDrops.roll_tournament_drop(gs))
 	else:
 		gs.tournament_streak = 0
 		if is_grand:
@@ -338,6 +345,15 @@ static func _resolve_tournament(gs: Node, result: Dictionary, is_grand: bool) ->
 
 
 # ---------- helpers ----------
+
+# Stash a rolled drop on the result and add a flavour note so the Weekly
+# Summary "Rewards" section can surface it. No-op when the drop dict is empty.
+static func _apply_item_drop(result: Dictionary, drop: Dictionary) -> void:
+	if drop.is_empty():
+		return
+	result["item_drop"] = drop
+	result["notes"].append("Found in the field: %s" % ItemDrops.describe_drop(drop))
+
 
 static func _away_party(gs: Node) -> Array[Unit]:
 	var out: Array[Unit] = []

@@ -136,6 +136,7 @@ func _serialise_state() -> Dictionary:
 		"gold_income_sources": GameState.gold_income_sources.duplicate(),
 		"suppressed_confirms": GameState.suppressed_confirms.duplicate(),
 		"crafted_ids": GameState.crafted_ids.duplicate(),
+		"item_stockpile": GameState.item_stockpile.duplicate(true),
 		"world_seed": _world_seed(),
 		"explored_tiles": explored_tiles,
 		"castles_remaining": castles_data,
@@ -197,6 +198,16 @@ func _restore_state(data: Dictionary) -> void:
 	GameState.crafted_ids.clear()
 	for k in data.get("crafted_ids", []):
 		GameState.crafted_ids.append(str(k))
+
+	GameState.item_stockpile.clear()
+	for entry in data.get("item_stockpile", []):
+		if not (entry is Dictionary):
+			continue
+		var slot: String = str(entry.get("slot", ""))
+		var id: String = str(entry.get("id", ""))
+		if slot == "" or id == "":
+			continue
+		GameState.item_stockpile.append({"slot": slot, "id": id})
 
 	var def_d = data.get("default_defense_formation", {})
 	for k in def_d:

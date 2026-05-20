@@ -121,6 +121,9 @@ When the task is "tune X" or "add a new Y", these are the canonical files to ope
 | Body type silhouette shape | `scripts/data/body_type.gd` (`draw_silhouette`) |
 | Heraldry drawing primitives | `scripts/ui/banner_icon.gd` — pure custom `_draw()`, scales freely |
 | Knight starting bonus, stat ranges, PA ranges | `scripts/systems/roster_generator.gd` |
+| Weapon catalog + rarity / power_rating | `scripts/data/weapon.gd` |
+| Armour catalog + rarity / power_rating | `scripts/data/armour.gd` |
+| Item drop probabilities / rarity pools | `scripts/systems/item_drops.gd` |
 | Save format / serialisation | `scripts/systems/save_manager.gd` |
 | Shared UI palette / semantic colours | `scripts/autoload/palette.gd` — gold, parchment, success/warn/danger, slot-zone tints, tournament-chip ramp |
 | Audio bus volumes + UI SFX | `scripts/autoload/master_audio.gd` — three buses, `play_click()` SFX synthesised on first use |

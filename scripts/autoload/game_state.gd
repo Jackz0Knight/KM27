@@ -110,6 +110,13 @@ var suppressed_confirms: Array[String] = []
 # Items crafted at least once this run — used by crafting visibility (Feature 10).
 var crafted_ids: Array[String] = []
 
+# Unequipped weapons + armours sitting in the household armoury. Each entry:
+#   {"slot": "weapon"|"armour", "id": String}
+# Items enter the stockpile through loot rolls (Resolution drops, tournament
+# prizes) and leave through equip_item(). Cleared on start_run; persisted by
+# SaveManager.
+var item_stockpile: Array[Dictionary] = []
+
 
 func gold_maintenance_cost() -> int:
 	return roster.size() * 5
@@ -194,6 +201,7 @@ func start_run(seed_value: int) -> void:
 	upgrade_costs = {}
 	suppressed_confirms.clear()
 	crafted_ids.clear()
+	item_stockpile.clear()
 	default_defense_formation = {"blue": -1, "green": -1, "yellow": -1, "red": -1}
 	default_attack_formation = {"blue": -1, "green": -1, "yellow": -1, "red": -1}
 	_clear_pending_away()

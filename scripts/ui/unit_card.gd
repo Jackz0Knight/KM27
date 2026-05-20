@@ -146,6 +146,19 @@ static func build(
 	task_lbl.modulate = Color(0.78, 0.74, 0.62)
 	vbox.add_child(task_lbl)
 
+	# Equipment line — compact, rarity-tinted. Uses RichTextLabel so weapon
+	# and armour can carry distinct colours without two stacked labels.
+	# Heirlooms read gold; rares blue; uncommons green; commons parchment.
+	if unit.weapon_id != "" or unit.armour_id != "":
+		var eq_rtl := RichTextLabel.new()
+		eq_rtl.bbcode_enabled = true
+		eq_rtl.fit_content = true
+		eq_rtl.scroll_active = false
+		eq_rtl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		eq_rtl.parse_bbcode(_equipment_bbcode(unit))
+		eq_rtl.tooltip_text = "%s\n%s" % [Weapon.describe(unit.weapon_id), Armour.describe(unit.armour_id)]
+		vbox.add_child(eq_rtl)
+
 	# Injury indicator.
 	if unit.is_injured():
 		var inj_lbl := Label.new()
@@ -253,6 +266,20 @@ static func _on_card_hover(panel: Control, entered: bool) -> void:
 	var target: Color = HOVER_BRIGHT if entered else Color(1, 1, 1, 1)
 	tween.tween_property(panel, "modulate", target, HOVER_DURATION)
 	panel.set_meta("_hover_tween", tween)
+
+
+# Compact equipment readout. "⚔ Longsword · 🛡 Leather Armour", each side
+# tinted by its rarity colour. The glyph prefix reads at a glance, the prose
+# carries the name. Empty when both ids are blank (won't render).
+static func _equipment_bbcode(unit: Unit) -> String:
+	var parts: Array[String] = []
+	if unit.weapon_id != "":
+		var wc: Color = Weapon.rarity_color(unit.weapon_id)
+		parts.append("[color=#%s]⚔ %s[/color]" % [wc.to_html(false), Weapon.display_name(unit.weapon_id)])
+	if unit.armour_id != "":
+		var ac: Color = Armour.rarity_color(unit.armour_id)
+		parts.append("[color=#%s]🛡 %s[/color]" % [ac.to_html(false), Armour.display_name(unit.armour_id)])
+	return "  ·  ".join(parts)
 
 
 # A centred heraldic fleuron flanked by faint rules — used between the stats

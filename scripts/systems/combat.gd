@@ -134,7 +134,15 @@ static func resolve_formation(
 		if blue_filled and u.id != blue_unit_id:
 			leadership = LEADERSHIP_BUFF
 
-		var raw: int = BASE_POWER + u.stats.strength + u.stats.bravery + skill + slot_bonus + leadership
+		# Equipment contribution — weapon + armour each declare a power_rating
+		# in their catalog entry (0–4). Held flat to avoid combat-modifier
+		# creep; the strategy layer treats kit as one more knob alongside
+		# slot and leadership rather than a multiplier on stats.
+		var weapon_power: int = Weapon.power_rating(u.weapon_id)
+		var armour_power: int = Armour.power_rating(u.armour_id)
+		var equipment_power: int = weapon_power + armour_power
+
+		var raw: int = BASE_POWER + u.stats.strength + u.stats.bravery + skill + slot_bonus + leadership + equipment_power
 
 		var mult: float = 1.0
 		if home_battle and u.current_task != Unit.TASK_DEFEND:
@@ -152,6 +160,8 @@ static func resolve_formation(
 			"skill": skill,
 			"slot_bonus": slot_bonus,
 			"leadership_buff": leadership,
+			"weapon_power": weapon_power,
+			"armour_power": armour_power,
 			"raw": raw,
 			"mult": mult,
 			"total": total,
@@ -170,22 +180,38 @@ static func resolve_formation(
 
 
 # Named helper so the UI and resolve_tournament() share exactly one formula.
+# Tournament rules forbid the war pick and the crossbow — equipment bonus only
+# applies if the unit's weapon is tournament-legal. Armour bonus always counts;
+# the lists are about steel and skill, not who wore plate to the rope.
 static func tournament_unit_power(unit: Unit) -> int:
-	return TOURNAMENT_BASE_POWER + unit.stats.strength + unit.stats.technique + maxi(unit.stats.swordsmanship, unit.stats.archery)
+	var base: int = TOURNAMENT_BASE_POWER + unit.stats.strength + unit.stats.technique + maxi(unit.stats.swordsmanship, unit.stats.archery)
+	var weapon_power: int = Weapon.power_rating(unit.weapon_id) if _is_tournament_legal(unit.weapon_id) else 0
+	var armour_power: int = Armour.power_rating(unit.armour_id)
+	return base + weapon_power + armour_power
+
+
+# Banned in tournaments by historical convention — the war pick punches plate,
+# the crossbow ignores skill. Players can still field knights kitted with them
+# in normal weeks; they simply don't gain the kit bonus on tournament week.
+static func _is_tournament_legal(weapon_id: String) -> bool:
+	return weapon_id != "war_pick" and weapon_id != "crossbow"
 
 
 # Tournament resolution (no formation, no Leadership buff, no Intimidation).
-#   unit_power = 10 + Str + Tec + max(Sword, Arch)
+#   unit_power = 10 + Str + Tec + max(Sword, Arch) + tournament-legal kit
 static func resolve_tournament(participants: Array, enemy_power: int) -> Dictionary:
 	var per_unit: Array = []
 	var total: int = 0
 	for u in participants:
 		var raw: int = tournament_unit_power(u)
+		var weapon_power: int = Weapon.power_rating(u.weapon_id) if _is_tournament_legal(u.weapon_id) else 0
 		per_unit.append({
 			"unit_id": u.id,
 			"str": u.stats.strength,
 			"tec": u.stats.technique,
 			"skill": maxi(u.stats.swordsmanship, u.stats.archery),
+			"weapon_power": weapon_power,
+			"armour_power": Armour.power_rating(u.armour_id),
 			"total": raw,
 		})
 		total += raw
