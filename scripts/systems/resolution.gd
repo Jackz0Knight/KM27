@@ -86,6 +86,12 @@ static func _resolve_away(gs: Node, result: Dictionary) -> void:
 		result["notes"].append("No party committed — Away Battle skipped.")
 		return
 
+	# Data-driven away mission variants. Falls through to the original
+	# pillage/assault path for "pillage" / "assault" / any unknown string.
+	if AwayModeDB.has_mode(gs.pending_away_mode):
+		_resolve_away_custom(gs, party, result)
+		return
+
 	if gs.pending_away_mode == "assault":
 		if gs.pending_assault_castle == null:
 			result["notes"].append("Assault chosen but no castle selected — skipped.")
@@ -137,6 +143,129 @@ static func _resolve_away(gs: Node, result: Dictionary) -> void:
 		result["notes"].append("Battle lost — no reward.")
 		# Losing on the field shows. Not catastrophic, but noticeable.
 		_log_reputation_crossing(result, gs.adjust_reputation(-1))
+
+
+# Resolve a data-driven away mode (anything in AwayModeDB.MODES). Mirrors
+# the pillage path's structure — combat sim → injuries → reward + epithet
+# + item drop + rep — but reads its parameters from the mode entry instead
+# of branching on hard-coded "pillage" vs "assault" strings. The reward
+# kinds (gold_and_bundle / iron_haul / rare_loot) are dispatched here so
+# adding a new mode is purely a data add.
+static func _resolve_away_custom(gs: Node, party: Array[Unit], result: Dictionary) -> void:
+	var mode: Dictionary = AwayModeDB.MODES.get(gs.pending_away_mode, {})
+	if mode.is_empty():
+		result["notes"].append("Unknown away mode: %s" % gs.pending_away_mode)
+		return
+
+	result["notes"].append("%s" % str(mode.get("label", "Away Mission")))
+
+	var template: String = str(mode.get("combat_template", "pillage"))
+	var player_cus: Array = _player_cus(party)
+	var enemy_cus: Array  = EnemyDB.roll_combat_party(template, gs.week)
+	var sim: Dictionary   = CombatSim.run(player_cus, enemy_cus)
+	_fill_from_sim(result, sim)
+
+	var bracket: int = _bracket_from_sim(sim, player_cus)
+	var injuries: Array[Dictionary] = OutcomeBracket.maybe_apply_injuries(party, bracket)
+	if not injuries.is_empty():
+		result["injuries"] = injuries
+		for inj in injuries:
+			result["notes"].append("%s injured: %s (%dw)" % [
+				gs.find_unit(inj["unit_id"]).unit_name if gs.find_unit(inj["unit_id"]) != null else "?",
+				inj["stat"].capitalize(), inj["weeks_remaining"],
+			])
+
+	if result["won"]:
+		_apply_away_custom_reward(gs, mode, result)
+		var tag: String = str(mode.get("epithet_tag", "pillage_win"))
+		for u in party:
+			var old_ep: String = u.epithet
+			Chronicle.grant_epithet(u, tag)
+			if u.epithet != "" and old_ep == "":
+				result["notes"].append("%s earns the epithet '%s'." % [u.unit_name, u.epithet])
+		# Item drop — modes can override the standard chance via a roll
+		# against item_drop_chance, biased toward the listed rarity.
+		_apply_custom_item_drop(gs, mode, result)
+		var rep_win: int = int(mode.get("rep_on_win", 0))
+		if rep_win != 0:
+			_log_reputation_crossing(result, gs.adjust_reputation(rep_win))
+	else:
+		result["notes"].append("Mission failed — no reward.")
+		var rep_loss: int = int(mode.get("rep_on_loss", 0))
+		if rep_loss != 0:
+			_log_reputation_crossing(result, gs.adjust_reputation(rep_loss))
+
+
+# Apply the reward shape declared on the mode entry. Three kinds today:
+#   gold_and_bundle — gold_range + ResourceBundle roll (legacy MVP triple)
+#   iron_haul       — iron_ore inventory_add + plant_fibres inventory_add
+#                     + optional small gold tip
+#   rare_loot       — small gold + a forced item drop (handled at the
+#                     drop step; here we just push the gold note)
+static func _apply_away_custom_reward(gs: Node, mode: Dictionary, result: Dictionary) -> void:
+	var kind: String = str(mode.get("reward_kind", "gold_and_bundle"))
+	match kind:
+		"gold_and_bundle":
+			var purse: int = RNG.randi_range(int(mode.get("gold_min", 0)), int(mode.get("gold_max", 0)))
+			if purse > 0:
+				gs.gold += purse
+				result["notes"].append("+%d gold" % purse)
+			var lo: int = int(mode.get("bundle_lo", 1))
+			var hi: int = int(mode.get("bundle_hi", 2))
+			if hi >= lo and hi > 0:
+				var bundle := ResourceBundle.new()
+				for key in ResourceBundle.KEYS:
+					bundle.set(key, RNG.randi_range(lo, hi))
+				result["reward"] = bundle
+		"iron_haul":
+			var iron: int = RNG.randi_range(int(mode.get("iron_min", 0)), int(mode.get("iron_max", 0)))
+			if iron > 0:
+				gs.inventory["iron_ore"] = int(gs.inventory.get("iron_ore", 0)) + iron
+				result["notes"].append("+%d Iron Ore" % iron)
+			var fibres: int = RNG.randi_range(int(mode.get("fibres_min", 0)), int(mode.get("fibres_max", 0)))
+			if fibres > 0:
+				gs.inventory["plant_fibres"] = int(gs.inventory.get("plant_fibres", 0)) + fibres
+				result["notes"].append("+%d Plant Fibres" % fibres)
+			var tip: int = RNG.randi_range(int(mode.get("gold_min", 0)), int(mode.get("gold_max", 0)))
+			if tip > 0:
+				gs.gold += tip
+				result["notes"].append("+%d gold" % tip)
+		"rare_loot":
+			var purse2: int = RNG.randi_range(int(mode.get("gold_min", 0)), int(mode.get("gold_max", 0)))
+			if purse2 > 0:
+				gs.gold += purse2
+				result["notes"].append("+%d gold" % purse2)
+		_:
+			result["notes"].append("(unhandled reward kind: %s)" % kind)
+
+
+# Roll the mode's declared item drop chance. Uses the same ItemDrops machinery
+# the standard pillage/assault path uses, but biased to the mode's preferred
+# rarity ceiling.
+static func _apply_custom_item_drop(gs: Node, mode: Dictionary, result: Dictionary) -> void:
+	var chance: float = float(mode.get("item_drop_chance", 0.0))
+	if chance <= 0.0:
+		return
+	if RNG.randf_range(0.0, 1.0) >= chance:
+		return
+	# Build a small rarity pool centred on the mode's listed rarity.
+	# Rarity 0=Common 1=Uncommon 2=Rare 3=Heirloom. We let nearby rarities
+	# leak in at lower weight so the drops feel varied without ever rolling
+	# Heirloom outside the Grand Tournament path.
+	var target_rarity: int = int(mode.get("item_drop_rarity", 1))
+	var pool: Array[int] = []
+	for r in range(max(0, target_rarity - 1), min(3, target_rarity + 1) + 1):
+		var weight: int = 4 if r == target_rarity else 1
+		# Cap at Rare on this path; Heirlooms remain Grand-Tournament-only.
+		if r >= 3:
+			continue
+		for _i in range(weight):
+			pool.append(r)
+	if pool.is_empty():
+		return
+	var rolled: int = pool[RNG.randi_range(0, pool.size() - 1)]
+	var drop: Dictionary = ItemDrops.drop_at_rarity(gs, rolled)
+	_apply_item_drop(result, drop)
 
 
 # ---------- Home Battle ----------

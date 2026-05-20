@@ -65,6 +65,8 @@ func _refresh_header() -> void:
 	var label: String = EventKind.label(GameState.current_event)
 	if GameState.current_event == EventKind.BATTLE_EVENT and GameState.current_battle_event != "":
 		label = "%s — %s" % [label, BattleEvent.label(GameState.current_battle_event)]
+	elif GameState.current_event == EventKind.AWAY_BATTLE and AwayModeDB.has_mode(GameState.pending_away_mode):
+		label = "%s — %s" % [label, AwayModeDB.label_for(GameState.pending_away_mode)]
 	header_lbl.text = "Pre-Battle Review — Year %d, Week %d (%d/48) · %s" % [
 		GameState.current_year(), GameState.week,
 		GameState.current_week_of_year(), label,
@@ -125,6 +127,15 @@ func _battle_enemy_power() -> int:
 		EventKind.AWAY_BATTLE:
 			if GameState.pending_away_mode == "assault" and GameState.pending_assault_castle != null:
 				return GameState.pending_assault_castle.difficulty
+			# Custom away modes can declare a different combat_template; their
+			# displayed enemy power should match the template that'll actually
+			# roll the enemy party at resolve time.
+			if AwayModeDB.has_mode(GameState.pending_away_mode):
+				var template: String = str(AwayModeDB.MODES[GameState.pending_away_mode].get("combat_template", "pillage"))
+				match template:
+					"bandit_ambush": return Combat.enemy_power_bandit_ambush(GameState.week)
+					"home_battle":   return Combat.enemy_power_home(GameState.week)
+				return Combat.enemy_power_pillage(GameState.week)
 			return Combat.enemy_power_pillage(GameState.week)
 		EventKind.HOME_BATTLE:
 			return Combat.enemy_power_home(GameState.week)
@@ -323,7 +334,10 @@ func _refresh_setup() -> void:
 
 	match GameState.current_event:
 		EventKind.AWAY_BATTLE:
-			_build_formation_editor(GameState.combat_participants(), "Send your away party into battle.")
+			var blurb: String = "Send your away party into battle."
+			if AwayModeDB.has_mode(GameState.pending_away_mode):
+				blurb = AwayModeDB.intro_for(GameState.pending_away_mode)
+			_build_formation_editor(GameState.combat_participants(), blurb)
 		EventKind.HOME_BATTLE:
 			_build_formation_editor(GameState.combat_participants(), "All at-home units defend (Defend = full power, others = 75%).")
 		EventKind.BATTLE_EVENT:
@@ -466,7 +480,13 @@ func _update_forecast() -> void:
 func _forecast_event_key() -> String:
 	match GameState.current_event:
 		EventKind.HOME_BATTLE:   return "home_battle"
-		EventKind.AWAY_BATTLE:   return "pillage"
+		EventKind.AWAY_BATTLE:
+			# Custom away modes get the forecast keyed off their combat_template
+			# so the win-probability gauge reflects the actual enemy party that
+			# CombatSim will roll, not the pillage default.
+			if AwayModeDB.has_mode(GameState.pending_away_mode):
+				return str(AwayModeDB.MODES[GameState.pending_away_mode].get("combat_template", "pillage"))
+			return "pillage"
 		EventKind.TOURNAMENT:    return "tournament"
 		EventKind.GRAND_TOURNAMENT: return "tournament"
 	if GameState.current_battle_event == "bandit_ambush":

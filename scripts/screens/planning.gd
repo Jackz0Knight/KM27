@@ -631,6 +631,37 @@ func _refresh_away_section() -> void:
 		for castle in explored_castles:
 			away_section.add_child(_build_castle_card(castle))
 
+	# Away Mission Variants — data-driven modes from AwayModeDB. Gated by
+	# min_week so early-game weeks see only pillage/assault. Each available
+	# mode renders as a labelled button under a small subhead.
+	var unlocked_modes: Array[String] = AwayModeDB.available_at_week(GameState.week)
+	if not unlocked_modes.is_empty():
+		var variants_hint := Label.new()
+		variants_hint.text = "Other targets in the marches:"
+		variants_hint.modulate = Color(0.78, 0.74, 0.60)
+		variants_hint.add_theme_font_size_override("font_size", 13)
+		away_section.add_child(variants_hint)
+
+		var variants_row := HBoxContainer.new()
+		variants_row.add_theme_constant_override("separation", 8)
+		away_section.add_child(variants_row)
+
+		for mode_id in unlocked_modes:
+			var btn := Button.new()
+			btn.text = AwayModeDB.label_for(mode_id)
+			btn.disabled = party_size == 0
+			btn.tooltip_text = AwayModeDB.tooltip_for(mode_id)
+			btn.pressed.connect(_on_pick_away_variant.bind(mode_id))
+			if GameState.pending_away_mode == mode_id:
+				btn.modulate = Color(0.7, 1.0, 0.7)
+			variants_row.add_child(btn)
+
+
+func _on_pick_away_variant(mode_id: String) -> void:
+	GameState.pending_away_mode = mode_id
+	GameState.pending_assault_castle = null
+	_refresh_away_section()
+
 
 func _on_pick_pillage() -> void:
 	GameState.pending_away_mode = "pillage"

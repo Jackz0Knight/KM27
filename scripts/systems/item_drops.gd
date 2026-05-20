@@ -82,6 +82,13 @@ static func _try_drop(gs: Node, chance: float, rarity_pool: Array[int]) -> Dicti
 	return _drop_at_rarity(gs, target_rarity)
 
 
+# Public alias for `_drop_at_rarity` — exposes the rarity-targeted drop so
+# Resolution's data-driven away modes (AwayModeDB) can request a specific
+# rarity without going through one of the named roll_*_drop functions.
+static func drop_at_rarity(gs: Node, target_rarity: int) -> Dictionary:
+	return _drop_at_rarity(gs, target_rarity)
+
+
 # Drop a specific rarity. Picks weapon vs armour 50/50, then a random id of
 # that rarity from the respective catalog. Returns the drop entry.
 static func _drop_at_rarity(gs: Node, target_rarity: int) -> Dictionary:
