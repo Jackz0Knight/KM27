@@ -93,6 +93,13 @@ var inventory: Dictionary = {}
 var researched: Array[String] = []
 var maintenance_debt: bool = false
 
+# Reputation — a single signed integer accumulated across the run. Story
+# events and a handful of mission outcomes nudge it; the HUD chip surfaces
+# the value with a band label ("Outcast" → "Legendary"). Has narrative
+# weight only at the moment — future passes wire reward scaling, recruit
+# odds, and event gating. Cleared on start_run.
+var reputation: int = 0
+
 # Gold income sources. `weekly_stipend` is always active; others are set
 # temporarily when an event grants a recurring bonus then reset to 0.
 var gold_income_sources: Dictionary = {
@@ -197,6 +204,7 @@ func start_run(seed_value: int) -> void:
 	inventory = {}
 	researched.clear()
 	maintenance_debt = false
+	reputation = 0
 	gold_income_sources = {"tournament_prize": 0, "expedition_trade": 0, "weekly_stipend": 10}
 	upgrade_costs = {}
 	suppressed_confirms.clear()

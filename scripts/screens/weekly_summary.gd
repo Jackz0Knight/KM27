@@ -86,7 +86,7 @@ func _process(delta: float) -> void:
 		set_process(false)
 		# Re-enable Next now that everything is visible.
 		_refresh_next_button(GameState.last_battle_result)
-		resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory))
+		resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory, GameState.reputation))
 
 
 func _render_content() -> void:
@@ -95,7 +95,7 @@ func _render_content() -> void:
 	if r.get("sub_event", "") != "":
 		label = "%s — %s" % [label, BattleEvent.label(r["sub_event"])]
 	header_lbl.text = "Weekly Summary — Week %d · %s" % [GameState.week, label]
-	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory))
+	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory, GameState.reputation))
 
 	_render_chronicle()
 	_render_outcome(r)
@@ -153,7 +153,7 @@ func _render_chronicle() -> void:
 func _render(r: Dictionary = GameState.last_battle_result) -> void:
 	_render_content()
 	_refresh_next_button(r)
-	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory))
+	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory, GameState.reputation))
 
 
 func _render_outcome(r: Dictionary) -> void:
@@ -630,7 +630,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_anim_done = true
 		set_process(false)
 		_refresh_next_button(GameState.last_battle_result)
-		resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory))
+		resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory, GameState.reputation))
 		accept_event()
 		return
 	if not next_btn.disabled:

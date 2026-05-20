@@ -47,6 +47,10 @@ extends RefCounted
 #                                                       random active
 #                                                       expedition's
 #                                                       weeks_remaining
+#   {kind: "reputation", amount: int}                 — flat reputation delta
+#                                                       on GameState.reputation
+#   {kind: "reputation_range", min: int, max: int}    — rolled reputation
+#                                                       delta in the range
 
 
 # A note about gates:
@@ -1032,6 +1036,206 @@ const EVENTS: Dictionary = {
 			},
 		],
 	},
+
+	# ---- Batch 3 — reputation-touching events ----
+
+	"local_festival": {
+		"label":  "A Local Festival",
+		"intro":  "The nearest village holds its midsummer festival and sends a polite delegation hoping for your household's sponsorship.",
+		"weight": 3,
+		"min_week": 6,
+		"min_gold": 10,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "Your household pays for the ale and three ribbons of the largest prize. The chronicler is invited to read; the village remembers it.",
+				"effects": [{"kind": "gold_range", "min": -14, "max": -8}, {"kind": "reputation_range", "min": 3, "max": 6}],
+			},
+			{
+				"weight": 30,
+				"note": "Your knight attends in person, judges a wrestling bout, and rides home with the village's quiet approval.",
+				"effects": [{"kind": "reputation_range", "min": 2, "max": 4}, {"kind": "random_unit_stat", "stat": "etiquette", "delta": 1}],
+			},
+			{
+				"weight": 20,
+				"note": "The household declines. The festival happens without you; the village remembers that too.",
+				"effects": [{"kind": "reputation", "amount": -2}],
+			},
+		],
+	},
+
+	"travelling_bard": {
+		"label":  "A Travelling Bard Spreads Tales",
+		"intro":  "A bard with an ear for whose silver buys best stops three nights in your hall. The third night he asks, politely, for stories he can use.",
+		"weight": 3,
+		"min_week": 12,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "Your knight obliges with the most flattering version of a recent campaign. The bard rides on; his ballad arrives in two villages within the fortnight.",
+				"effects": [{"kind": "reputation_range", "min": 3, "max": 7}],
+			},
+			{
+				"weight": 30,
+				"note": "Your knight tells a story straight. The bard frowns once and writes it twice. It does well in the smaller halls.",
+				"effects": [{"kind": "reputation", "amount": 2}, {"kind": "random_unit_stat", "stat": "loyalty", "delta": 1}],
+			},
+			{
+				"weight": 20,
+				"note": "Your knight pays him to write nothing. He takes the coin and writes a worse story anyway, in a different region.",
+				"effects": [{"kind": "gold", "amount": -10}, {"kind": "reputation", "amount": -1}],
+			},
+		],
+	},
+
+	"rival_rumours": {
+		"label":  "Rival Mercenaries Spread Rumours",
+		"intro":  "A free company that lost a contract last spring has been muttering in three taverns this month — all about your household, none of it true.",
+		"weight": 3,
+		"min_week": 14,
+		"outcomes": [
+			{
+				"weight": 45,
+				"note": "The rumours stick where they're heard. The household closes ranks and answers questions politely for a fortnight.",
+				"effects": [{"kind": "reputation_range", "min": -6, "max": -3}],
+			},
+			{
+				"weight": 35,
+				"note": "Your knight rides to the taverns in question, sits long enough to be seen, and says little. The rumours thin.",
+				"effects": [{"kind": "reputation", "amount": -1}, {"kind": "random_unit_stat", "stat": "intimidation", "delta": 1}],
+			},
+			{
+				"weight": 20,
+				"note": "The household chronicler writes three concise letters to the right ears. By the next week the rumours have new targets.",
+				"effects": [{"kind": "gold_range", "min": -8, "max": -4}, {"kind": "reputation", "amount": 1}],
+			},
+		],
+	},
+
+	"village_attacked": {
+		"label":  "A Nearby Village Attacked",
+		"intro":  "Smoke on the southern road at dawn. The household marshal is mounted before the bell finishes ringing.",
+		"weight": 3,
+		"min_week": 8,
+		"min_roster_at_home": 2,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "Your knight leads the relief. The raiders break before contact; the village is grateful in the small ways that compound.",
+				"effects": [{"kind": "reputation_range", "min": 4, "max": 8}, {"kind": "reward_resources", "min": 1, "max": 3}],
+			},
+			{
+				"weight": 30,
+				"note": "Your knight arrives in time to fight. A small skirmish, a worthwhile result. One of yours bears a bruise; the village bears a grain debt.",
+				"effects": [{"kind": "reputation_range", "min": 2, "max": 5}, {"kind": "random_unit_injury"}, {"kind": "gold_range", "min": 4, "max": 10}],
+			},
+			{
+				"weight": 20,
+				"note": "Your knight arrives after the worst is done. The household helps rebuild; the village remembers the help, not the timing.",
+				"effects": [{"kind": "reputation_range", "min": 1, "max": 3}, {"kind": "gold_range", "min": -10, "max": -5}, {"kind": "all_units_stat", "stat": "loyalty", "delta": 1}],
+			},
+		],
+	},
+
+	"train_local_militia": {
+		"label":  "Training the Local Militia",
+		"intro":  "The nearest village's headman asks if your marshal might spend a week with their farmhands and a stand of practice spears.",
+		"weight": 2,
+		"min_week": 10,
+		"min_roster_at_home": 2,
+		"outcomes": [
+			{
+				"weight": 55,
+				"note": "The marshal goes for the week and comes home tired. The village's drill improves; word travels.",
+				"effects": [{"kind": "reputation_range", "min": 2, "max": 5}, {"kind": "random_unit_stat", "stat": "leadership", "delta": 1}],
+			},
+			{
+				"weight": 30,
+				"note": "Your knight goes in the marshal's stead. He drills the farmhands himself; the chronicler enjoys the irony.",
+				"effects": [{"kind": "reputation_range", "min": 3, "max": 6}, {"kind": "random_unit_stat", "stat": "etiquette", "delta": 1}],
+			},
+			{
+				"weight": 15,
+				"note": "The household declines, politely. The village finds the refusal less polite than the wording suggested.",
+				"effects": [{"kind": "reputation", "amount": -2}],
+			},
+		],
+	},
+
+	"protect_harvest_festival": {
+		"label":  "Protect the Harvest Festival",
+		"intro":  "The harvest fair runs three days; the road through the marches has been thin on patrols. Someone has to walk it.",
+		"weight": 2,
+		"min_week": 18,
+		"max_week": 42,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "Your knight rides the road and stations a presence at the fair. Nothing bad happens; the chronicler will not be allowed to forget that this is the result the household paid for.",
+				"effects": [{"kind": "reputation_range", "min": 2, "max": 5}, {"kind": "gold_range", "min": 4, "max": 10}],
+			},
+			{
+				"weight": 30,
+				"note": "A small ambush is broken on the second night. One of yours earns a bruise and a longer story.",
+				"effects": [{"kind": "reputation_range", "min": 3, "max": 7}, {"kind": "random_unit_injury"}, {"kind": "gold_range", "min": 8, "max": 16}],
+			},
+			{
+				"weight": 20,
+				"note": "Your knight is too late to a small incident. The fair carries on; the village's gratitude is shorter than it would have been.",
+				"effects": [{"kind": "reputation", "amount": -1}, {"kind": "gold_range", "min": 4, "max": 8}],
+			},
+		],
+	},
+
+	"defend_trade_caravan": {
+		"label":  "Defend a Trade Caravan",
+		"intro":  "A merchants' caravan asks safe passage through the household's stretch of road, paying handsomely up front.",
+		"weight": 3,
+		"min_week": 6,
+		"min_roster_at_home": 2,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "The caravan rides through under your colours. No incident. The merchants pay the rest of their fee and recommend the household further down the road.",
+				"effects": [{"kind": "gold_range", "min": 12, "max": 22}, {"kind": "reputation_range", "min": 1, "max": 3}],
+			},
+			{
+				"weight": 30,
+				"note": "A brace of bandits tries the column at dusk. Your party drives them off; a small bonus is paid for the inconvenience.",
+				"effects": [{"kind": "gold_range", "min": 16, "max": 28}, {"kind": "reputation_range", "min": 2, "max": 4}, {"kind": "random_unit_injury"}],
+			},
+			{
+				"weight": 20,
+				"note": "A cart is lost on the road; the merchants pay the agreed fee but no more. The chronicler files it as a quiet lesson on bridge maintenance.",
+				"effects": [{"kind": "gold_range", "min": 6, "max": 12}, {"kind": "reputation", "amount": -1}],
+			},
+		],
+	},
+
+	"rescue_lost_pilgrim": {
+		"label":  "Rescue a Lost Pilgrim",
+		"intro":  "A villager comes to the gate at dusk: an old pilgrim of some local note is missing on the moor, two nights now, and the moor takes longer than two nights.",
+		"weight": 2,
+		"min_week": 8,
+		"min_roster_at_home": 2,
+		"outcomes": [
+			{
+				"weight": 55,
+				"note": "Your knight rides out at moonrise and finds him before dawn. Cold, weak, alive. The village's gratitude is the kind that lasts.",
+				"effects": [{"kind": "reputation_range", "min": 3, "max": 6}, {"kind": "all_units_stat", "stat": "determination", "delta": 1}],
+			},
+			{
+				"weight": 25,
+				"note": "The pilgrim is found at dawn beside a small fire of his own making, cheerful about it. The household carries him home; the village sends bread for a week.",
+				"effects": [{"kind": "reputation_range", "min": 1, "max": 3}, {"kind": "inventory_add", "id": "plant_fibres", "min": 1, "max": 2}],
+			},
+			{
+				"weight": 20,
+				"note": "The pilgrim is found too late. The household holds the wake; the chaplain reads. The village remembers it was your knight who rode out at all.",
+				"effects": [{"kind": "reputation_range", "min": 1, "max": 2}, {"kind": "all_units_stat", "stat": "loyalty", "delta": 1}],
+			},
+		],
+	},
 }
 
 
@@ -1172,6 +1376,10 @@ static func _apply_effect(gs: Node, effect: Dictionary, result: Dictionary) -> v
 			_apply_clear_injury(gs, result)
 		"expedition_delay":
 			_apply_expedition_delay(gs, int(effect.get("min", 1)), int(effect.get("max", 2)), result)
+		"reputation":
+			_apply_reputation_delta(gs, int(effect.get("amount", 0)), result)
+		"reputation_range":
+			_apply_reputation_delta(gs, RNG.randi_range(int(effect.get("min", 0)), int(effect.get("max", 0))), result)
 		_:
 			result["notes"].append("(unhandled effect kind: %s)" % kind)
 
@@ -1333,3 +1541,18 @@ static func _apply_expedition_delay(gs: Node, lo: int, hi: int, result: Dictiona
 	result["notes"].append("Expedition #%d delayed by %d week%s" % [
 		exped.id, rolled, "s" if rolled != 1 else "",
 	])
+
+
+# Shift the household's reputation by a signed amount. Bands and tinting are
+# resolved on the HUD side via ResourceDB.reputation_label/colour — this
+# helper just nudges the number and logs the delta. Crossing a band boundary
+# is left implicit (the chip changes label next render); a future polish
+# pass could fire a one-line "you are now known as ..." note.
+static func _apply_reputation_delta(gs: Node, amount: int, result: Dictionary) -> void:
+	if amount == 0:
+		return
+	gs.reputation += amount
+	if amount > 0:
+		result["notes"].append("+%d Reputation" % amount)
+	else:
+		result["notes"].append("%d Reputation" % amount)

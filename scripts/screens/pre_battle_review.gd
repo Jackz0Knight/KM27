@@ -69,7 +69,7 @@ func _refresh_header() -> void:
 		GameState.current_year(), GameState.week,
 		GameState.current_week_of_year(), label,
 	]
-	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory))
+	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory, GameState.reputation))
 	confirm_btn.text = "To Battle →" if _is_combat_week() else "Continue →"
 
 

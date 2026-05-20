@@ -20,7 +20,7 @@ func _ready() -> void:
 		GameState.week,
 		GameState.current_week_of_year(),
 	]
-	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory))
+	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory, GameState.reputation))
 
 	for unit in GameState.roster:
 		cards.add_child(UnitCard.build(unit))

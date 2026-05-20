@@ -191,7 +191,7 @@ func _refresh_header() -> void:
 		GameState.current_year(), GameState.week, GameState.current_week_of_year(),
 	]
 	status_lbl.text = ""
-	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory))
+	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory, GameState.reputation))
 	_refresh_event_chip()
 	_refresh_tournament_chip()
 

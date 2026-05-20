@@ -134,6 +134,7 @@ func _serialise_state() -> Dictionary:
 		"inventory": GameState.inventory.duplicate(),
 		"researched": GameState.researched.duplicate(),
 		"maintenance_debt": GameState.maintenance_debt,
+		"reputation": GameState.reputation,
 		"gold_income_sources": GameState.gold_income_sources.duplicate(),
 		"suppressed_confirms": GameState.suppressed_confirms.duplicate(),
 		"crafted_ids": GameState.crafted_ids.duplicate(),
@@ -178,6 +179,7 @@ func _restore_state(data: Dictionary) -> void:
 	GameState.current_battle_event = str(data.get("current_battle_event", ""))
 	GameState.maintenance_debt = bool(data.get("maintenance_debt", false))
 	GameState.intro_shown_for_run = bool(data.get("intro_shown_for_run", false))
+	GameState.reputation = int(data.get("reputation", 0))
 
 	GameState.inventory = {}
 	var inv = data.get("inventory", {})
