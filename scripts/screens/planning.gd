@@ -642,8 +642,13 @@ func _refresh_away_section() -> void:
 		variants_hint.add_theme_font_size_override("font_size", 13)
 		away_section.add_child(variants_hint)
 
-		var variants_row := HBoxContainer.new()
-		variants_row.add_theme_constant_override("separation", 8)
+		# Wrapping container — 8+ unlocked variants at endgame would overflow
+		# a single HBox at 1280-wide. HFlowContainer wraps to a new line as
+		# needed and keeps each button at its natural width.
+		var variants_row := HFlowContainer.new()
+		variants_row.add_theme_constant_override("h_separation", 8)
+		variants_row.add_theme_constant_override("v_separation", 6)
+		variants_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		away_section.add_child(variants_row)
 
 		for mode_id in unlocked_modes:
