@@ -137,6 +137,37 @@ const CATALOGUE: Dictionary = {
 		"rarity":        Rarity.RARE,
 		"flavour":       "Articulated, fitted, polished. A second skin that costs a manor.",
 	},
+	# --- Uncommon / Rare additions thickening the mid-tier drop pool ---
+	"gambeson": {
+		"name":          "Gambeson",
+		"tier":          ArmourTier.LIGHT,
+		"base_rating":   3,
+		"dodge_penalty": 1,
+		"block_chance":  0.02,
+		"power_rating":  1,
+		"rarity":        Rarity.UNCOMMON,
+		"flavour":       "Layered linen, quilted by a tailor who has buried a brother. Lighter than mail and warmer than truth.",
+	},
+	"mail_hauberk": {
+		"name":          "Mail Hauberk",
+		"tier":          ArmourTier.MEDIUM,
+		"base_rating":   8,
+		"dodge_penalty": 4,
+		"block_chance":  0.10,
+		"power_rating":  2,
+		"rarity":        Rarity.UNCOMMON,
+		"flavour":       "Knee-length rings over a thicker padding than a chainmail's. The smith's mark is on the inside of the collar.",
+	},
+	"field_plate": {
+		"name":          "Field Plate",
+		"tier":          ArmourTier.HEAVY,
+		"base_rating":   13,
+		"dodge_penalty": 7,
+		"block_chance":  0.18,
+		"power_rating":  3,
+		"rarity":        Rarity.RARE,
+		"flavour":       "Lighter than full plate by intent — fitted for a long campaign, not a short procession.",
+	},
 	# --- Heirlooms — Grand Tournament / seeded drops only.
 	"ornate_breastplate": {
 		"name":          "Ornate Breastplate",
