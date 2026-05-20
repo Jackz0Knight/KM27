@@ -716,6 +716,322 @@ const EVENTS: Dictionary = {
 			},
 		],
 	},
+
+	# ---- Batch 2 — Tier-A events on existing primitives ----
+
+	"wandering_swordsman": {
+		"label":  "A Wandering Swordsman",
+		"intro":  "A man with three scars and a careful walk appears at the practice yard at dawn. He asks to spar; he does not ask twice.",
+		"weight": 3,
+		"min_week": 4,
+		"outcomes": [
+			{
+				"weight": 55,
+				"note": "He spars with each of yours, takes payment in bread and warm beer, and rides on at dusk. One of yours hits harder for the meeting.",
+				"effects": [{"kind": "random_unit_stat", "stat": "swordsmanship", "delta": 1}],
+			},
+			{
+				"weight": 30,
+				"note": "He spars an hour with the marshal alone. The marshal writes nothing down but moves differently the next day.",
+				"effects": [{"kind": "random_unit_stat", "stat": "technique", "delta": 1}],
+			},
+			{
+				"weight": 15,
+				"note": "He is more than he seems and less than he claims. A bout goes farther than intended; one of yours wears a bruise for a week.",
+				"effects": [{"kind": "random_unit_injury"}],
+			},
+		],
+	},
+
+	"retired_veteran": {
+		"label":  "A Retired Veteran",
+		"intro":  "An old man arrives at the gate with a long stick, a longer history, and a request only that he be allowed to watch the marshal drill the company.",
+		"weight": 2,
+		"min_week": 6,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "He watches an afternoon, then offers three small corrections in the dialect of an army your knight has only read about. The corrections work.",
+				"effects": [{"kind": "random_unit_stat", "stat": "leadership", "delta": 1}],
+			},
+			{
+				"weight": 30,
+				"note": "He stays a week. The garrison comes off the drill yard sharper than they went on, with an old man's notes folded in their kit.",
+				"effects": [{"kind": "all_units_stat", "stat": "technique", "delta": 1}],
+			},
+			{
+				"weight": 20,
+				"note": "He stays two days, says little, and is buried on the third. The household sees him off proper, and one of yours stands the watch in his stead.",
+				"effects": [{"kind": "gold", "amount": -5}, {"kind": "random_unit_stat", "stat": "loyalty", "delta": 1}],
+			},
+		],
+	},
+
+	"forgotten_battlefield": {
+		"label":  "A Forgotten Battlefield",
+		"intro":  "Outriders cross a stretch of grass that gives way too easily underfoot. The chaplain knows the year and the army; the chronicler has heard of neither.",
+		"weight": 2,
+		"min_week": 12,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "Old iron under the turf. The household forge will know what to do with it; the chronicler will know what not to ask.",
+				"effects": [{"kind": "inventory_add", "id": "iron_ore", "min": 2, "max": 4}],
+			},
+			{
+				"weight": 30,
+				"note": "Your knight rides the line of the old fight alone, returns at dusk, and speaks of it once. The household sleeps quieter that night.",
+				"effects": [{"kind": "random_unit_stat", "stat": "bravery", "delta": 1}, {"kind": "pa_delta", "min": 3, "max": 7}],
+			},
+			{
+				"weight": 20,
+				"note": "Nothing useful is dug. The chronicler writes a long entry anyway. The chaplain says a small word over what was found.",
+				"effects": [{"kind": "all_units_stat", "stat": "loyalty", "delta": 1}],
+			},
+		],
+	},
+
+	"captured_beast_escapes": {
+		"label":  "A Captured Beast Escapes",
+		"intro":  "A travelling menagerie passes the road and pauses too long at the spring. Something with claws gets free.",
+		"weight": 2,
+		"min_week": 8,
+		"outcomes": [
+			{
+				"weight": 45,
+				"note": "The marshal forms a hunt. By evening it is over; one of yours bears a wound the chaplain will need to clean twice.",
+				"effects": [{"kind": "random_unit_injury"}],
+			},
+			{
+				"weight": 35,
+				"note": "Your knight rides it down personally. The menagerie's owner pays in coin to avoid the writ. The household is the heavier and the braver for it.",
+				"effects": [{"kind": "gold_range", "min": 10, "max": 20}, {"kind": "all_units_stat", "stat": "bravery", "delta": 1}],
+			},
+			{
+				"weight": 20,
+				"note": "It vanishes into the marches. The chronicler files three rumours, two of them probably true.",
+				"effects": [{"kind": "pa_delta", "min": -4, "max": 4}],
+			},
+		],
+	},
+
+	"lost_caravan_cache": {
+		"label":  "A Lost Caravan's Cache",
+		"intro":  "A scout returns with the description of a small mound — packs and tent canvas under a stand of birch, untouched for what looks like a year.",
+		"weight": 2,
+		"min_week": 8,
+		"outcomes": [
+			{
+				"weight": 55,
+				"note": "Cloth, coin, and small ironwork. Enough to be worth the wagon-ride; enough to make the steward smile twice in one evening.",
+				"effects": [{"kind": "gold_range", "min": 10, "max": 22}, {"kind": "reward_resources", "min": 1, "max": 3}],
+			},
+			{
+				"weight": 30,
+				"note": "Mostly cloth — but good cloth, the kind a steward folds carefully and a chaplain blesses without sarcasm.",
+				"effects": [{"kind": "inventory_add", "id": "plant_fibres", "min": 2, "max": 4}],
+			},
+			{
+				"weight": 15,
+				"note": "Bones, and a small written hand explaining how they came to be there. The household buries them proper and rides home a measure heavier.",
+				"effects": [{"kind": "all_units_stat", "stat": "loyalty", "delta": 1}],
+			},
+		],
+	},
+
+	"travelling_merchant": {
+		"label":  "A Travelling Merchant",
+		"intro":  "A wagon with two patient mules and a man with three different pricing voices arrives at the gate.",
+		"weight": 3,
+		"min_week": 4,
+		"min_gold": 10,
+		"outcomes": [
+			{
+				"weight": 45,
+				"note": "He sells the household a small bundle at his second voice. The kitchen and the forge are both quiet pleased.",
+				"effects": [{"kind": "gold_range", "min": -16, "max": -10}, {"kind": "reward_resources", "min": 2, "max": 4}],
+			},
+			{
+				"weight": 30,
+				"note": "He sells a quantity of raw metal at a price your knight can argue down to fair. The forge takes delivery within the hour.",
+				"effects": [{"kind": "gold_range", "min": -12, "max": -6}, {"kind": "inventory_add", "id": "iron_ore", "min": 2, "max": 4}],
+			},
+			{
+				"weight": 25,
+				"note": "He sells nothing and leaves with three of your knight's small coins for his trouble. Your knight calls it a fair lesson; the steward calls it three coins.",
+				"effects": [{"kind": "gold", "amount": -3}],
+			},
+		],
+	},
+
+	"desertion_in_the_night": {
+		"label":  "Desertion in the Night",
+		"intro":  "A bunk is empty at dawn. The marshal makes a careful enquiry; the household makes a careful pretence of carrying on.",
+		"weight": 2,
+		"min_week": 10,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "He is found in the next village, drinking and ashamed. He is brought home; he is set to two weeks of yard work. Discipline holds.",
+				"effects": [{"kind": "random_unit_stat", "stat": "loyalty", "delta": -1}],
+			},
+			{
+				"weight": 30,
+				"note": "He is not found. The household closes ranks around the marshal's grief and your knight's silence.",
+				"effects": [{"kind": "all_units_stat", "stat": "loyalty", "delta": -1}, {"kind": "random_unit_stat", "stat": "determination", "delta": 1}],
+			},
+			{
+				"weight": 20,
+				"note": "He returns on his own at sundown. He says nothing. The marshal accepts the silence. Loyalty is, after all, a long ledger.",
+				"effects": [],
+			},
+		],
+	},
+
+	"plague_rats": {
+		"label":  "Plague Rats Sighted",
+		"intro":  "Three large rats are killed in the yard before noon. The chaplain knows the colour of their tails and is not pleased.",
+		"weight": 2,
+		"min_week": 8,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "The household sets traps and burns the grain stores' outer sacks. The threat passes; some stores do not.",
+				"effects": [{"kind": "inventory_remove", "id": "plant_fibres", "min": 1, "max": 2}],
+			},
+			{
+				"weight": 30,
+				"note": "Two of yours take sick. They will recover. The chaplain knows the words; the herbs know the rest.",
+				"effects": [{"kind": "random_unit_injury"}, {"kind": "random_unit_injury"}],
+			},
+			{
+				"weight": 20,
+				"note": "The chaplain hires a ratter for two days. The rats are gone by the fourth. The kitchen is the cleaner for the lesson.",
+				"effects": [{"kind": "gold", "amount": -8}],
+			},
+		],
+	},
+
+	"drunken_brawl": {
+		"label":  "A Drunken Brawl",
+		"intro":  "The smith's birthday goes longer than the smith expected. By the small hours the company is at words; before lauds, at hands.",
+		"weight": 3,
+		"min_roster_at_home": 2,
+		"outcomes": [
+			{
+				"weight": 45,
+				"note": "Minor damage to the table, the wall, and one of yours. He limps for a week and learns a useful caution.",
+				"effects": [{"kind": "random_unit_injury"}],
+			},
+			{
+				"weight": 35,
+				"note": "The marshal arrives in time. Discipline holds; the offenders pay for the table out of pocket.",
+				"effects": [{"kind": "gold", "amount": -4}, {"kind": "random_unit_stat", "stat": "loyalty", "delta": -1}],
+			},
+			{
+				"weight": 20,
+				"note": "It ends in laughter, somehow. Old quarrels are settled in the way old quarrels settle — at four in the morning, both parties bruised.",
+				"effects": [{"kind": "all_units_stat", "stat": "loyalty", "delta": 1}],
+			},
+		],
+	},
+
+	"fire_in_the_supply_wagon": {
+		"label":  "Fire in the Supply Wagon",
+		"intro":  "An ember from the kitchen takes hold in a wagon parked too close. The yard is awake faster than the watch expected.",
+		"weight": 2,
+		"min_week": 6,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "Most of the wagon's load is saved. The losses sting more than they cost.",
+				"effects": [{"kind": "inventory_remove", "id": "plant_fibres", "min": 1, "max": 2}, {"kind": "gold_range", "min": -6, "max": -3}],
+			},
+			{
+				"weight": 30,
+				"note": "The wagon is lost. The watch responds well; one of yours runs into the smoke and earns the chaplain's quiet respect.",
+				"effects": [{"kind": "gold_range", "min": -14, "max": -8}, {"kind": "random_unit_stat", "stat": "bravery", "delta": 1}],
+			},
+			{
+				"weight": 20,
+				"note": "The fire is caught in the first minute by a sleepless watchman. The household praises him on the spot and pretends not to know why he was awake.",
+				"effects": [{"kind": "random_unit_stat", "stat": "determination", "delta": 1}],
+			},
+		],
+	},
+
+	"bandits_steal_livestock": {
+		"label":  "Bandits Steal Livestock",
+		"intro":  "Outliers find a gap in the south paddock and three cattle gone with it. The marshal forms a posse before the dew is off.",
+		"weight": 2,
+		"min_week": 8,
+		"outcomes": [
+			{
+				"weight": 45,
+				"note": "The cattle are gone for good. The household tightens belts, your knight tightens the watch roster, and life goes on.",
+				"effects": [{"kind": "gold_range", "min": -12, "max": -6}],
+			},
+			{
+				"weight": 35,
+				"note": "The cattle are recovered, the bandits scattered. Your knight returns at evening dusty and the heavier for a small purse he chose not to mention to the chronicler.",
+				"effects": [{"kind": "gold_range", "min": 4, "max": 12}, {"kind": "random_unit_stat", "stat": "horsemanship", "delta": 1}],
+			},
+			{
+				"weight": 20,
+				"note": "The bandits are caught and put to work in the yard for a fortnight. The cattle are returned, sour-tempered. The household chronicler writes a long entry.",
+				"effects": [{"kind": "random_unit_stat", "stat": "leadership", "delta": 1}],
+			},
+		],
+	},
+
+	"reality_tear": {
+		"label":  "A Reality Tear",
+		"intro":  "A patch of air in the south orchard ripples like heat over a forge and is gone. The chaplain saw it; the marshal did not, and resents the asymmetry.",
+		"weight": 1,
+		"min_week": 24,
+		"outcomes": [
+			{
+				"weight": 45,
+				"note": "Whatever brushed through left a trace. One of yours dreams differently for a week and wakes the seventh morning sharper.",
+				"effects": [{"kind": "pa_delta", "min": 6, "max": 14}],
+			},
+			{
+				"weight": 35,
+				"note": "Whatever brushed through left a chill. One of yours is rattled for days; another is steadier than before.",
+				"effects": [{"kind": "random_unit_stat", "stat": "bravery", "delta": -1}, {"kind": "random_unit_stat", "stat": "determination", "delta": 1}],
+			},
+			{
+				"weight": 20,
+				"note": "Nothing further happens. The chronicler records it twice in different ink, in case the second telling looks different to him a year from now.",
+				"effects": [{"kind": "pa_delta", "min": 2, "max": 6}],
+			},
+		],
+	},
+
+	"dice_dealer": {
+		"label":  "A Dice Dealer's Bargain",
+		"intro":  "A travelling man with a polished cup and a thin smile sets up at the gate. He offers an unusual wager: throw against him, win a fate; lose, owe a coin.",
+		"weight": 1,
+		"min_week": 12,
+		"min_gold": 12,
+		"outcomes": [
+			{
+				"weight": 35,
+				"note": "Your knight throws. Your knight wins. The dealer pays in a glance that lingers, and the household sleeps the better for it.",
+				"effects": [{"kind": "gold_range", "min": 6, "max": 16}, {"kind": "pa_delta", "min": 4, "max": 10}],
+			},
+			{
+				"weight": 35,
+				"note": "Your knight throws. Your knight loses. A small sum, a smaller story. The dealer rides on, unburdened.",
+				"effects": [{"kind": "gold_range", "min": -14, "max": -8}],
+			},
+			{
+				"weight": 30,
+				"note": "Your knight refuses. The dealer smiles wider, leaves a wooden token on the table, and is gone.",
+				"effects": [{"kind": "pa_delta", "min": -3, "max": 6}],
+			},
+		],
+	},
 }
 
 
