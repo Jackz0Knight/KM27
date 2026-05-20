@@ -36,7 +36,17 @@ extends RefCounted
 #                                                       (legacy MVP triple) and
 #                                                       sets result["reward"]
 #   {kind: "inventory_add", id, min, max}            — adds N of a resource id
+#   {kind: "inventory_remove", id, min, max}         — subtracts N (clamped 0)
 #   {kind: "pa_delta", min, max}                     — PA shift on random unit
+#   {kind: "clear_injury"}                           — heals the longest
+#                                                       running injury on a
+#                                                       random injured at-home
+#                                                       unit; no-op if no
+#                                                       injuries on the roster
+#   {kind: "expedition_delay", min, max}             — adds N weeks to a
+#                                                       random active
+#                                                       expedition's
+#                                                       weeks_remaining
 
 
 # A note about gates:
@@ -479,6 +489,233 @@ const EVENTS: Dictionary = {
 			},
 		],
 	},
+
+	# ---- Batch 1 — events using clear_injury / inventory_remove / expedition_delay ----
+
+	"hidden_springs": {
+		"label":  "Hidden Springs",
+		"intro":  "A scout returns with talk of a clear pool in a fold of land nobody had thought to map. The water tastes faintly of iron.",
+		"weight": 3,
+		"min_week": 5,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "An injured household member is taken to bathe. The chaplain says little; the wound says less by the third day.",
+				"effects": [{"kind": "clear_injury"}],
+			},
+			{
+				"weight": 30,
+				"note": "The pool is mapped, marked, and quietly added to the household's holdings. The chronicler is pleased; the steward will not say why he is more pleased.",
+				"effects": [{"kind": "random_unit_stat", "stat": "leadership", "delta": 1}],
+			},
+			{
+				"weight": 20,
+				"note": "The spring is brackish on closer taste — useful only for the horses. They drink and walk straighter for it.",
+				"effects": [{"kind": "random_unit_stat", "stat": "horsemanship", "delta": 1}],
+			},
+		],
+	},
+
+	"wandering_alchemist": {
+		"label":  "A Wandering Alchemist",
+		"intro":  "A stooped figure in stained robes asks lodging for two nights and offers his trade in payment. He smells faintly of camphor and something the chaplain cannot name.",
+		"weight": 2,
+		"min_week": 8,
+		"outcomes": [
+			{
+				"weight": 45,
+				"note": "He brews three vials of foul brown liquid. One of them works on whoever needed it most.",
+				"effects": [{"kind": "clear_injury"}, {"kind": "gold", "amount": -6}],
+			},
+			{
+				"weight": 30,
+				"note": "He sells a tincture said to sharpen the mind. Whether the tincture works or the household merely sleeps better in expectation, your knight wakes the third morning a step clearer.",
+				"effects": [{"kind": "gold_range", "min": -14, "max": -8}, {"kind": "pa_delta", "min": 3, "max": 8}],
+			},
+			{
+				"weight": 25,
+				"note": "He is a fraud. Pleasant company at table, but a fraud. He leaves on the third dawn lighter on coin than he ought to be; the household coffers are not heavier.",
+				"effects": [],
+			},
+		],
+	},
+
+	"food_stores_spoil": {
+		"label":  "Food Stores Spoil",
+		"intro":  "The steward opens the back of the storeroom and his mouth tightens. Mice, damp, or both — too late to ask, too soon to laugh.",
+		"weight": 4,
+		"min_week": 6,
+		"outcomes": [
+			{
+				"weight": 60,
+				"note": "Half the spring stores are lost. The week's kitchen is short and the kitchen's temper is shorter.",
+				"effects": [
+					{"kind": "inventory_remove", "id": "plant_fibres", "min": 1, "max": 3},
+					{"kind": "inventory_remove", "id": "logs", "min": 1, "max": 2},
+				],
+			},
+			{
+				"weight": 25,
+				"note": "Most of the stores are saved. The steward writes a long memo on barrel-sealing technique. Nobody reads it; the next storeroom is properly sealed all the same.",
+				"effects": [{"kind": "inventory_remove", "id": "plant_fibres", "min": 0, "max": 1}],
+			},
+			{
+				"weight": 15,
+				"note": "The loss is total. The household tightens belts and your knight notes the lesson — quietly, sharply.",
+				"effects": [
+					{"kind": "inventory_remove", "id": "plant_fibres", "min": 2, "max": 4},
+					{"kind": "inventory_remove", "id": "logs", "min": 1, "max": 3},
+					{"kind": "random_unit_stat", "stat": "leadership", "delta": 1},
+				],
+			},
+		],
+	},
+
+	"goblin_sabotage": {
+		"label":  "Goblin Sabotage",
+		"intro":  "A patrol finds woodchips around the outer storehouse — fresh chips, small hands. Not bandits; smaller, meaner.",
+		"weight": 2,
+		"min_week": 10,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "They got into the timber pile before the patrol arrived. Some of it is fouled; some is gone.",
+				"effects": [{"kind": "inventory_remove", "id": "logs", "min": 2, "max": 4}],
+			},
+			{
+				"weight": 30,
+				"note": "The patrol drives them off. One of yours catches a thrown stone and walks crooked for a week.",
+				"effects": [{"kind": "random_unit_injury"}],
+			},
+			{
+				"weight": 20,
+				"note": "The marshal sets a trap and catches three. They squeal whereabouts; your knight rides to the warren and returns with a small consolation of metal.",
+				"effects": [{"kind": "inventory_add", "id": "iron_ore", "min": 1, "max": 2}],
+			},
+		],
+	},
+
+	"sudden_storm": {
+		"label":  "A Sudden Storm",
+		"intro":  "A spring storm lands without warning. The household roof holds; the roads do not.",
+		"weight": 3,
+		"min_week": 4,
+		"max_week": 36,
+		"outcomes": [
+			{
+				"weight": 45,
+				"note": "Travel halts everywhere on the marches. The household's distant parties bed down where they are and wait it out.",
+				"effects": [{"kind": "expedition_delay", "min": 1, "max": 2}],
+			},
+			{
+				"weight": 30,
+				"note": "The storm lasts three days. By the time it passes, the watch has caught up on a year of small repairs to the wall.",
+				"effects": [{"kind": "random_unit_stat", "stat": "determination", "delta": 1}],
+			},
+			{
+				"weight": 25,
+				"note": "Lightning takes a stand of timber on the far rise. Once the storm is past, the household forester rides out and salvages what wasn't burned through.",
+				"effects": [{"kind": "inventory_add", "id": "logs", "min": 1, "max": 3}],
+			},
+		],
+	},
+
+	"tax_collector": {
+		"label":  "A Tax Collector",
+		"intro":  "A pinched-faced man in a fine coat arrives unannounced with a tally-roll and a small armed escort. He claims authority your knight has never granted.",
+		"weight": 3,
+		"min_week": 10,
+		"min_gold": 12,
+		"outcomes": [
+			{
+				"weight": 45,
+				"note": "The household pays the assessed sum. The tax collector leaves; the chronicler files the assessment for a future grievance.",
+				"effects": [{"kind": "gold_range", "min": -22, "max": -14}],
+			},
+			{
+				"weight": 35,
+				"note": "Your knight reads the tally-roll carefully, finds three errors, and corrects them aloud. The collector leaves with less than his masters expect and your knight's standing the better for it.",
+				"effects": [{"kind": "gold_range", "min": -10, "max": -5}, {"kind": "random_unit_stat", "stat": "etiquette", "delta": 1}],
+			},
+			{
+				"weight": 20,
+				"note": "Your knight refuses the assessment outright. The collector leaves furious; the household sleeps lightly that night, and the marshal has the watch doubled.",
+				"effects": [{"kind": "random_unit_stat", "stat": "intimidation", "delta": 1}, {"kind": "all_units_stat", "stat": "loyalty", "delta": 1}],
+			},
+		],
+	},
+
+	"talking_crow": {
+		"label":  "A Talking Crow",
+		"intro":  "A black bird settles on the chapel post and addresses your knight by name. The chaplain says it's a parrot a knight once trained and lost. The crow disagrees.",
+		"weight": 1,
+		"min_week": 14,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "It speaks three words that match nothing your knight remembers, and flies off. He sleeps well that night, oddly settled.",
+				"effects": [{"kind": "pa_delta", "min": 4, "max": 9}],
+			},
+			{
+				"weight": 30,
+				"note": "It speaks a name your knight has been trying to forget. He does not sleep well; he rises sharper for it.",
+				"effects": [{"kind": "random_unit_stat", "stat": "determination", "delta": 1}, {"kind": "pa_delta", "min": -6, "max": -2}],
+			},
+			{
+				"weight": 20,
+				"note": "It speaks nothing. The chaplain admits the parrot story was a guess. The bird is fed and stays through the week.",
+				"effects": [],
+			},
+		],
+	},
+
+	"mimic_treasure_cart": {
+		"label":  "A Treasure Cart on the Road",
+		"intro":  "Scouts report an abandoned cart on the western track, ironbound, lock intact. Too good. Too quiet.",
+		"weight": 1,
+		"min_week": 16,
+		"outcomes": [
+			{
+				"weight": 45,
+				"note": "It is what it looks like — an abandoned merchant's cart, lock and all. The household pries it open and brings home a fair share.",
+				"effects": [{"kind": "gold_range", "min": 14, "max": 28}, {"kind": "inventory_add", "id": "iron_ore", "min": 1, "max": 3}],
+			},
+			{
+				"weight": 35,
+				"note": "It is not what it looks like. The cart's lid hinges the wrong way; something inside has hinges of its own. One of yours nurses a bite that should not have come from a cart.",
+				"effects": [{"kind": "random_unit_injury"}, {"kind": "gold_range", "min": 4, "max": 10}],
+			},
+			{
+				"weight": 20,
+				"note": "It is empty but for an old letter and a great deal of dust. The letter is read aloud in the hall that evening; the audience grows quiet.",
+				"effects": [{"kind": "all_units_stat", "stat": "loyalty", "delta": 1}],
+			},
+		],
+	},
+
+	"ghost_army": {
+		"label":  "Ghost Army on the Horizon",
+		"intro":  "The watch reports a line of distant banners on the southern horizon at dusk. By the time your knight arrives at the wall the banners are gone. The chaplain is uncomfortable.",
+		"weight": 1,
+		"min_week": 20,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "The chaplain says prayers and the marshal says nothing. By morning the household is grimmer and a little harder to surprise.",
+				"effects": [{"kind": "all_units_stat", "stat": "bravery", "delta": 1}],
+			},
+			{
+				"weight": 30,
+				"note": "Two of yours did not sleep, and will not say what they saw. Their loyalty deepens; their good cheer does not.",
+				"effects": [{"kind": "random_unit_stat", "stat": "loyalty", "delta": 1}, {"kind": "random_unit_stat", "stat": "bravery", "delta": -1}],
+			},
+			{
+				"weight": 20,
+				"note": "By dawn the chronicler has heard the story from three different watchers, each in different colours. He writes it down twice and keeps both.",
+				"effects": [{"kind": "pa_delta", "min": 2, "max": 6}],
+			},
+		],
+	},
 }
 
 
@@ -611,8 +848,14 @@ static func _apply_effect(gs: Node, effect: Dictionary, result: Dictionary) -> v
 			_apply_reward_resources(int(effect.get("min", 1)), int(effect.get("max", 3)), result)
 		"inventory_add":
 			_apply_inventory_add(gs, str(effect.get("id", "")), int(effect.get("min", 1)), int(effect.get("max", 1)), result)
+		"inventory_remove":
+			_apply_inventory_remove(gs, str(effect.get("id", "")), int(effect.get("min", 1)), int(effect.get("max", 1)), result)
 		"pa_delta":
 			_apply_pa_delta(gs, int(effect.get("min", 0)), int(effect.get("max", 0)), result)
+		"clear_injury":
+			_apply_clear_injury(gs, result)
+		"expedition_delay":
+			_apply_expedition_delay(gs, int(effect.get("min", 1)), int(effect.get("max", 2)), result)
 		_:
 			result["notes"].append("(unhandled effect kind: %s)" % kind)
 
@@ -715,3 +958,62 @@ static func _apply_pa_delta(gs: Node, lo: int, hi: int, result: Dictionary) -> v
 		result["notes"].append("%s sleeps better that night." % unit.unit_name)
 	else:
 		result["notes"].append("%s sleeps worse for it." % unit.unit_name)
+
+
+# Remove up to a rolled amount of `id` from inventory. Clamps at zero so the
+# household can't go into resource debt from a flavour event. Silent no-op
+# when the household had none of the resource to begin with (no negative-amount
+# bullet appears) — story prose carries the consequence in that case.
+static func _apply_inventory_remove(gs: Node, id: String, lo: int, hi: int, result: Dictionary) -> void:
+	if id == "":
+		return
+	var rolled: int = RNG.randi_range(lo, hi)
+	if rolled <= 0:
+		return
+	var have: int = int(gs.inventory.get(id, 0))
+	if have <= 0:
+		return
+	var removed: int = mini(have, rolled)
+	gs.inventory[id] = have - removed
+	var entry: Dictionary = ResourceDB.RESOURCES.get(id, {})
+	var name: String = str(entry.get("name", id))
+	result["notes"].append("−%d %s" % [removed, name])
+
+
+# Clear the most-pressing injury from a random injured at-home unit. "Most
+# pressing" = the one with the highest weeks_remaining, so the heal feels
+# meaningful rather than shaving a tail-end recovery. No-op when nobody is
+# injured; the resolver lets the outcome's note carry the prose either way.
+static func _apply_clear_injury(gs: Node, result: Dictionary) -> void:
+	var injured: Array[Unit] = []
+	for u in gs.at_home_units():
+		if u.is_injured():
+			injured.append(u)
+	if injured.is_empty():
+		return
+	var unit: Unit = injured[RNG.randi_range(0, injured.size() - 1)]
+	# Find the injury with the longest remaining recovery.
+	var best_idx: int = 0
+	for i in range(1, unit.injuries.size()):
+		if int(unit.injuries[i].get("weeks_remaining", 0)) > int(unit.injuries[best_idx].get("weeks_remaining", 0)):
+			best_idx = i
+	var stat: String = str(unit.injuries[best_idx].get("stat", ""))
+	unit.injuries.remove_at(best_idx)
+	result["notes"].append("%s healed: %s" % [unit.unit_name, stat.capitalize()])
+
+
+# Push a random active expedition's clock back by 1–2 weeks. Negative effect
+# from the household's perspective; the resolver assumes positive deltas only
+# (we don't speed expeditions up via story events — that's a tuning lever
+# better left to a future explicit "fast rider" event with its own primitive).
+static func _apply_expedition_delay(gs: Node, lo: int, hi: int, result: Dictionary) -> void:
+	if gs.expeditions.is_empty():
+		return
+	var rolled: int = maxi(0, RNG.randi_range(lo, hi))
+	if rolled <= 0:
+		return
+	var exped = gs.expeditions[RNG.randi_range(0, gs.expeditions.size() - 1)]
+	exped.weeks_remaining += rolled
+	result["notes"].append("Expedition #%d delayed by %d week%s" % [
+		exped.id, rolled, "s" if rolled != 1 else "",
+	])
