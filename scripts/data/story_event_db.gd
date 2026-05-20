@@ -1236,6 +1236,346 @@ const EVENTS: Dictionary = {
 			},
 		],
 	},
+
+	# ---- Batch 4 — broader sweep over the user's remaining list ----
+
+	"ambushed_on_the_road": {
+		"label":  "Ambushed on the Road",
+		"intro":  "A small patrol returns at dusk lighter than it set out — three bow shots from the treeline, two riders' worth of luck, and a story that no one tells the same way twice.",
+		"weight": 3,
+		"min_week": 8,
+		"outcomes": [
+			{
+				"weight": 45,
+				"note": "They lose a saddle's worth of coin and the better part of an afternoon. The patrol comes home in formation; one of yours limps a week.",
+				"effects": [{"kind": "gold_range", "min": -12, "max": -6}, {"kind": "random_unit_injury"}],
+			},
+			{
+				"weight": 35,
+				"note": "They turn and ride the ambushers off the road. The chronicler sells the story to a bard within the fortnight.",
+				"effects": [{"kind": "random_unit_stat", "stat": "swordsmanship", "delta": 1}, {"kind": "reputation_range", "min": 1, "max": 3}],
+			},
+			{
+				"weight": 20,
+				"note": "An ill-judged charge breaks the patrol. Loss of coin and longer loss of nerve.",
+				"effects": [{"kind": "gold_range", "min": -16, "max": -10}, {"kind": "random_unit_stat", "stat": "bravery", "delta": -1}],
+			},
+		],
+	},
+
+	"equipment_rusts_in_rain": {
+		"label":  "Equipment Rusts in the Rain",
+		"intro":  "A long wet spell finds three weeks of inattention in the armoury. The smith opens the racks and breathes through his teeth.",
+		"weight": 2,
+		"min_week": 8,
+		"min_gold": 8,
+		"outcomes": [
+			{
+				"weight": 55,
+				"note": "Repairs are made before any kit is lost. The smith charges fair for the rush; the marshal sets a new oiling rota.",
+				"effects": [{"kind": "gold_range", "min": -12, "max": -8}],
+			},
+			{
+				"weight": 30,
+				"note": "Two helms and a hauberk are too far gone. The smith reforges what he can.",
+				"effects": [{"kind": "gold_range", "min": -16, "max": -10}, {"kind": "inventory_remove", "id": "iron_ore", "min": 1, "max": 2}],
+			},
+			{
+				"weight": 15,
+				"note": "The marshal handles it himself with three apprentices and a single barrel of oil. The household pays only in time.",
+				"effects": [{"kind": "random_unit_stat", "stat": "leadership", "delta": 1}],
+			},
+		],
+	},
+
+	"missing_scout": {
+		"label":  "A Missing Scout",
+		"intro":  "A scout assigned to the far ridge has not come back at the third watch. The marshal is too composed about it; the chaplain is not.",
+		"weight": 2,
+		"min_week": 10,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "He walks in three days later, sheepish and footsore, with a long story and a longer apology. The marshal does not accept either.",
+				"effects": [{"kind": "random_unit_stat", "stat": "loyalty", "delta": -1}],
+			},
+			{
+				"weight": 30,
+				"note": "He is found by a search party at the bottom of a ravine. The wound is bad; the will is intact.",
+				"effects": [{"kind": "random_unit_injury"}],
+			},
+			{
+				"weight": 20,
+				"note": "He returns with intelligence the marshal asked for and did not expect — a small camp on the far ridge, badly defended.",
+				"effects": [{"kind": "pa_delta", "min": 3, "max": 6}, {"kind": "random_unit_stat", "stat": "speed", "delta": 1}],
+			},
+		],
+	},
+
+	"corrupted_well": {
+		"label":  "A Corrupted Well",
+		"intro":  "The east well goes brackish on a Tuesday. The chaplain calls a verdict before the smith finishes his test; the smith confirms it by Wednesday.",
+		"weight": 2,
+		"min_week": 10,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "Two of yours take ill before the household realises. The well is sealed, a deeper one dug. Recovery takes the week it ought.",
+				"effects": [{"kind": "random_unit_injury"}, {"kind": "random_unit_injury"}],
+			},
+			{
+				"weight": 30,
+				"note": "The chaplain catches it early; the household uses the south well exclusively for a fortnight. Inconvenience, not illness.",
+				"effects": [{"kind": "gold", "amount": -6}, {"kind": "random_unit_stat", "stat": "determination", "delta": 1}],
+			},
+			{
+				"weight": 20,
+				"note": "It is not natural. The chaplain says little; the marshal doubles the watch on the well-head. By the third night the source is caught and dealt with.",
+				"effects": [{"kind": "random_unit_stat", "stat": "intimidation", "delta": 1}, {"kind": "reputation", "amount": 1}],
+			},
+		],
+	},
+
+	"cave_in_blocks_route": {
+		"label":  "A Cave-In Blocks the Route",
+		"intro":  "An older road through the hills is suddenly a longer road through the hills. The chronicler asks the road-master what happened; the road-master shrugs.",
+		"weight": 2,
+		"min_week": 8,
+		"outcomes": [
+			{
+				"weight": 60,
+				"note": "Active parties on the far side detour. They will arrive later than the marshal would prefer; they will arrive.",
+				"effects": [{"kind": "expedition_delay", "min": 1, "max": 2}],
+			},
+			{
+				"weight": 25,
+				"note": "A clearing crew is hired in the village. The route is open again by the end of the week; the household coffers are lighter.",
+				"effects": [{"kind": "gold_range", "min": -14, "max": -8}],
+			},
+			{
+				"weight": 15,
+				"note": "Old worked stone is found beneath the slip. The chronicler is happier than the marshal. A small amount of dressed timber and iron is salvaged.",
+				"effects": [{"kind": "inventory_add", "id": "iron_ore", "min": 1, "max": 2}, {"kind": "inventory_add", "id": "logs", "min": 1, "max": 2}],
+			},
+		],
+	},
+
+	"strange_whispers_in_camp": {
+		"label":  "Strange Whispers in Camp",
+		"intro":  "The watch reports talking in the lower stable at the second hour. The marshal investigates; finds nobody, and is the more uneasy for it.",
+		"weight": 2,
+		"min_week": 12,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "Two of yours sleep poorly for a week. The chaplain says prayers; one of yours stops listening for the voice and starts listening past it.",
+				"effects": [{"kind": "random_unit_stat", "stat": "loyalty", "delta": -1}, {"kind": "random_unit_stat", "stat": "determination", "delta": -1}],
+			},
+			{
+				"weight": 30,
+				"note": "Your knight stands the watch personally on the third night. The whispers do not return. The chronicler writes a careful entry on the subject.",
+				"effects": [{"kind": "random_unit_stat", "stat": "bravery", "delta": 1}, {"kind": "pa_delta", "min": 2, "max": 5}],
+			},
+			{
+				"weight": 20,
+				"note": "The whispers are pinned, eventually, to a draught and an old beam. The household laughs the longer for it.",
+				"effects": [{"kind": "all_units_stat", "stat": "loyalty", "delta": 1}],
+			},
+		],
+	},
+
+	"enemy_scouts_observed": {
+		"label":  "Enemy Scouts Observed Nearby",
+		"intro":  "The watch reports two riders on the south ridge at moonrise, unmarked, unsmoked. They were gone before a sortie could be raised.",
+		"weight": 2,
+		"min_week": 10,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "The marshal sets a routine. Three nights of doubled watch; nothing returns. The household sleeps lighter and rises sharper.",
+				"effects": [{"kind": "random_unit_stat", "stat": "speed", "delta": 1}],
+			},
+			{
+				"weight": 30,
+				"note": "A counter-scout returns with a sketch and a rough count. Useful intelligence, badly drawn.",
+				"effects": [{"kind": "pa_delta", "min": 3, "max": 7}],
+			},
+			{
+				"weight": 20,
+				"note": "The household errs on the side of fortification. The smith bills the marshal for a week's work on the gate hinges.",
+				"effects": [{"kind": "gold_range", "min": -8, "max": -4}, {"kind": "all_units_stat", "stat": "bravery", "delta": 1}],
+			},
+		],
+	},
+
+	"ancient_curse_unearthed": {
+		"label":  "An Ancient Curse Unearthed",
+		"intro":  "Diggers in the back orchard turn up a flat stone with markings the chaplain refuses to translate aloud.",
+		"weight": 1,
+		"min_week": 20,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "The stone is reburied with a proper word said over it. One of yours sleeps badly for the week; the household pretends not to notice.",
+				"effects": [{"kind": "random_unit_stat", "stat": "bravery", "delta": -1}, {"kind": "random_unit_injury"}],
+			},
+			{
+				"weight": 30,
+				"note": "The chronicler copies the markings carefully and sends them to a scholar three valleys away. The reply, when it comes, is not reassuring; the household closes ranks.",
+				"effects": [{"kind": "all_units_stat", "stat": "loyalty", "delta": 1}, {"kind": "pa_delta", "min": -4, "max": -2}],
+			},
+			{
+				"weight": 20,
+				"note": "The stone is broken with a hammer at noon by a chaplain who has had quite enough of it. Nothing further happens.",
+				"effects": [{"kind": "random_unit_stat", "stat": "determination", "delta": 1}],
+			},
+		],
+	},
+
+	"ancient_shrine": {
+		"label":  "An Ancient Shrine",
+		"intro":  "Outriders find a small stone shrine in a clearing nobody had thought to map. The carvings are old; the offerings are recent.",
+		"weight": 2,
+		"min_week": 14,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "Your knight leaves a small token and rides on. He sleeps well that night, oddly settled.",
+				"effects": [{"kind": "gold", "amount": -3}, {"kind": "pa_delta", "min": 4, "max": 9}],
+			},
+			{
+				"weight": 30,
+				"note": "The chaplain holds a small ceremony at the shrine. The household rides home in a more measured silence than it set out with.",
+				"effects": [{"kind": "all_units_stat", "stat": "loyalty", "delta": 1}],
+			},
+			{
+				"weight": 20,
+				"note": "A pilgrim is camped at the shrine and shares a useful piece of road-lore in exchange for bread.",
+				"effects": [{"kind": "random_unit_stat", "stat": "leadership", "delta": 1}],
+			},
+		],
+	},
+
+	"time_moves_strangely": {
+		"label":  "Time Moves Strangely Here",
+		"intro":  "A patrol returns from the eastern marshes insisting they were gone three days. The chronicler's tally says one. Both parties become quiet, then change subject.",
+		"weight": 1,
+		"min_week": 24,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "Nothing further happens. The chronicler writes the entry in two voices and underlines the disagreement.",
+				"effects": [{"kind": "pa_delta", "min": 4, "max": 8}],
+			},
+			{
+				"weight": 30,
+				"note": "One of yours arrives home a fortnight after the rest of the patrol, swearing he rode straight through. He is shaken, and faster.",
+				"effects": [{"kind": "random_unit_stat", "stat": "speed", "delta": 1}, {"kind": "random_unit_stat", "stat": "bravery", "delta": -1}],
+			},
+			{
+				"weight": 20,
+				"note": "Active parties on the road feel the wrinkle. They arrive a week late, and cannot quite say why.",
+				"effects": [{"kind": "expedition_delay", "min": 1, "max": 2}, {"kind": "pa_delta", "min": 2, "max": 5}],
+			},
+		],
+	},
+
+	"merchant_cursed_relics": {
+		"label":  "A Merchant Sells \"Definitely Not Cursed\" Relics",
+		"intro":  "A merchant whose papers are too clean offers three items at three prices, each promising luck of the kind he is happy to discuss.",
+		"weight": 1,
+		"min_week": 16,
+		"min_gold": 15,
+		"outcomes": [
+			{
+				"weight": 40,
+				"note": "Your knight buys one. It is not cursed; it is a perfectly ordinary silver pendant. The merchant rides on whistling.",
+				"effects": [{"kind": "gold_range", "min": -14, "max": -8}, {"kind": "pa_delta", "min": 2, "max": 5}],
+			},
+			{
+				"weight": 35,
+				"note": "Your knight buys one. It is cursed. One of yours wears it for two days before the chaplain insists it be buried in salt.",
+				"effects": [{"kind": "gold_range", "min": -18, "max": -12}, {"kind": "random_unit_injury"}],
+			},
+			{
+				"weight": 25,
+				"note": "Your knight haggles the merchant down to a story instead of a sale. The merchant is the poorer; the household, marginally, the wiser.",
+				"effects": [{"kind": "random_unit_stat", "stat": "etiquette", "delta": 1}],
+			},
+		],
+	},
+
+	"dragon_overhead": {
+		"label":  "A Dragon Flies Overhead",
+		"intro":  "On a clear day in the eighth month a dragon — actually a dragon — passes over the household at the height of a low cloud. It is gone before any horn can be raised.",
+		"weight": 1,
+		"min_week": 24,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "It does not return. The household speaks of nothing else for a fortnight; the chronicler refuses to write down where it was last seen.",
+				"effects": [{"kind": "all_units_stat", "stat": "bravery", "delta": 1}, {"kind": "pa_delta", "min": 3, "max": 7}],
+			},
+			{
+				"weight": 30,
+				"note": "Two of yours wake with the same dream three nights running. They will not say what it was. They are sharper for it.",
+				"effects": [{"kind": "random_unit_stat", "stat": "determination", "delta": 1}, {"kind": "random_unit_stat", "stat": "technique", "delta": 1}],
+			},
+			{
+				"weight": 20,
+				"note": "Word of the sighting carries. Houses three valleys over write polite letters of enquiry; the household chronicler writes back at length and the household's standing rises a measure.",
+				"effects": [{"kind": "reputation_range", "min": 2, "max": 5}],
+			},
+		],
+	},
+
+	"eclipse_darkens_the_region": {
+		"label":  "An Eclipse Darkens the Region",
+		"intro":  "A noon eclipse falls without warning the almanac had thought to issue. The chaplain says a long word; the marshal says nothing.",
+		"weight": 1,
+		"min_week": 18,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "The household weathers it. Lamps lit, prayers said, eyes carefully on the work in hand. Confidence holds.",
+				"effects": [{"kind": "all_units_stat", "stat": "bravery", "delta": 1}],
+			},
+			{
+				"weight": 30,
+				"note": "Two of yours admit, days later, that the dark unsettled them. The chaplain says little; the marshal moves a drill earlier in the morning.",
+				"effects": [{"kind": "random_unit_stat", "stat": "loyalty", "delta": -1}, {"kind": "random_unit_stat", "stat": "determination", "delta": -1}],
+			},
+			{
+				"weight": 20,
+				"note": "An old book is consulted; an old promise is renewed. The household sleeps differently for a week, and somebody in it sleeps the deeper for it.",
+				"effects": [{"kind": "pa_delta", "min": 3, "max": 8}],
+			},
+		],
+	},
+
+	"strange_obelisk": {
+		"label":  "A Strange Obelisk",
+		"intro":  "Scouts report a black stone standing alone in a clearing where no stone of that kind has any business being.",
+		"weight": 1,
+		"min_week": 22,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "It is approached carefully and inspected at distance. Nothing happens; the chronicler writes it up; the marshal stops mentioning it.",
+				"effects": [{"kind": "pa_delta", "min": 3, "max": 6}],
+			},
+			{
+				"weight": 30,
+				"note": "One of yours places a hand on it. The handprint stays. He sleeps strangely for a week, dreams well, wakes sharper.",
+				"effects": [{"kind": "random_unit_stat", "stat": "technique", "delta": 1}, {"kind": "pa_delta", "min": 4, "max": 9}],
+			},
+			{
+				"weight": 20,
+				"note": "The chaplain insists it be left alone, and the marshal complies for once. The patrol rides home in silence.",
+				"effects": [{"kind": "all_units_stat", "stat": "loyalty", "delta": 1}],
+			},
+		],
+	},
 }
 
 

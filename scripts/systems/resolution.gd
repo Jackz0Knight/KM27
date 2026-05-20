@@ -118,8 +118,14 @@ static func _resolve_away(gs: Node, result: Dictionary) -> void:
 			result["reward"] = castle.reward.duplicate_bundle()
 			result["castle_taken"] = castle
 			_remove_castle(gs, castle)
+			# Castle-takers earn realm attention.
+			gs.reputation += 4
 		else:
 			result["reward"] = Combat.roll_pillage_reward(gs.week)
+			# Pillaging the marches earns coin but not standing — only a
+			# small +1 because the chronicler is supposed to call it
+			# something more dignified.
+			gs.reputation += 1
 		var tag: String = Chronicle.TAG_ASSAULT_WIN if gs.pending_away_mode == "assault" else Chronicle.TAG_PILLAGE_WIN
 		for u in party:
 			var old_ep: String = u.epithet
@@ -129,6 +135,8 @@ static func _resolve_away(gs: Node, result: Dictionary) -> void:
 		_apply_item_drop(result, ItemDrops.roll_away_drop(gs, gs.pending_away_mode))
 	else:
 		result["notes"].append("Battle lost — no reward.")
+		# Losing on the field shows. Not catastrophic, but noticeable.
+		gs.reputation -= 1
 
 
 # ---------- Home Battle ----------
@@ -157,6 +165,8 @@ static func _resolve_home(gs: Node, result: Dictionary) -> void:
 
 	if result["won"]:
 		result["reward"] = Combat.roll_home_win_reward(gs.week)
+		# Holding the gate against a raid is the kind of news that travels.
+		gs.reputation += 3
 		for u in party:
 			var old_ep: String = u.epithet
 			Chronicle.grant_epithet(u, Chronicle.TAG_HOME_BATTLE_WON)
@@ -374,34 +384,51 @@ static func _resolve_tournament(gs: Node, result: Dictionary, is_grand: bool) ->
 
 	# Streak + Grand handling per GDD §6.
 	if result["won"]:
+		# Reputation bonus on tournament prizes — every 4 rep adds 1 gold to
+		# the purse, capped at +25 so legendary status doesn't trivialise
+		# tournament economy. Negative reputation halves the bonus to zero
+		# but never reduces the base prize.
+		var rep_bonus: int = clampi(gs.reputation / 4, 0, 25)
 		if is_grand:
 			result["is_run_win"] = true
 			result["notes"].append("Grand Tournament won — the realm is yours!")
 			gs.tournament_streak = 0
-			var prize: int = 50 + (Calendar.tournament_number(gs.week) * 25)
+			var prize: int = 50 + (Calendar.tournament_number(gs.week) * 25) + rep_bonus
 			gs.gold += prize
 			result["tournament_gold"] = prize
-			result["notes"].append("Grand Tournament prize: +%d gold." % prize)
+			if rep_bonus > 0:
+				result["notes"].append("Grand Tournament prize: +%d gold (incl. +%d for standing)." % [prize, rep_bonus])
+			else:
+				result["notes"].append("Grand Tournament prize: +%d gold." % prize)
 			for u in participants:
 				var old_ep: String = u.epithet
 				Chronicle.grant_epithet(u, Chronicle.TAG_GRAND_TOURNAMENT_WIN)
 				if u.epithet != "" and old_ep == "":
 					result["notes"].append("%s earns the epithet '%s'." % [u.unit_name, u.epithet])
 			_apply_item_drop(result, ItemDrops.roll_grand_tournament_drop(gs))
+			# Winning the realm is worth a healthy reputation jump on top of
+			# the win itself — narratively, "Realm-Winner" should at least
+			# nudge the chip into Renowned territory.
+			gs.reputation += 8
 		else:
 			gs.tournament_streak += 1
 			result["notes"].append("Tournament won — streak now %d." % gs.tournament_streak)
 			result["reward"] = Combat.roll_tournament_reward(gs.week, participants)
-			var prize: int = 50 + (Calendar.tournament_number(gs.week) * 25)
+			var prize: int = 50 + (Calendar.tournament_number(gs.week) * 25) + rep_bonus
 			gs.gold += prize
 			result["tournament_gold"] = prize
-			result["notes"].append("Tournament prize: +%d gold." % prize)
+			if rep_bonus > 0:
+				result["notes"].append("Tournament prize: +%d gold (incl. +%d for standing)." % [prize, rep_bonus])
+			else:
+				result["notes"].append("Tournament prize: +%d gold." % prize)
 			for u in participants:
 				var old_ep: String = u.epithet
 				Chronicle.grant_epithet(u, Chronicle.TAG_TOURNAMENT_WIN)
 				if u.epithet != "" and old_ep == "":
 					result["notes"].append("%s earns the epithet '%s'." % [u.unit_name, u.epithet])
 			_apply_item_drop(result, ItemDrops.roll_tournament_drop(gs))
+			# Smaller bump for a regular tournament win.
+			gs.reputation += 2
 	else:
 		gs.tournament_streak = 0
 		if is_grand:
