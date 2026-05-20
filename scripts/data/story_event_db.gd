@@ -1576,6 +1576,157 @@ const EVENTS: Dictionary = {
 			},
 		],
 	},
+
+	# ---- Batch 5 — home-mission flavour events (story-resolved, no new combat path) ----
+
+	"hunt_forest_beast": {
+		"label":  "Hunt a Forest Beast",
+		"intro":  "Three villages on the western edge report a wolf-pack with a leader the size of a yearling pony. The chronicler suspects exaggeration; the chaplain suspects worse.",
+		"weight": 2,
+		"min_week": 6,
+		"min_roster_at_home": 2,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "Your knight leads the hunt and ends it before dusk. The villages take it as their gift; the household takes the hide.",
+				"effects": [{"kind": "reputation_range", "min": 2, "max": 4}, {"kind": "inventory_add", "id": "plant_fibres", "min": 1, "max": 3}],
+			},
+			{
+				"weight": 30,
+				"note": "The hunt is hard; the beast was no exaggeration. One of yours bears a long bite home.",
+				"effects": [{"kind": "reputation_range", "min": 3, "max": 5}, {"kind": "random_unit_injury"}, {"kind": "inventory_add", "id": "iron_ore", "min": 1, "max": 2}],
+			},
+			{
+				"weight": 20,
+				"note": "The beast slips the noose. The villages take the gesture as enough; the chronicler does not.",
+				"effects": [{"kind": "reputation", "amount": 1}, {"kind": "random_unit_stat", "stat": "loyalty", "delta": 1}],
+			},
+		],
+	},
+
+	"missing_child_in_woods": {
+		"label":  "A Missing Child in the Woods",
+		"intro":  "A miller's daughter, six years old, did not come back at sundown. The miller is at the gate before the watch finishes its evening report.",
+		"weight": 2,
+		"min_week": 5,
+		"min_roster_at_home": 2,
+		"outcomes": [
+			{
+				"weight": 55,
+				"note": "She is found by dawn under a hawthorn, cold and stubborn and alive. The village remembers it for a year.",
+				"effects": [{"kind": "reputation_range", "min": 4, "max": 7}, {"kind": "all_units_stat", "stat": "loyalty", "delta": 1}],
+			},
+			{
+				"weight": 25,
+				"note": "She is found at noon by the river — wet, frightened, fine. The household carries her home. The miller will not be made to forget.",
+				"effects": [{"kind": "reputation_range", "min": 2, "max": 4}],
+			},
+			{
+				"weight": 20,
+				"note": "She is not found. The household holds the wake; the chaplain reads. The village remembers it was your knight who rode out at all.",
+				"effects": [{"kind": "reputation", "amount": 1}, {"kind": "all_units_stat", "stat": "determination", "delta": 1}],
+			},
+		],
+	},
+
+	"repair_village_defences": {
+		"label":  "Repair the Village Defences",
+		"intro":  "The headman of the nearest village comes with a request and a small cap in his hand: the palisade is weak in three places and the spring is bad for raiders.",
+		"weight": 2,
+		"min_week": 10,
+		"min_gold": 20,
+		"outcomes": [
+			{
+				"weight": 60,
+				"note": "Your household funds the work and lends two pairs of hands. The palisade goes up straight; the village goes home thankful.",
+				"effects": [{"kind": "gold_range", "min": -22, "max": -14}, {"kind": "reputation_range", "min": 3, "max": 6}],
+			},
+			{
+				"weight": 25,
+				"note": "The marshal goes for a week with timber and instruction. The wall comes up cheaper than the headman expected.",
+				"effects": [{"kind": "gold_range", "min": -10, "max": -6}, {"kind": "inventory_remove", "id": "logs", "min": 2, "max": 3}, {"kind": "reputation_range", "min": 2, "max": 4}],
+			},
+			{
+				"weight": 15,
+				"note": "The household declines for now. The headman is polite. The village is less so by the next month.",
+				"effects": [{"kind": "reputation", "amount": -2}],
+			},
+		],
+	},
+
+	"investigate_haunted_mill": {
+		"label":  "Investigate the Haunted Mill",
+		"intro":  "Two coopers and a herald insist the old mill on the river bend is haunted. The chronicler asks if they were drunk. The chronicler is told it does not matter.",
+		"weight": 2,
+		"min_week": 12,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "The mill is occupied by a family of squatters and a clever badger. The household sees them moved on; the village laughs the louder for the story.",
+				"effects": [{"kind": "reputation_range", "min": 1, "max": 3}],
+			},
+			{
+				"weight": 30,
+				"note": "The mill is genuinely strange. Your knight stands the watch personally and returns at dawn with little to say. The household sleeps better and the chaplain sleeps worse.",
+				"effects": [{"kind": "pa_delta", "min": 4, "max": 9}, {"kind": "random_unit_stat", "stat": "bravery", "delta": 1}],
+			},
+			{
+				"weight": 20,
+				"note": "Three of yours spend the night in the mill on a dare. By morning, two of them are sharper; one of them is shaken.",
+				"effects": [{"kind": "random_unit_stat", "stat": "determination", "delta": 1}, {"kind": "random_unit_stat", "stat": "bravery", "delta": -1}],
+			},
+		],
+	},
+
+	"clear_infested_mine": {
+		"label":  "Clear an Infested Mine",
+		"intro":  "A mining outpost on the lower hills has been abandoned for two months — the foreman blames goblins; the herald blames worse; the steward blames the foreman.",
+		"weight": 2,
+		"min_week": 16,
+		"min_roster_at_home": 2,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "Your knight leads a sortie and clears the workings in a single afternoon. The mine reopens within the fortnight; the household takes a small cut.",
+				"effects": [{"kind": "reputation_range", "min": 2, "max": 4}, {"kind": "inventory_add", "id": "iron_ore", "min": 3, "max": 6}],
+			},
+			{
+				"weight": 30,
+				"note": "The workings are harder than expected. One of yours pays the cost of the lesson. The mine reopens with a smaller share.",
+				"effects": [{"kind": "reputation_range", "min": 1, "max": 3}, {"kind": "random_unit_injury"}, {"kind": "inventory_add", "id": "iron_ore", "min": 1, "max": 3}],
+			},
+			{
+				"weight": 20,
+				"note": "The sortie is repulsed. The mine remains shut; your knight sleeps poorly for a week and writes a careful letter to the foreman.",
+				"effects": [{"kind": "reputation", "amount": -1}, {"kind": "random_unit_stat", "stat": "determination", "delta": 1}],
+			},
+		],
+	},
+
+	"deliver_urgent_medicine": {
+		"label":  "Deliver Urgent Medicine",
+		"intro":  "A small village three days' ride out has the kind of illness the chaplain has read about and the village has not. A box of green-glass bottles needs a fast rider.",
+		"weight": 2,
+		"min_week": 8,
+		"min_roster_at_home": 2,
+		"outcomes": [
+			{
+				"weight": 55,
+				"note": "Your knight rides the box to the village in two days and a forced night. The village rises again; word travels.",
+				"effects": [{"kind": "reputation_range", "min": 3, "max": 6}, {"kind": "random_unit_stat", "stat": "horsemanship", "delta": 1}],
+			},
+			{
+				"weight": 30,
+				"note": "The ride is delayed by weather. The medicine arrives in time for some and too late for others. The village remembers your knight rode.",
+				"effects": [{"kind": "reputation_range", "min": 1, "max": 3}, {"kind": "expedition_delay", "min": 1, "max": 2}],
+			},
+			{
+				"weight": 15,
+				"note": "Bandits attempt the rider on the third day. Your knight rides through; the box arrives unbroken. Word of the rider travels further than the medicine.",
+				"effects": [{"kind": "reputation_range", "min": 4, "max": 7}, {"kind": "random_unit_injury"}],
+			},
+		],
+	},
 }
 
 
@@ -1883,16 +2034,20 @@ static func _apply_expedition_delay(gs: Node, lo: int, hi: int, result: Dictiona
 	])
 
 
-# Shift the household's reputation by a signed amount. Bands and tinting are
-# resolved on the HUD side via ResourceDB.reputation_label/colour — this
-# helper just nudges the number and logs the delta. Crossing a band boundary
-# is left implicit (the chip changes label next render); a future polish
-# pass could fire a one-line "you are now known as ..." note.
+# Shift the household's reputation by a signed amount via GameState's
+# band-aware helper. When the delta crosses a band boundary the helper
+# returns the new band label, which we surface as a one-line chronicle note
+# beneath the numeric delta.
 static func _apply_reputation_delta(gs: Node, amount: int, result: Dictionary) -> void:
 	if amount == 0:
 		return
-	gs.reputation += amount
+	var crossed: String = gs.adjust_reputation(amount)
 	if amount > 0:
 		result["notes"].append("+%d Reputation" % amount)
 	else:
 		result["notes"].append("%d Reputation" % amount)
+	if crossed != "":
+		if amount > 0:
+			result["notes"].append("→ The realm now calls you %s." % crossed)
+		else:
+			result["notes"].append("→ Your standing slips to %s." % crossed)

@@ -119,13 +119,13 @@ static func _resolve_away(gs: Node, result: Dictionary) -> void:
 			result["castle_taken"] = castle
 			_remove_castle(gs, castle)
 			# Castle-takers earn realm attention.
-			gs.reputation += 4
+			_log_reputation_crossing(result, gs.adjust_reputation(4))
 		else:
 			result["reward"] = Combat.roll_pillage_reward(gs.week)
 			# Pillaging the marches earns coin but not standing — only a
 			# small +1 because the chronicler is supposed to call it
 			# something more dignified.
-			gs.reputation += 1
+			_log_reputation_crossing(result, gs.adjust_reputation(1))
 		var tag: String = Chronicle.TAG_ASSAULT_WIN if gs.pending_away_mode == "assault" else Chronicle.TAG_PILLAGE_WIN
 		for u in party:
 			var old_ep: String = u.epithet
@@ -136,7 +136,7 @@ static func _resolve_away(gs: Node, result: Dictionary) -> void:
 	else:
 		result["notes"].append("Battle lost — no reward.")
 		# Losing on the field shows. Not catastrophic, but noticeable.
-		gs.reputation -= 1
+		_log_reputation_crossing(result, gs.adjust_reputation(-1))
 
 
 # ---------- Home Battle ----------
@@ -166,7 +166,7 @@ static func _resolve_home(gs: Node, result: Dictionary) -> void:
 	if result["won"]:
 		result["reward"] = Combat.roll_home_win_reward(gs.week)
 		# Holding the gate against a raid is the kind of news that travels.
-		gs.reputation += 3
+		_log_reputation_crossing(result, gs.adjust_reputation(3))
 		for u in party:
 			var old_ep: String = u.epithet
 			Chronicle.grant_epithet(u, Chronicle.TAG_HOME_BATTLE_WON)
@@ -409,7 +409,7 @@ static func _resolve_tournament(gs: Node, result: Dictionary, is_grand: bool) ->
 			# Winning the realm is worth a healthy reputation jump on top of
 			# the win itself — narratively, "Realm-Winner" should at least
 			# nudge the chip into Renowned territory.
-			gs.reputation += 8
+			_log_reputation_crossing(result, gs.adjust_reputation(8))
 		else:
 			gs.tournament_streak += 1
 			result["notes"].append("Tournament won — streak now %d." % gs.tournament_streak)
@@ -428,7 +428,7 @@ static func _resolve_tournament(gs: Node, result: Dictionary, is_grand: bool) ->
 					result["notes"].append("%s earns the epithet '%s'." % [u.unit_name, u.epithet])
 			_apply_item_drop(result, ItemDrops.roll_tournament_drop(gs))
 			# Smaller bump for a regular tournament win.
-			gs.reputation += 2
+			_log_reputation_crossing(result, gs.adjust_reputation(2))
 	else:
 		gs.tournament_streak = 0
 		if is_grand:
@@ -446,6 +446,21 @@ static func _apply_item_drop(result: Dictionary, drop: Dictionary) -> void:
 		return
 	result["item_drop"] = drop
 	result["notes"].append("Found in the field: %s" % ItemDrops.describe_drop(drop))
+
+
+# Echoes the chip-band crossing returned by GameState.adjust_reputation()
+# into the result notes. Empty string = no boundary crossed, no note. Up-vs-
+# down phrasing is left simple: the band label is the same in both directions,
+# so the prose distinction is in the verb. We default to the "down" phrasing
+# whenever the new band sounds worse than the previous one, but a fully
+# robust direction check would need a band index — that's fine for now since
+# rep deltas in Resolution are signed and the caller already knows direction
+# from the call site. To keep this helper agnostic, we just announce the new
+# label and let the surrounding note carry the win/loss context.
+static func _log_reputation_crossing(result: Dictionary, new_band: String) -> void:
+	if new_band == "":
+		return
+	result["notes"].append("→ Standing crossed: now %s." % new_band)
 
 
 static func _away_party(gs: Node) -> Array[Unit]:

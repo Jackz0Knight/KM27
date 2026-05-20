@@ -129,6 +129,24 @@ func gold_maintenance_cost() -> int:
 	return roster.size() * 5
 
 
+# Reputation adjust + band-crossing detector. Returns the new band label
+# when this delta crossed a band boundary, otherwise "". Callers append the
+# crossing line to their result notes so the player sees "→ The realm now
+# calls you Respected." on the Weekly Summary.
+#
+# Single chokepoint so any code path that touches reputation gets the same
+# band-aware behaviour for free.
+func adjust_reputation(delta: int) -> String:
+	if delta == 0:
+		return ""
+	var before_label: String = ResourceDB.reputation_label(reputation)
+	reputation += delta
+	var after_label: String = ResourceDB.reputation_label(reputation)
+	if before_label == after_label:
+		return ""
+	return after_label
+
+
 func purchase_research(project_id: String) -> void:
 	var proj: Dictionary = ResourceDB.RESEARCH_PROJECTS.get(project_id, {})
 	gold -= proj["cost_gold"]
