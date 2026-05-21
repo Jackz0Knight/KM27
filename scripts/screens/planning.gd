@@ -218,30 +218,19 @@ func _refresh_tournament_chip() -> void:
 		tournament_chip_lbl.text = "%s in %d weeks (W%d)" % [prefix, weeks_away, next_t]
 
 	# Colour ramp: Grand-imminent → bright gold; ≤2 weeks → warm amber;
-	# otherwise → muted parchment. Same shape as the rest of the top bar so
-	# the chip reads as part of the row, not an interrupt.
-	var sb := StyleBoxFlat.new()
-	sb.border_width_left = 2
-	sb.border_width_right = 2
-	sb.border_width_top = 2
-	sb.border_width_bottom = 2
-	sb.corner_radius_top_left = 6
-	sb.corner_radius_top_right = 6
-	sb.corner_radius_bottom_left = 6
-	sb.corner_radius_bottom_right = 6
+	# otherwise → muted parchment. Same chip shape across all bands —
+	# UiStyle.chip() builds the StyleBoxFlat; we just pick palette pairs.
+	var sb: StyleBoxFlat
 	if is_grand or weeks_away <= 0:
-		sb.bg_color = Palette.CHIP_IMMINENT_BG
-		sb.border_color = Palette.CHIP_IMMINENT_BORDER
+		sb = UiStyle.chip(Palette.CHIP_IMMINENT_BG, Palette.CHIP_IMMINENT_BORDER)
 		tournament_chip_lbl.add_theme_color_override("font_color", Palette.CHIP_IMMINENT_TEXT)
 		tournament_chip_lbl.add_theme_font_size_override("font_size", 15)
 	elif weeks_away <= 2:
-		sb.bg_color = Palette.CHIP_SOON_BG
-		sb.border_color = Palette.CHIP_SOON_BORDER
+		sb = UiStyle.chip(Palette.CHIP_SOON_BG, Palette.CHIP_SOON_BORDER)
 		tournament_chip_lbl.add_theme_color_override("font_color", Palette.CHIP_SOON_TEXT)
 		tournament_chip_lbl.add_theme_font_size_override("font_size", 14)
 	else:
-		sb.bg_color = Palette.CHIP_FAR_BG
-		sb.border_color = Palette.CHIP_FAR_BORDER
+		sb = UiStyle.chip(Palette.CHIP_FAR_BG, Palette.CHIP_FAR_BORDER)
 		tournament_chip_lbl.add_theme_color_override("font_color", Palette.CHIP_FAR_TEXT)
 		tournament_chip_lbl.add_theme_font_size_override("font_size", 13)
 	tournament_chip.add_theme_stylebox_override("panel", sb)
@@ -700,21 +689,11 @@ func _build_castle_card(castle: Castle) -> Control:
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.pressed.connect(_on_castle_card_picked.bind(castle))
 
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.16, 0.12, 0.08, 0.75) if not is_target else Color(0.28, 0.18, 0.08, 0.90)
-	sb.border_color = Color(0.50, 0.36, 0.20) if not is_target else Color(0.95, 0.78, 0.30)
-	sb.border_width_left = 2
-	sb.border_width_right = 2
-	sb.border_width_top = 2
-	sb.border_width_bottom = 2
-	sb.corner_radius_top_left = 6
-	sb.corner_radius_top_right = 6
-	sb.corner_radius_bottom_left = 6
-	sb.corner_radius_bottom_right = 6
-	sb.content_margin_left = 12
-	sb.content_margin_right = 12
-	sb.content_margin_top = 8
-	sb.content_margin_bottom = 8
+	# Card stylebox — idle vs target colour pair from Palette.
+	var sb := UiStyle.card(
+		Palette.CASTLE_BG_TARGET if is_target else Palette.CASTLE_BG_IDLE,
+		Palette.CASTLE_BORDER_TARGET if is_target else Palette.CASTLE_BORDER_IDLE,
+	)
 	btn.add_theme_stylebox_override("normal", sb)
 	btn.add_theme_stylebox_override("hover", sb)
 	btn.add_theme_stylebox_override("pressed", sb)
@@ -787,10 +766,10 @@ func _castle_difficulty_band(d: int) -> String:
 
 
 func _castle_difficulty_color(d: int) -> Color:
-	if d < 60:    return Color(0.65, 0.88, 0.55)
-	if d < 110:   return Color(0.92, 0.85, 0.45)
-	if d < 160:   return Color(0.95, 0.65, 0.35)
-	return Color(0.95, 0.45, 0.40)
+	if d < 60:    return Palette.DIFF_LIGHT
+	if d < 110:   return Palette.DIFF_MEDIUM
+	if d < 160:   return Palette.DIFF_HEAVY
+	return Palette.DIFF_FORMIDABLE
 
 
 func _explored_castles() -> Array:
@@ -1199,18 +1178,12 @@ func _make_recipe_icon(tier: int, res_type: int) -> Control:
 	}
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(28, 28)
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = ResourceDB.color_for_tier(tier).darkened(0.45)
-	sb.border_color = ResourceDB.color_for_tier(tier)
-	sb.border_width_left = 1
-	sb.border_width_right = 1
-	sb.border_width_top = 1
-	sb.border_width_bottom = 1
-	sb.corner_radius_top_left = 4
-	sb.corner_radius_top_right = 4
-	sb.corner_radius_bottom_left = 4
-	sb.corner_radius_bottom_right = 4
-	panel.add_theme_stylebox_override("panel", sb)
+	# Tier-coloured swatch — UiStyle handles the small-corner rounding +
+	# 1-px border; we just pass the darkened bg and the tier accent.
+	var tier_color: Color = ResourceDB.color_for_tier(tier)
+	panel.add_theme_stylebox_override("panel", UiStyle.swatch(
+		tier_color.darkened(0.45), tier_color,
+	))
 
 	var lbl := Label.new()
 	lbl.text = TYPE_GLYPH.get(res_type, "·")
@@ -1389,18 +1362,9 @@ func _research_empty_cell(category_color: Color) -> Control:
 	# than "missing element." A dim ◦ glyph sits centred in the cell.
 	var c := PanelContainer.new()
 	c.custom_minimum_size = RESEARCH_CELL_SIZE
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0, 0, 0, 0)
-	sb.border_color = category_color.darkened(0.65)
-	sb.border_width_left = 1
-	sb.border_width_right = 1
-	sb.border_width_top = 1
-	sb.border_width_bottom = 1
-	sb.corner_radius_top_left = 6
-	sb.corner_radius_top_right = 6
-	sb.corner_radius_bottom_left = 6
-	sb.corner_radius_bottom_right = 6
-	c.add_theme_stylebox_override("panel", sb)
+	c.add_theme_stylebox_override("panel", UiStyle.chip(
+		Color(0, 0, 0, 0), category_color.darkened(0.65), 1,
+	))
 	var dot := Label.new()
 	dot.text = "◦"
 	dot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1425,17 +1389,10 @@ func _make_research_icon(project_id: String) -> Control:
 	btn.button_pressed = (_selected_research_id == project_id)
 	btn.tooltip_text = proj["name"] + ("  ✓" if is_done else "")
 
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = color.darkened(0.55 if not is_done else 0.30)
-	sb.border_color = color if prereqs_met or is_done else color.darkened(0.4)
-	sb.border_width_left = 2
-	sb.border_width_right = 2
-	sb.border_width_top = 2
-	sb.border_width_bottom = 2
-	sb.corner_radius_top_left = 6
-	sb.corner_radius_top_right = 6
-	sb.corner_radius_bottom_left = 6
-	sb.corner_radius_bottom_right = 6
+	var sb := UiStyle.chip(
+		color.darkened(0.55 if not is_done else 0.30),
+		color if prereqs_met or is_done else color.darkened(0.4),
+	)
 	btn.add_theme_stylebox_override("normal", sb)
 	btn.add_theme_stylebox_override("hover", sb)
 	btn.add_theme_stylebox_override("pressed", sb)

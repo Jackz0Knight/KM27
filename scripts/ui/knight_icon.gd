@@ -19,19 +19,9 @@ func _ready() -> void:
 	if unit == null:
 		return
 	custom_minimum_size = ICON_SIZE
-	# Background colour by class.
-	var style := StyleBoxFlat.new()
-	style.bg_color = Palette.KNIGHT if unit.unit_class == Unit.UnitClass.KNIGHT else Palette.SQUIRE
-	style.corner_radius_top_left = 6
-	style.corner_radius_top_right = 6
-	style.corner_radius_bottom_left = 6
-	style.corner_radius_bottom_right = 6
-	style.border_color = Palette.INK_BORDER
-	style.border_width_left = 2
-	style.border_width_right = 2
-	style.border_width_top = 2
-	style.border_width_bottom = 2
-	add_theme_stylebox_override("panel", style)
+	# Background colour by class — knight gold or squire pewter.
+	var class_color: Color = Palette.KNIGHT if unit.unit_class == Unit.UnitClass.KNIGHT else Palette.SQUIRE
+	add_theme_stylebox_override("panel", UiStyle.knight_tile(class_color))
 	tooltip_text = _tooltip()
 
 	var margin := MarginContainer.new()

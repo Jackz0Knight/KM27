@@ -418,25 +418,9 @@ func _build_formation_editor(participants: Array, blurb: String) -> void:
 	_forecast_bar.show_percentage = false
 	_forecast_bar.custom_minimum_size = Vector2(0, 14)
 	_forecast_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_forecast_bar_style = StyleBoxFlat.new()
-	_forecast_bar_style.bg_color = OutcomeBracket.COLOR_GREEN
-	_forecast_bar_style.corner_radius_top_left = 4
-	_forecast_bar_style.corner_radius_top_right = 4
-	_forecast_bar_style.corner_radius_bottom_left = 4
-	_forecast_bar_style.corner_radius_bottom_right = 4
+	_forecast_bar_style = UiStyle.progress_fill(OutcomeBracket.COLOR_GREEN)
 	_forecast_bar.add_theme_stylebox_override("fill", _forecast_bar_style)
-	var bg_style := StyleBoxFlat.new()
-	bg_style.bg_color = Color(0.18, 0.14, 0.10, 1.0)
-	bg_style.border_color = Color(0.42, 0.32, 0.16, 1.0)
-	bg_style.border_width_left = 1
-	bg_style.border_width_right = 1
-	bg_style.border_width_top = 1
-	bg_style.border_width_bottom = 1
-	bg_style.corner_radius_top_left = 4
-	bg_style.corner_radius_top_right = 4
-	bg_style.corner_radius_bottom_left = 4
-	bg_style.corner_radius_bottom_right = 4
-	_forecast_bar.add_theme_stylebox_override("background", bg_style)
+	_forecast_bar.add_theme_stylebox_override("background", UiStyle.progress_bg())
 	setup_pane.add_child(_forecast_bar)
 
 	_forecast_lbl = Label.new()

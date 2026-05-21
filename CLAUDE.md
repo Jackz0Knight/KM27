@@ -131,7 +131,8 @@ When the task is "tune X" or "add a new Y", these are the canonical files to ope
 | Armour catalog + rarity / power_rating | `scripts/data/armour.gd` |
 | Item drop probabilities / rarity pools | `scripts/systems/item_drops.gd` |
 | Save format / serialisation | `scripts/systems/save_manager.gd` |
-| Shared UI palette / semantic colours | `scripts/autoload/palette.gd` — gold, parchment, success/warn/danger, slot-zone tints, tournament-chip ramp |
+| Shared UI palette / semantic colours | `scripts/autoload/palette.gd` — gold, parchment, success/warn/danger, slot-zone tints, tournament-chip ramp, castle / difficulty / stat band tints |
+| StyleBoxFlat builders (chip / card / slot / swatch / progress) | `scripts/ui/ui_style.gd` — reads Palette, returns styled `StyleBoxFlat`s; screens drop their inline radius/border boilerplate |
 | Audio bus volumes + UI SFX | `scripts/autoload/master_audio.gd` — three buses, `play_click()` SFX synthesised on first use |
 | Screen entry animation | `scripts/ui/screen_fade.gd` — `ScreenFade.fade_in(self)` from any screen `_ready()` |
 

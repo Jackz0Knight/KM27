@@ -53,34 +53,18 @@ func set_preview_match(is_match: bool) -> void:
 
 
 func _apply_style() -> void:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Palette.SLOT_BG_IDLE
+	# Three visual states share the same chip shape — only colour + border
+	# width vary. UiStyle.slot() builds the chip; this function just picks
+	# which palette pair to feed it.
+	var style: StyleBoxFlat
 	if preview_match:
 		# Live "drop here" hint — gold glow + warm bed, distinct from the
 		# post-drop green-match border so the two states never blur together.
-		style.border_color = Palette.SLOT_BORDER_PREVIEW
-		style.bg_color = Palette.SLOT_BG_PREVIEW
-		style.border_width_left = 3
-		style.border_width_right = 3
-		style.border_width_top = 3
-		style.border_width_bottom = 3
+		style = UiStyle.slot(Palette.SLOT_BG_PREVIEW, Palette.SLOT_BORDER_PREVIEW, 3)
 	elif matched:
-		style.border_color = Palette.SLOT_BORDER_MATCHED
-		style.bg_color = Palette.SLOT_BG_MATCHED
-		style.border_width_left = 2
-		style.border_width_right = 2
-		style.border_width_top = 2
-		style.border_width_bottom = 2
+		style = UiStyle.slot(Palette.SLOT_BG_MATCHED, Palette.SLOT_BORDER_MATCHED, 2)
 	else:
-		style.border_color = Palette.SLOT_BORDER_IDLE
-		style.border_width_left = 2
-		style.border_width_right = 2
-		style.border_width_top = 2
-		style.border_width_bottom = 2
-	style.corner_radius_top_left = 6
-	style.corner_radius_top_right = 6
-	style.corner_radius_bottom_left = 6
-	style.corner_radius_bottom_right = 6
+		style = UiStyle.slot(Palette.SLOT_BG_IDLE, Palette.SLOT_BORDER_IDLE, 2)
 	add_theme_stylebox_override("panel", style)
 
 
