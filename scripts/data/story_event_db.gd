@@ -62,6 +62,25 @@ extends RefCounted
 # event when the only knight is on expedition; no "tax demand" the player
 # can't pay). When all eligible events fail the gates, the gateway falls
 # back to a hard-coded sub-type — see BattleEvent.roll_sub_type().
+#
+# Outcome stat-check (opt-in, new):
+#   An outcome can carry a `stat_check` block instead of (or alongside) its
+#   own `note` + `effects`. When present, the resolver evaluates the check
+#   against the at-home roster's stats and substitutes the on_pass / on_fail
+#   branch's note + effects in place of the outcome's own. Outcomes without
+#   `stat_check` resolve as before — fully backwards-compatible.
+#
+#   stat_check: {
+#     stat:       <stat key, e.g. "leadership">,
+#     scope:      "best" (default) | "knight" | "all_avg",
+#     threshold:  int — the value the chosen scope's number must meet,
+#     on_pass:    {note, effects}
+#     on_fail:    {note, effects}
+#   }
+#
+#   The resolver also appends a small "(Best Leadership carried the test —
+#   14 vs 12.)" line so the player feels the check land rather than guessing
+#   why an outcome happened.
 
 const STORY_PREFIX: String = "story:"
 
@@ -1727,6 +1746,163 @@ const EVENTS: Dictionary = {
 			},
 		],
 	},
+
+	# ---- Batch 6 — events with stat_check decision branches ----
+
+	"mutiny_brewing": {
+		"label":  "Mutiny Brewing",
+		"intro":  "Two of yours have been talking in low voices near the back of the stable for three nights running. The marshal has noticed; the marshal will not say so aloud.",
+		"weight": 2,
+		"min_week": 12,
+		"min_roster_at_home": 2,
+		"outcomes": [
+			{
+				"weight": 100,
+				"stat_check": {
+					"stat": "leadership",
+					"scope": "best",
+					"threshold": 12,
+					"on_pass": {
+						"note": "Your knight walks the bunks himself at the small hours, speaks to each of them by name, and asks a question apiece. By dawn the talk is gone and the household closes on something steadier than discipline.",
+						"effects": [{"kind": "all_units_stat", "stat": "loyalty", "delta": 1}],
+					},
+					"on_fail": {
+						"note": "Discipline holds only so far as habit carries it. The talkers slip away on a quiet morning; the marshal blames himself and the chronicler blames the weather.",
+						"effects": [{"kind": "random_unit_stat", "stat": "loyalty", "delta": -2}, {"kind": "gold_range", "min": -10, "max": -4}],
+					},
+				},
+			},
+		],
+	},
+
+	"negotiate_dispute": {
+		"label":  "Negotiate Between Rival Villages",
+		"intro":  "Two villages on the household's stretch of road have spent the spring escalating a grievance about a mill weir. The headmen ride to the gate within an hour of each other.",
+		"weight": 2,
+		"min_week": 10,
+		"min_roster_at_home": 1,
+		"outcomes": [
+			{
+				"weight": 100,
+				"stat_check": {
+					"stat": "etiquette",
+					"scope": "best",
+					"threshold": 12,
+					"on_pass": {
+						"note": "Your knight seats them at one table, speaks for an evening of careful nothing, and by the second jug the weir is half-settled and the chronicler is taking notes for the deed.",
+						"effects": [{"kind": "reputation_range", "min": 3, "max": 6}, {"kind": "random_unit_stat", "stat": "etiquette", "delta": 1}],
+					},
+					"on_fail": {
+						"note": "The negotiation goes long, and longer, and worse. By the third day one headman rides off in the small hours; the other will not speak to your knight again before harvest.",
+						"effects": [{"kind": "reputation_range", "min": -4, "max": -2}, {"kind": "random_unit_stat", "stat": "loyalty", "delta": -1}],
+					},
+				},
+			},
+		],
+	},
+
+	"stare_down_rival": {
+		"label":  "A Rival House Calls",
+		"intro":  "A neighbouring lord's banner rides the boundary road in a strength that is not by accident. They will not knock at the gate; they will not turn around without one.",
+		"weight": 2,
+		"min_week": 14,
+		"min_roster_at_home": 2,
+		"outcomes": [
+			{
+				"weight": 100,
+				"stat_check": {
+					"stat": "intimidation",
+					"scope": "best",
+					"threshold": 11,
+					"on_pass": {
+						"note": "Your knight rides out alone to meet them, says less than they expected, and stands on the road long enough that the banner turns. The household watches from the wall; the chronicler watches the road for an hour after.",
+						"effects": [{"kind": "reputation_range", "min": 2, "max": 5}, {"kind": "random_unit_stat", "stat": "intimidation", "delta": 1}],
+					},
+					"on_fail": {
+						"note": "Your knight rides out and finds the standoff longer than it ought to be. By dusk a token tribute is paid for safe passage; the rival rides on smiling.",
+						"effects": [{"kind": "gold_range", "min": -16, "max": -8}, {"kind": "reputation", "amount": -2}],
+					},
+				},
+			},
+		],
+	},
+
+	"endure_long_march": {
+		"label":  "Endure a Long March",
+		"intro":  "An old debt asks the household to ride three days at speed to attend a vassal swearing — not the knight, but a banner, and a banner needs men behind it.",
+		"weight": 2,
+		"min_week": 16,
+		"min_roster_at_home": 3,
+		"outcomes": [
+			{
+				"weight": 100,
+				"stat_check": {
+					"stat": "determination",
+					"scope": "all_avg",
+					"threshold": 9,
+					"on_pass": {
+						"note": "The march holds. The household arrives on the third day in good order, stands the witness, and rides home heavier with the patron's quiet pleasure than with anything else.",
+						"effects": [{"kind": "all_units_stat", "stat": "determination", "delta": 1}, {"kind": "reputation_range", "min": 2, "max": 4}],
+					},
+					"on_fail": {
+						"note": "The march does not. By the second day two of yours are walking lame and the chaplain rides back for them. The witnessing is honoured in absence; the patron writes a polite letter.",
+						"effects": [{"kind": "random_unit_injury"}, {"kind": "reputation", "amount": 1}],
+					},
+				},
+			},
+		],
+	},
+
+	"read_the_forged_letter": {
+		"label":  "A Forged Letter",
+		"intro":  "A sealed parchment arrives by hand, neither rider quite saying where it came from. The seal looks right. Something about the hand on the address is not.",
+		"weight": 2,
+		"min_week": 12,
+		"outcomes": [
+			{
+				"weight": 100,
+				"stat_check": {
+					"stat": "technique",
+					"scope": "best",
+					"threshold": 12,
+					"on_pass": {
+						"note": "Your knight reads it twice, then once more with the chronicler at his elbow. The forgery is named, the trap unsprung; a small gain is taken from the would-be deceiver in turn.",
+						"effects": [{"kind": "gold_range", "min": 8, "max": 18}, {"kind": "reputation", "amount": 2}],
+					},
+					"on_fail": {
+						"note": "The letter is acted on. By the time the forgery is plain, a small sum has gone where it shouldn't and the chronicler has a long entry to write.",
+						"effects": [{"kind": "gold_range", "min": -18, "max": -10}, {"kind": "random_unit_stat", "stat": "technique", "delta": 1}],
+					},
+				},
+			},
+		],
+	},
+
+	"read_the_room": {
+		"label":  "A Polite Dinner",
+		"intro":  "A neighbouring lord's eldest daughter, lately knighted in her own right, calls for an evening's hospitality. The conversation will be entirely about something other than what it is about.",
+		"weight": 2,
+		"min_week": 10,
+		"min_gold": 6,
+		"outcomes": [
+			{
+				"weight": 100,
+				"stat_check": {
+					"stat": "etiquette",
+					"scope": "knight",
+					"threshold": 11,
+					"on_pass": {
+						"note": "Your knight reads the room the way the chronicler reads a deed. By the third course the matter is half-settled, by the fifth it is fully settled, and at dawn the household is gifted a small barrel and a recommendation.",
+						"effects": [{"kind": "reputation_range", "min": 2, "max": 4}, {"kind": "gold_range", "min": 6, "max": 14}, {"kind": "random_unit_stat", "stat": "etiquette", "delta": 1}],
+					},
+					"on_fail": {
+						"note": "Your knight reads the room poorly. The lady rides home before lauds, polite enough. By the next week the chronicler notes a cooling that will take time to thaw.",
+						"effects": [{"kind": "gold_range", "min": -8, "max": -4}, {"kind": "reputation", "amount": -2}],
+					},
+				},
+			},
+		],
+	},
 }
 
 
@@ -1809,11 +1985,105 @@ static func resolve(gs: Node, story_id: String, result: Dictionary) -> void:
 		return
 
 	result["story_outcome_index"] = int(outcome.get("_index", -1))
-	if str(outcome.get("note", "")) != "":
-		result["notes"].append(str(outcome["note"]))
 
-	for effect in outcome.get("effects", []):
+	# stat_check resolution: if the outcome carries a `stat_check` block, we
+	# evaluate it now and substitute the pass / fail branch's note + effects
+	# in place of the outcome's own. Outcomes without `stat_check` resolve
+	# normally — the field is opt-in so the 68 existing events are unaffected.
+	var note_to_emit: String = str(outcome.get("note", ""))
+	var effects_to_apply: Array = outcome.get("effects", [])
+	if outcome.has("stat_check"):
+		var branch: Dictionary = _resolve_stat_check(gs, outcome["stat_check"], result)
+		if not branch.is_empty():
+			note_to_emit = str(branch.get("note", note_to_emit))
+			effects_to_apply = branch.get("effects", effects_to_apply)
+
+	if note_to_emit != "":
+		result["notes"].append(note_to_emit)
+
+	for effect in effects_to_apply:
 		_apply_effect(gs, effect, result)
+
+
+# Resolve a stat_check block, returning the appropriate {note, effects}
+# branch. Adds a small chronicle line announcing which stat was rolled and
+# whether it passed — gives the player a tactile sense of "the household's
+# Leadership carried this" rather than the result feeling arbitrary.
+#
+# Schema:
+#   stat_check: {
+#     stat:       <stat key, e.g. "leadership">,
+#     scope:      "best" (default) | "knight" | "all_avg",
+#     threshold:  int — the value the chosen scope's number must meet,
+#     on_pass:    {note, effects}
+#     on_fail:    {note, effects}
+#   }
+#
+# Returns the picked branch or {} if the block is malformed (defensive —
+# falls back to the outcome's own note/effects in that case).
+static func _resolve_stat_check(gs: Node, check: Dictionary, result: Dictionary) -> Dictionary:
+	var stat: String = str(check.get("stat", ""))
+	var threshold: int = int(check.get("threshold", 10))
+	var scope: String = str(check.get("scope", "best"))
+	if stat == "":
+		return {}
+
+	var value: int = _gather_stat_value(gs, stat, scope)
+	var passed: bool = value >= threshold
+
+	# Small visible chronicle line — players see what was checked and how it
+	# landed without having to count stats themselves.
+	var verb: String = "carried" if passed else "fell short of"
+	var scope_label: String = _scope_label(scope, stat)
+	result["notes"].append("(%s %s the test — %d vs %d.)" % [scope_label, verb, value, threshold])
+
+	if passed:
+		return check.get("on_pass", {})
+	return check.get("on_fail", {})
+
+
+# Read the relevant stat off the right unit(s) per the check's scope.
+# "best" → max stat among at-home units (the most natural for one-knight-
+#   decides events).
+# "knight" → the household's Knight (class KNIGHT). Falls back to "best"
+#   if the knight is on expedition.
+# "all_avg" → integer average of the stat across at-home units. Used for
+#   household-wide tests like "Endure a Long March."
+static func _gather_stat_value(gs: Node, stat: String, scope: String) -> int:
+	var pool: Array[Unit] = gs.at_home_units()
+	if pool.is_empty():
+		return 0
+	match scope:
+		"knight":
+			for u in pool:
+				if u.unit_class == Unit.UnitClass.KNIGHT:
+					return u.stats.get_value(stat)
+			return _best_stat(pool, stat)   # knight away, fall back
+		"all_avg":
+			var total: int = 0
+			for u in pool:
+				total += u.stats.get_value(stat)
+			return total / pool.size()
+		_:
+			return _best_stat(pool, stat)
+
+
+static func _best_stat(pool: Array[Unit], stat: String) -> int:
+	var best: int = 0
+	for u in pool:
+		var v: int = u.stats.get_value(stat)
+		if v > best:
+			best = v
+	return best
+
+
+# Short human label for the scope, used in the "(X carried the test — N vs T.)"
+# chronicle line. Falls back to the stat name when the scope is unknown.
+static func _scope_label(scope: String, stat: String) -> String:
+	match scope:
+		"knight":  return "The Knight's %s" % stat.capitalize()
+		"all_avg": return "The household's %s average" % stat.capitalize()
+		_:         return "Best %s" % stat.capitalize()
 
 
 static func _pick_outcome(event: Dictionary) -> Dictionary:
