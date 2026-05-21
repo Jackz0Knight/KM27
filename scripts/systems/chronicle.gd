@@ -454,7 +454,14 @@ static func generate_oath(unit: Unit) -> String:
 		"intimidation":  "I will not speak first when silence will serve.",
 	}
 
-	# Oath follows the unit's highest stat.
+	return OATHS.get(derive_oath_kind(unit), "I will serve as I have sworn, and in serving find my worth.")
+
+
+# Oath kind = the stat key that drove oath text selection. Stored on
+# `Unit.oath_kind` so `OathLedger` can check honour conditions without
+# re-deriving (and without being thrown off when the unit's highest stat
+# shifts during play — the oath you swore is the oath you keep).
+static func derive_oath_kind(unit: Unit) -> String:
 	var best_stat: String = ""
 	var best_val: int = 0
 	for key in Stats.STAT_KEYS:
@@ -462,8 +469,7 @@ static func generate_oath(unit: Unit) -> String:
 		if v > best_val:
 			best_val = v
 			best_stat = key
-
-	return OATHS.get(best_stat, "I will serve as I have sworn, and in serving find my worth.")
+	return best_stat
 
 
 # ---------- Epithet granting ----------

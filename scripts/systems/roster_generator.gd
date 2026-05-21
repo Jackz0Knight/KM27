@@ -108,3 +108,6 @@ static func _enrich(u: Unit) -> void:
 	u.origin_text = Chronicle.generate_origin(u)
 	u.banner_line  = Chronicle.generate_banner(u)
 	u.oath         = Chronicle.generate_oath(u)
+	# Capture the stat that drove the oath text so OathLedger can check
+	# honour conditions against a stable key — see Chronicle.derive_oath_kind.
+	u.oath_kind    = Chronicle.derive_oath_kind(u)

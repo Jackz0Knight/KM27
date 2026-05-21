@@ -122,6 +122,8 @@ When the task is "tune X" or "add a new Y", these are the canonical files to ope
 | Heraldry drawing primitives | `scripts/ui/banner_icon.gd` — pure custom `_draw()`, scales freely |
 | Knight starting bonus, stat ranges, PA ranges | `scripts/systems/roster_generator.gd` |
 | Personal trait roster + stat/PA modifiers | `scripts/data/trait_pool.gd` (`TRAITS` dict) |
+| Body type implicit stat-cap bumps | `scripts/data/body_type.gd` (`CAP_BUMPS` dict; `cap_bump_for` / `cap_bumps` helpers) |
+| Oath honour checks (per-week PA bonus on aligned action) | `scripts/systems/oath_ledger.gd` — wired from `Resolution.run` end |
 | Origin / oath / epithet prose pools | `scripts/systems/chronicle.gd` |
 | Battle event sub-types + non-combat resolution | `scripts/systems/battle_event.gd` + `scripts/systems/resolution.gd` |
 | Random story events (chronicle moments + effect primitives) | `scripts/data/story_event_db.gd` (`EVENTS` dict — pure data; resolver dispatches kinds: gold, gold_range, random_unit_stat, all_units_stat, random_unit_injury, reward_resources, inventory_add, inventory_remove, pa_delta, clear_injury, expedition_delay, reputation, reputation_range) |

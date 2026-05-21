@@ -96,6 +96,7 @@ func _serialise_state() -> Dictionary:
 			"weapon_id": u.weapon_id,
 			"armour_id": u.armour_id,
 			"trait_id": u.trait_id,
+			"oath_kind": u.oath_kind,
 		})
 
 	var expeditions_data: Array = []
@@ -272,6 +273,14 @@ func _restore_state(data: Dictionary) -> void:
 		u.banner_line = str(rd.get("banner_line", ""))
 		u.origin_text = str(rd.get("origin_text", ""))
 		u.oath      = str(rd.get("oath", ""))
+		# Restore oath_kind, or back-derive it from the current highest stat
+		# for saves predating the field. Chronicle.derive_oath_kind() returns
+		# the stat key the oath text was originally drawn from, so the
+		# back-derivation usually matches; not guaranteed if stats shifted
+		# heavily, but acceptable for old saves.
+		u.oath_kind = str(rd.get("oath_kind", ""))
+		if u.oath_kind == "":
+			u.oath_kind = Chronicle.derive_oath_kind(u)
 		u.weapon_id = str(rd.get("weapon_id", ""))
 		u.armour_id = str(rd.get("armour_id", ""))
 		# Trait — only restore valid ids so a renamed/removed trait in a

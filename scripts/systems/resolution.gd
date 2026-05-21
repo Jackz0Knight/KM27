@@ -39,6 +39,11 @@ static func run(gs: Node) -> Dictionary:
 	# takes over from here and the inventory state is irrelevant.
 	if not result.get("is_game_over", false):
 		_apply_reward(gs, result)
+		# Per-unit oath honour checks. Runs after the result is fully
+		# populated so every signal (combat per_unit, injuries, tournament
+		# participation) is observable. Skipped on game-over for the same
+		# reason rewards are skipped — the run's done.
+		OathLedger.check_roster(gs, result)
 	gs.last_battle_result = result
 	EventBus.battle_resolved.emit(result)
 	return result
