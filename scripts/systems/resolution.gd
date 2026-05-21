@@ -296,6 +296,11 @@ static func _resolve_home(gs: Node, result: Dictionary) -> void:
 		result["reward"] = Combat.roll_home_win_reward(gs.week)
 		# Holding the gate against a raid is the kind of news that travels.
 		_log_reputation_crossing(result, gs.adjust_reputation(3))
+		# Survival epithets first — they're the more dramatic story when the
+		# defence was a close-margin win, and grant_epithet skips units who
+		# already have one. WON tag fills the gaps for units who weren't
+		# eligible for survival (i.e., were injured or it wasn't a close win).
+		_maybe_grant_survival_epithets(party, bracket, injuries, result)
 		for u in party:
 			var old_ep: String = u.epithet
 			Chronicle.grant_epithet(u, Chronicle.TAG_HOME_BATTLE_WON)
@@ -357,6 +362,7 @@ static func _resolve_bandit_ambush(gs: Node, result: Dictionary) -> void:
 
 	if result["won"]:
 		result["reward"] = Combat.roll_bandit_ambush_reward(gs.week)
+		_maybe_grant_survival_epithets(party, bracket, injuries, result)
 		for u in party:
 			var old_ep: String = u.epithet
 			Chronicle.grant_epithet(u, Chronicle.TAG_HOME_BATTLE_WON)
@@ -518,6 +524,7 @@ static func _resolve_village_raid(gs: Node, result: Dictionary) -> void:
 		for key in ResourceBundle.KEYS:
 			bundle.set(key, RNG.randi_range(1, 2 + floori(gs.week / 12.0)))
 		result["reward"] = bundle
+		_maybe_grant_survival_epithets(party, bracket, injuries, result)
 		for u in party:
 			var old_ep: String = u.epithet
 			Chronicle.grant_epithet(u, Chronicle.TAG_HOME_BATTLE_WON)
@@ -565,6 +572,7 @@ static func _resolve_tavern_riot(gs: Node, result: Dictionary) -> void:
 			if u.stats.try_increment("loyalty", u.potential_ability):
 				pass   # silent; the marshal does not announce these
 		result["notes"].append("Household discipline tightens. (+1 Loyalty across the roster, where caps allow.)")
+		_maybe_grant_survival_epithets(party, bracket, injuries, result)
 		for u in party:
 			var old_ep: String = u.epithet
 			Chronicle.grant_epithet(u, Chronicle.TAG_HOME_BATTLE_WON)
@@ -688,6 +696,33 @@ static func _log_reputation_crossing(result: Dictionary, new_band: String) -> vo
 	if new_band == "":
 		return
 	result["notes"].append("→ Standing crossed: now %s." % new_band)
+
+
+# Grant TAG_HOME_BATTLE_SURVIVED to defenders who stood through a close-margin
+# home-side win. The "close win" trigger is OutcomeBracket.Bracket.ORANGE on a
+# winning sim — the player's HP fell below 50% of starting but still beat the
+# enemy. The bandit_ambush / home_battle / village_raid / tavern_riot resolvers
+# all call this BEFORE their TAG_HOME_BATTLE_WON loop so survival epithets
+# (more dramatic) take precedence over the generic win tag.
+#
+# Wires the previously-dead TAG_HOME_BATTLE_SURVIVED pool — see the CLAUDE.md
+# pitfalls note about that tag being defined but never granted.
+static func _maybe_grant_survival_epithets(party: Array, bracket: int, injuries: Array, result: Dictionary) -> void:
+	if bracket != OutcomeBracket.Bracket.ORANGE:
+		return
+	# Build a set of injured unit ids — survivors are everyone else in the
+	# party. A unit injured in this very battle wouldn't read as "the Wall"
+	# — the survival epithets are for the units who held without being hurt.
+	var injured_ids: Array[int] = []
+	for inj in injuries:
+		injured_ids.append(int(inj.get("unit_id", -1)))
+	for u in party:
+		if injured_ids.has(u.id):
+			continue
+		var old_ep: String = u.epithet
+		Chronicle.grant_epithet(u, Chronicle.TAG_HOME_BATTLE_SURVIVED)
+		if u.epithet != "" and old_ep == "":
+			result["notes"].append("%s earns the epithet '%s'." % [u.unit_name, u.epithet])
 
 
 static func _away_party(gs: Node) -> Array[Unit]:
