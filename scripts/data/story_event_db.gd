@@ -1903,6 +1903,112 @@ const EVENTS: Dictionary = {
 			},
 		],
 	},
+
+	# ---- Batch 7 — more stat_check events across less-used stat axes ----
+
+	"calm_spooked_horse": {
+		"label":  "A Spooked Horse",
+		"intro":  "The household's best riding horse takes against the morning, refuses the bit, and threatens to break a leg in the yard. Someone has to set it right before the smith arrives.",
+		"weight": 2,
+		"min_week": 6,
+		"min_roster_at_home": 1,
+		"outcomes": [
+			{
+				"weight": 100,
+				"stat_check": {
+					"stat": "horsemanship",
+					"scope": "best",
+					"threshold": 9,
+					"on_pass": {
+						"note": "Your best horseman walks it down — slow steps, low voice, a slow turn against the wind. By noon the horse is back in the stable and asleep on its feet.",
+						"effects": [{"kind": "random_unit_stat", "stat": "horsemanship", "delta": 1}],
+					},
+					"on_fail": {
+						"note": "The horse goes through three handlers before the marshal admits it must be brought down. Someone catches a hoof in the doing.",
+						"effects": [{"kind": "random_unit_injury"}, {"kind": "gold_range", "min": -10, "max": -6}],
+					},
+				},
+			},
+		],
+	},
+
+	"lead_the_charge": {
+		"label":  "Lead the Charge",
+		"intro":  "A neighbouring lord asks the household to ride at the head of a small relief — they have the numbers; they need the banner.",
+		"weight": 2,
+		"min_week": 16,
+		"min_roster_at_home": 2,
+		"outcomes": [
+			{
+				"weight": 100,
+				"stat_check": {
+					"stat": "bravery",
+					"scope": "best",
+					"threshold": 12,
+					"on_pass": {
+						"note": "Your knight rides at the front. The line forms behind him; the relief arrives on time and in order. The chronicler will not stop talking about it.",
+						"effects": [{"kind": "reputation_range", "min": 4, "max": 7}, {"kind": "random_unit_stat", "stat": "bravery", "delta": 1}],
+					},
+					"on_fail": {
+						"note": "The line wavers, then turns. The relief gets through, but late. One of yours bears a cut more from the chronicler's eyes than the field.",
+						"effects": [{"kind": "reputation", "amount": -3}, {"kind": "random_unit_injury"}],
+					},
+				},
+			},
+		],
+	},
+
+	"outguess_card_player": {
+		"label":  "Cards With a Stranger",
+		"intro":  "A passing scholar with a deck of unusual cards proposes a hand at the household's table. The stakes are friendly; the cards are not.",
+		"weight": 1,
+		"min_week": 12,
+		"min_gold": 12,
+		"outcomes": [
+			{
+				"weight": 100,
+				"stat_check": {
+					"stat": "technique",
+					"scope": "knight",
+					"threshold": 10,
+					"on_pass": {
+						"note": "Your knight watches the second hand more than the first, and calls the third on a feeling that has nothing to do with cards. The scholar pays the wager and stays to be taught a thing or two.",
+						"effects": [{"kind": "gold_range", "min": 8, "max": 18}, {"kind": "pa_delta", "min": 3, "max": 7}],
+					},
+					"on_fail": {
+						"note": "The scholar is patient, and pleasant, and very good. By the fourth hand the household coffers are lighter and your knight is teaching the marshal a polite phrase he learned that evening.",
+						"effects": [{"kind": "gold_range", "min": -16, "max": -10}],
+					},
+				},
+			},
+		],
+	},
+
+	"hold_line_at_drill": {
+		"label":  "Hold the Line at Drill",
+		"intro":  "The marshal sets a long drill on a hot afternoon — the kind that finds the breaking point of whoever was thinking of breaking.",
+		"weight": 2,
+		"min_week": 8,
+		"min_roster_at_home": 3,
+		"outcomes": [
+			{
+				"weight": 100,
+				"stat_check": {
+					"stat": "loyalty",
+					"scope": "all_avg",
+					"threshold": 8,
+					"on_pass": {
+						"note": "Nobody falls out. The marshal makes a small thing of it at dusk — bread on the line, one cup of the better wine, a few words said quietly. Something is set.",
+						"effects": [{"kind": "all_units_stat", "stat": "loyalty", "delta": 1}, {"kind": "random_unit_stat", "stat": "determination", "delta": 1}],
+					},
+					"on_fail": {
+						"note": "Two of yours drop out before noon. The marshal does not punish; he just walks away and lets the silence do it. Resentment ferments quietly across the week.",
+						"effects": [{"kind": "random_unit_stat", "stat": "determination", "delta": -1}, {"kind": "random_unit_stat", "stat": "loyalty", "delta": -1}],
+					},
+				},
+			},
+		],
+	},
 }
 
 
