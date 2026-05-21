@@ -74,7 +74,15 @@ func get_value(stat: String) -> int:
 
 
 func set_value(stat: String, value: int) -> void:
-	set(stat, clampi(value, 0, STAT_CAP))
+	# Upper clamp is `STAT_CAP + 5` rather than STAT_CAP so body-type
+	# implicit cap bumps (BodyType.CAP_BUMPS) survive save/load round-trips.
+	# A Burly knight whose Strength reached 21 in-play would otherwise be
+	# clamped back to 20 here when SaveManager restores their stats. The
+	# 5-point margin is generous to allow future stacking (e.g., trait +
+	# body) without changing this clamp again. Callers that need a tighter
+	# bound (e.g., HousePool.apply_lean clamps to its own `stat_max`) still
+	# enforce it themselves before calling this.
+	set(stat, clampi(value, 0, STAT_CAP + 5))
 
 
 func sum() -> int:
@@ -85,9 +93,13 @@ func sum() -> int:
 
 
 # +1 to `stat`. Returns true if applied, false if blocked by stat cap or by PA.
-func try_increment(stat: String, potential_ability: int) -> bool:
+# `extra_cap` lifts the per-stat ceiling above STAT_CAP — used by body-type
+# implicit bumps so a Burly knight can reach Strength 21. Default 0
+# preserves existing behaviour for callers that don't know about the unit's
+# body type.
+func try_increment(stat: String, potential_ability: int, extra_cap: int = 0) -> bool:
 	var current: int = int(get(stat))
-	if current >= STAT_CAP:
+	if current >= STAT_CAP + extra_cap:
 		return false
 	if sum() + 1 > potential_ability:
 		return false
@@ -97,25 +109,31 @@ func try_increment(stat: String, potential_ability: int) -> bool:
 
 # Pick a random non-maxed stat that still has PA headroom, +1 it.
 # Returns the chosen stat name, or "" if no stat can grow.
-func try_increment_random(potential_ability: int) -> String:
-	return try_increment_random_excluding(potential_ability, "")
+# `extra_caps` is a per-stat dict of cap bonuses, same shape as
+# `BodyType.cap_bumps()` — applied to the per-stat ceiling check so the
+# random pick can still grow a body-favoured stat past STAT_CAP.
+func try_increment_random(potential_ability: int, extra_caps: Dictionary = {}) -> String:
+	return try_increment_random_excluding(potential_ability, "", extra_caps)
 
 
 # Same as try_increment_random but skips `exclude_stat`. Phase 5's training
 # system uses this for the per-training Determination-rolled +1 (GDD §7),
 # which goes to a stat OTHER than the unit's training target.
-func try_increment_random_excluding(potential_ability: int, exclude_stat: String) -> String:
+func try_increment_random_excluding(potential_ability: int, exclude_stat: String, extra_caps: Dictionary = {}) -> String:
 	if sum() >= potential_ability:
 		return ""
 	var candidates: Array[String] = []
 	for k in STAT_KEYS:
 		if k == exclude_stat:
 			continue
-		if int(get(k)) < STAT_CAP:
+		var stat_cap: int = STAT_CAP + int(extra_caps.get(k, 0))
+		if int(get(k)) < stat_cap:
 			candidates.append(k)
 	if candidates.is_empty():
 		return ""
 	var pick: String = candidates[RNG.randi_range(0, candidates.size() - 1)]
+	# Set bypasses set_value's STAT_CAP clamp deliberately — extra_caps already
+	# said this stat is allowed above 20. set_value would clamp it back down.
 	set(pick, int(get(pick)) + 1)
 	return pick
 

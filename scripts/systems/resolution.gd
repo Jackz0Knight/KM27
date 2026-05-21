@@ -408,7 +408,7 @@ static func _resolve_champion_duel(gs: Node, result: Dictionary) -> void:
 		if stat == "":
 			result["notes"].append("No target stat picked — reward forfeit.")
 		else:
-			var applied: bool = champ.stats.try_increment(stat, champ.potential_ability)
+			var applied: bool = champ.stats.try_increment(stat, champ.potential_ability, BodyType.cap_bump_for(champ.body_type, stat))
 			result["duel_stat"] = stat
 			result["duel_stat_applied"] = applied
 			if not applied:
@@ -448,7 +448,7 @@ static func _resolve_refugee_caravan(gs: Node, result: Dictionary) -> void:
 		result["notes"].append("Refugees sheltered at the gate. The kitchen ran lean and warm.")
 		if not defenders.is_empty():
 			var witness: Unit = defenders[RNG.randi_range(0, defenders.size() - 1)]
-			if witness.stats.try_increment("loyalty", witness.potential_ability):
+			if witness.stats.try_increment("loyalty", witness.potential_ability, BodyType.cap_bump_for(witness.body_type, "loyalty")):
 				result["notes"].append("%s stood at the gate. He saw it, and a stat changed quietly. (+1 Loyalty)" % witness.unit_name)
 		result["refugee_outcome"] = "sheltered"
 		result["refugee_cost"] = cost
@@ -480,7 +480,7 @@ static func _resolve_noble_petition(gs: Node, result: Dictionary) -> void:
 		result["notes"].append("A neighbouring lord's envoy paid call — a small purse for hospitality. (+%d gold)" % purse)
 		if not defenders.is_empty():
 			var host: Unit = defenders[RNG.randi_range(0, defenders.size() - 1)]
-			if host.stats.try_increment("etiquette", host.potential_ability):
+			if host.stats.try_increment("etiquette", host.potential_ability, BodyType.cap_bump_for(host.body_type, "etiquette")):
 				result["notes"].append("%s hosted the table. Watched, listened, learned. (+1 Etiquette)" % host.unit_name)
 		result["petition_outcome"] = "honoured"
 	else:
@@ -569,7 +569,7 @@ static func _resolve_tavern_riot(gs: Node, result: Dictionary) -> void:
 		# Roster-wide loyalty tick — the show of unity at a small action
 		# matters more than the action itself.
 		for u in party:
-			if u.stats.try_increment("loyalty", u.potential_ability):
+			if u.stats.try_increment("loyalty", u.potential_ability, BodyType.cap_bump_for(u.body_type, "loyalty")):
 				pass   # silent; the marshal does not announce these
 		result["notes"].append("Household discipline tightens. (+1 Loyalty across the roster, where caps allow.)")
 		_maybe_grant_survival_epithets(party, bracket, injuries, result)

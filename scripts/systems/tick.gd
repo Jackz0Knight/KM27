@@ -88,7 +88,8 @@ static func _apply_training(gs: Node, results: Dictionary) -> void:
 			continue
 		var stat: String = u.training_target()
 		var before: int = u.stats.get_value(stat)
-		var applied: bool = u.stats.try_increment(stat, u.potential_ability)
+		var body_bumps: Dictionary = BodyType.cap_bumps(u.body_type)
+		var applied: bool = u.stats.try_increment(stat, u.potential_ability, int(body_bumps.get(stat, 0)))
 		var entry: Dictionary = {
 			"unit_id": u.id,
 			"stat": stat,
@@ -101,7 +102,7 @@ static func _apply_training(gs: Node, results: Dictionary) -> void:
 		# Determination roll in GDD §10 (that's handled by Determination.gd).
 		var chance_pct: float = float(u.stats.determination) * Determination.CHANCE_PER_POINT
 		if RNG.randf_range(0.0, 100.0) < chance_pct:
-			var bonus: String = u.stats.try_increment_random_excluding(u.potential_ability, stat)
+			var bonus: String = u.stats.try_increment_random_excluding(u.potential_ability, stat, body_bumps)
 			if bonus != "":
 				entry["bonus_stat"] = bonus
 		results["training"].append(entry)

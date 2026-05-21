@@ -28,7 +28,7 @@ static func roll_for_units(units: Array[Unit]) -> Array:
 		var chance_pct: float = float(u.stats.determination) * CHANCE_PER_POINT
 		var roll: float = RNG.randf_range(0.0, 100.0)
 		if roll < chance_pct:
-			var stat_picked: String = u.stats.try_increment_random(u.potential_ability)
+			var stat_picked: String = u.stats.try_increment_random(u.potential_ability, BodyType.cap_bumps(u.body_type))
 			if stat_picked != "":
 				results.append({"unit": u, "stat": stat_picked})
 	return results

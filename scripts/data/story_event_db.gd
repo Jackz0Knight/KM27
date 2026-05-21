@@ -2278,8 +2278,9 @@ static func _apply_all_units_stat(gs: Node, stat: String, delta: int, result: Di
 static func _apply_stat_delta(unit: Unit, stat: String, delta: int, result: Dictionary) -> void:
 	if delta > 0:
 		var applied_any: bool = false
+		var body_bump: int = BodyType.cap_bump_for(unit.body_type, stat)
 		for _i in range(delta):
-			if unit.stats.try_increment(stat, unit.potential_ability):
+			if unit.stats.try_increment(stat, unit.potential_ability, body_bump):
 				applied_any = true
 			else:
 				break

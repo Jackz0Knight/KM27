@@ -5,8 +5,11 @@ extends RefCounted
 # house" (Brann) knight can still be Lean — the two signals stack into a
 # legible character read at a glance, not a deterministic look-up.
 #
-# Body type does NOT affect stat rolls. It's a pure visual + flavour signal
-# the player learns to read alongside the heraldic crest.
+# Body type now also carries an **implicit stat-cap bump** of +1 on one or
+# two stats per type — same design philosophy as house leans (no tooltip,
+# no chip, no visible number). A Burly knight just reaches Strength 21 at
+# the high end of a long campaign where the Lean knight would have hit the
+# regular 20 ceiling first; players notice through play, not through UI.
 #
 # Silhouette is drawn by `BannerIcon` next to the crest as a 1-bit figure.
 
@@ -26,6 +29,17 @@ const FLAVOUR: Dictionary = {
 	"wiry":  "small-framed but never the first to tire",
 }
 
+# Hidden cap bumps applied by `Stats.try_increment` when a unit's body type
+# is passed in. Two stats per type, +1 each. Reads as a quiet long-game
+# advantage — a Burly knight slowly out-strengths peers of the same house
+# lean. Deliberately small so the body never overpowers the house lean.
+const CAP_BUMPS: Dictionary = {
+	"lean":  {"speed": 1, "technique": 1},
+	"burly": {"strength": 1, "intimidation": 1},
+	"tall":  {"archery": 1, "horsemanship": 1},
+	"wiry":  {"speed": 1, "swordsmanship": 1},
+}
+
 
 static func random_body_type() -> String:
 	return TYPES[RNG.randi_range(0, TYPES.size() - 1)]
@@ -37,6 +51,21 @@ static func label_for(body_type: String) -> String:
 
 static func flavour_for(body_type: String) -> String:
 	return FLAVOUR.get(body_type, "")
+
+
+# How many points the body type adds to the per-stat hard cap. Stats above
+# 20 are unreachable through normal play — Burly + Strength can reach 21.
+# Caller passes `body_type` and the stat name; result added to STAT_CAP in
+# `Stats.try_increment` and `Stats.try_increment_random_excluding`.
+static func cap_bump_for(body_type: String, stat: String) -> int:
+	var bumps: Dictionary = CAP_BUMPS.get(body_type, {})
+	return int(bumps.get(stat, 0))
+
+
+# Full cap-bump dictionary for the random-increment path, which needs to
+# know the bonus for every stat at once. Returns {} for unknown body types.
+static func cap_bumps(body_type: String) -> Dictionary:
+	return CAP_BUMPS.get(body_type, {})
 
 
 # Draw the 1-bit silhouette into a target Control via its CanvasItem RID.
