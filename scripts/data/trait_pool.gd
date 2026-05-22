@@ -107,6 +107,20 @@ const TRAITS: Dictionary = {
 		"pa_mod":      0,
 		"weight":      2,
 	},
+	"silver_tongue": {
+		"name":        "Silver Tongue",
+		"description": "Can negotiate a hostile lord into a friendly toast in under a quarter hour. The trick is mostly in the listening.",
+		"stat_mods":   {"etiquette": 2, "leadership": 1, "swordsmanship": -1},
+		"pa_mod":      0,
+		"weight":      2,
+	},
+	"haunted": {
+		"name":        "Haunted",
+		"description": "Saw something at a campfire once that he will not name. Sleeps poorly; rides harder; checks every corner twice.",
+		"stat_mods":   {"speed": 1, "determination": 1, "bravery": -1, "loyalty": 1},
+		"pa_mod":      10,
+		"weight":      1,
+	},
 }
 
 

@@ -2009,6 +2009,106 @@ const EVENTS: Dictionary = {
 			},
 		],
 	},
+
+	# ---- Batch 8 — more chronicle variety ----
+
+	"sworn_sister_arrives": {
+		"label":  "A Sworn Sister Arrives",
+		"intro":  "A knight in another household's colours rides for the gate, her own seal in hand. She and your knight took a sworn-sibling oath a decade ago in a tournament neither will discuss aloud.",
+		"weight": 2,
+		"min_week": 14,
+		"min_roster_at_home": 1,
+		"outcomes": [
+			{
+				"weight": 55,
+				"note": "They spar at dusk, drink past matins, and your knight rides into next week the steadier for an old friend's quiet attention.",
+				"effects": [{"kind": "random_unit_stat", "stat": "swordsmanship", "delta": 1}, {"kind": "pa_delta", "min": 4, "max": 9}],
+			},
+			{
+				"weight": 30,
+				"note": "She has news of an old enemy. The household coffers loosen for a small purse pressed into her hand; the chronicler will not write what was traded for it.",
+				"effects": [{"kind": "gold_range", "min": -14, "max": -8}, {"kind": "reputation_range", "min": 1, "max": 3}],
+			},
+			{
+				"weight": 15,
+				"note": "She rides on at first light without explanation. Your knight stands at the gate longer than usual that morning.",
+				"effects": [{"kind": "pa_delta", "min": -4, "max": 2}],
+			},
+		],
+	},
+
+	"quiet_anniversary": {
+		"label":  "A Quiet Anniversary",
+		"intro":  "The household chronicler reminds your knight, at breakfast, that today is the anniversary of a campaign or a vow or a loss the knight remembers well enough.",
+		"weight": 2,
+		"min_week": 18,
+		"outcomes": [
+			{
+				"weight": 60,
+				"note": "Your knight spends the morning at the chapel, the afternoon in the garden, and the evening with the chronicler. Nothing is said that needs writing down; everything is set the firmer for the saying.",
+				"effects": [{"kind": "random_unit_stat", "stat": "loyalty", "delta": 1}, {"kind": "pa_delta", "min": 3, "max": 7}],
+			},
+			{
+				"weight": 25,
+				"note": "Your knight will not mark it, but the household marks it for him. By dusk the staff has set a small table with the better wine and a single empty chair.",
+				"effects": [{"kind": "all_units_stat", "stat": "loyalty", "delta": 1}],
+			},
+			{
+				"weight": 15,
+				"note": "It goes badly. The wine is finished early; the chronicler closes his book without writing. By dawn the marshal has the day's drill ready and no one mentions it again.",
+				"effects": [{"kind": "random_unit_stat", "stat": "bravery", "delta": -1}, {"kind": "pa_delta", "min": -5, "max": -1}],
+			},
+		],
+	},
+
+	"borrowed_book_returns": {
+		"label":  "A Borrowed Book Returns",
+		"intro":  "A volume your knight lent out three winters ago is delivered to the gate by a careful porter with a careful note. The book has been read, used, and respected.",
+		"weight": 1,
+		"min_week": 12,
+		"outcomes": [
+			{
+				"weight": 60,
+				"note": "Your knight reads the marginalia the borrower left. He learns something he did not know about a campaign he thought he understood.",
+				"effects": [{"kind": "random_unit_stat", "stat": "technique", "delta": 1}, {"kind": "pa_delta", "min": 2, "max": 6}],
+			},
+			{
+				"weight": 25,
+				"note": "The chronicler reads the marginalia first, and writes a long entry on the borrower's handwriting alone. The library is the richer for it.",
+				"effects": [{"kind": "pa_delta", "min": 3, "max": 7}],
+			},
+			{
+				"weight": 15,
+				"note": "The book is returned damaged. The borrower's note is apologetic; your knight reads the note twice, the book once, and writes a polite letter.",
+				"effects": [{"kind": "random_unit_stat", "stat": "etiquette", "delta": 1}],
+			},
+		],
+	},
+
+	"long_winter_warning": {
+		"label":  "A Long-Winter Warning",
+		"intro":  "An old neighbour comes to the gate at noon with bad news in three voices: an early frost in the south, a late lambing in the west, and the river running shallow.",
+		"weight": 2,
+		"min_week": 28,
+		"max_week": 44,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "Your knight buys grain at the day's prices, not next month's. The chronicler files the receipt with quiet pleasure.",
+				"effects": [{"kind": "gold_range", "min": -14, "max": -8}, {"kind": "inventory_add", "id": "plant_fibres", "min": 2, "max": 4}],
+			},
+			{
+				"weight": 30,
+				"note": "Your knight orders the household to dig deeper on the back well and chop more timber than the marshal thinks is needed. The marshal is wrong this week; the marshal will write the inventory longer next month.",
+				"effects": [{"kind": "inventory_add", "id": "logs", "min": 2, "max": 4}, {"kind": "all_units_stat", "stat": "determination", "delta": 1}],
+			},
+			{
+				"weight": 20,
+				"note": "Your knight thanks the neighbour, doubles the watch on the kitchen stores, and asks the chaplain to say a longer word at supper.",
+				"effects": [{"kind": "random_unit_stat", "stat": "leadership", "delta": 1}],
+			},
+		],
+	},
 }
 
 
