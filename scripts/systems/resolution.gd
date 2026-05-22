@@ -325,6 +325,13 @@ static func _resolve_battle_event(gs: Node, result: Dictionary) -> void:
 	if StoryEventDB.is_story_sub_type(gs.current_battle_event):
 		StoryEventDB.resolve(gs, StoryEventDB.story_id_from_sub_type(gs.current_battle_event), result)
 		return
+	# Data-driven combat events route through CombatEventDB. The three
+	# legacy combat resolvers (bandit_ambush / village_raid / tavern_riot)
+	# keep their hard-coded paths below — migration to data is a future
+	# follow-up once the framework has shipped a few more entries.
+	if CombatEventDB.has_mode(gs.current_battle_event):
+		_resolve_combat_event(gs, result)
+		return
 	match gs.current_battle_event:
 		"bandit_ambush":
 			_resolve_bandit_ambush(gs, result)
@@ -344,6 +351,113 @@ static func _resolve_battle_event(gs: Node, result: Dictionary) -> void:
 			_resolve_tavern_riot(gs, result)
 		_:
 			result["notes"].append("Unknown Battle Event sub-type.")
+
+
+# Data-driven combat event resolver. Mirrors the legacy bandit_ambush /
+# village_raid / tavern_riot path's structure (no-defender check →
+# CombatSim → injuries → win-branch with reward + survival epithets +
+# WON loop + item drop + rep, or loss-branch with rep penalty) but
+# reads every parameter from `CombatEventDB.EVENTS[sub_type]`.
+static func _resolve_combat_event(gs: Node, result: Dictionary) -> void:
+	var mode: Dictionary = CombatEventDB.EVENTS.get(gs.current_battle_event, {})
+	if mode.is_empty():
+		result["notes"].append("Unknown combat event: %s" % gs.current_battle_event)
+		return
+
+	var party: Array[Unit] = gs.at_home_units()
+	result["notes"].append(str(mode.get("intro_set", "")))
+
+	if party.is_empty():
+		result["fought"] = true
+		result["won"] = false
+		result["notes"].append(str(mode.get("intro_no_defender", "No defenders at home.")))
+		var rep_nd: int = int(mode.get("rep_on_no_defender", 0))
+		if rep_nd != 0:
+			_log_reputation_crossing(result, gs.adjust_reputation(rep_nd))
+		return
+
+	var template: String = str(mode.get("combat_template", "bandit_ambush"))
+	var player_cus: Array = _player_cus_home(party)
+	var enemy_cus: Array  = EnemyDB.roll_combat_party(template, gs.week)
+	var sim: Dictionary   = CombatSim.run(player_cus, enemy_cus)
+	_fill_from_sim(result, sim)
+
+	var bracket: int = _bracket_from_sim(sim, player_cus)
+	var injuries: Array[Dictionary] = OutcomeBracket.maybe_apply_injuries(party, bracket)
+	if not injuries.is_empty():
+		result["injuries"] = injuries
+
+	if result["won"]:
+		_apply_combat_event_reward(gs, mode, result)
+		_maybe_grant_survival_epithets(party, bracket, injuries, result)
+		var tag: String = str(mode.get("epithet_tag", "home_battle_won"))
+		for u in party:
+			var old_ep: String = u.epithet
+			Chronicle.grant_epithet(u, tag)
+			if u.epithet != "" and old_ep == "":
+				result["notes"].append("%s earns the epithet '%s'." % [u.unit_name, u.epithet])
+		_apply_combat_event_item_drop(gs, mode, result)
+		var rep_w: int = int(mode.get("rep_on_win", 0))
+		if rep_w != 0:
+			_log_reputation_crossing(result, gs.adjust_reputation(rep_w))
+	else:
+		result["notes"].append("Battle lost — the household pulls back behind the walls.")
+		var rep_l: int = int(mode.get("rep_on_loss", 0))
+		if rep_l != 0:
+			_log_reputation_crossing(result, gs.adjust_reputation(rep_l))
+
+
+# Reward dispatch for combat events. Reward kinds are intentionally narrow
+# so adding a new combat event is "pick one of these four" + a few numbers.
+static func _apply_combat_event_reward(gs: Node, mode: Dictionary, result: Dictionary) -> void:
+	var kind: String = str(mode.get("reward_kind", ""))
+	match kind:
+		"bandit_bundle":
+			result["reward"] = Combat.roll_bandit_ambush_reward(gs.week)
+		"home_bundle":
+			result["reward"] = Combat.roll_home_win_reward(gs.week)
+		"gold_and_bundle":
+			var purse: int = RNG.randi_range(int(mode.get("gold_min", 0)), int(mode.get("gold_max", 0)))
+			if purse > 0:
+				gs.gold += purse
+				result["notes"].append("+%d gold" % purse)
+			var lo: int = int(mode.get("bundle_lo", 1))
+			var hi: int = int(mode.get("bundle_hi", 2))
+			if hi >= lo and hi > 0:
+				var bundle := ResourceBundle.new()
+				for key in ResourceBundle.KEYS:
+					bundle.set(key, RNG.randi_range(lo, hi))
+				result["reward"] = bundle
+		"gold_only":
+			var purse2: int = RNG.randi_range(int(mode.get("gold_min", 0)), int(mode.get("gold_max", 0)))
+			if purse2 > 0:
+				gs.gold += purse2
+				result["notes"].append("+%d gold" % purse2)
+		_:
+			result["notes"].append("(unhandled reward kind: %s)" % kind)
+
+
+# Item drop dispatch for combat events. Mirrors the named roll_*_drop
+# functions on ItemDrops + the rarity-biased fallback the away custom
+# modes use.
+static func _apply_combat_event_item_drop(gs: Node, mode: Dictionary, result: Dictionary) -> void:
+	var kind: String = str(mode.get("item_drop_fn", "none"))
+	match kind:
+		"ambush":
+			_apply_item_drop(result, ItemDrops.roll_ambush_drop(gs))
+		"home_defence":
+			_apply_item_drop(result, ItemDrops.roll_home_defence_drop(gs))
+		"rare_biased":
+			var chance: float = float(mode.get("item_drop_chance", 0.0))
+			if chance <= 0.0:
+				return
+			if RNG.randf_range(0.0, 1.0) >= chance:
+				return
+			_apply_item_drop(result, ItemDrops.drop_at_rarity(gs, Weapon.Rarity.RARE))
+		"none":
+			pass
+		_:
+			result["notes"].append("(unhandled item_drop_fn: %s)" % kind)
 
 
 static func _resolve_bandit_ambush(gs: Node, result: Dictionary) -> void:

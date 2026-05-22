@@ -380,6 +380,8 @@ func _formation_advice() -> String:
 		EventKind.BATTLE_EVENT:
 			if StoryEventDB.is_story_sub_type(GameState.current_battle_event):
 				return "→ A chronicle moment — no combat, no setup required"
+			if CombatEventDB.has_mode(GameState.current_battle_event):
+				return "→ " + CombatEventDB.tactics_advice_for(GameState.current_battle_event)
 			match GameState.current_battle_event:
 				"bandit_ambush": return "→ Use Defense formation"
 				"champion_duel": return "→ Pick your strongest Str+Bra+Sword unit as champion"

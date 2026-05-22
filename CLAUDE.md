@@ -128,6 +128,7 @@ When the task is "tune X" or "add a new Y", these are the canonical files to ope
 | Battle event sub-types + non-combat resolution | `scripts/systems/battle_event.gd` + `scripts/systems/resolution.gd` |
 | Random story events (chronicle moments + effect primitives) | `scripts/data/story_event_db.gd` (`EVENTS` dict — pure data; resolver dispatches kinds: gold, gold_range, random_unit_stat, all_units_stat, random_unit_injury, reward_resources, inventory_add, inventory_remove, pa_delta, clear_injury, expedition_delay, reputation, reputation_range) |
 | Away mission variants (rescue / hunt / nest / convoy) | `scripts/data/away_mode_db.gd` (`MODES` dict — pure data; `Resolution._resolve_away_custom` reads combat_template + reward_kind + epithet_tag + rep_on_win) |
+| Combat battle-event variants (harpy raid / goblin warband / cultist) | `scripts/data/combat_event_db.gd` (`EVENTS` dict — pure data; `Resolution._resolve_combat_event` reads combat_template + reward_kind + item_drop_fn + rep deltas) |
 | Reputation HUD chip + band labels | `scripts/autoload/resource_db.gd` (`reputation_label`, `reputation_color`, chip prefix in `resource_hud_bbcode`) |
 | Weapon catalog + rarity / power_rating | `scripts/data/weapon.gd` |
 | Armour catalog + rarity / power_rating | `scripts/data/armour.gd` |

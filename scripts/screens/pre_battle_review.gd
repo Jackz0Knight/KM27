@@ -140,6 +140,8 @@ func _battle_enemy_power() -> int:
 		EventKind.HOME_BATTLE:
 			return Combat.enemy_power_home(GameState.week)
 		EventKind.BATTLE_EVENT:
+			if CombatEventDB.has_mode(GameState.current_battle_event):
+				return CombatEventDB.enemy_power_for(GameState.current_battle_event, GameState.week)
 			match GameState.current_battle_event:
 				"bandit_ambush": return Combat.enemy_power_bandit_ambush(GameState.week)
 				"champion_duel": return Combat.enemy_power_champion_duel(GameState.week)
@@ -172,6 +174,8 @@ func _enemy_flavor_text(ev: int, sub: String) -> String:
 			else:
 				return "Orc veterans. They have held this field before."
 		EventKind.BATTLE_EVENT:
+			if CombatEventDB.has_mode(sub):
+				return CombatEventDB.flavour_text_for(sub)
 			match sub:
 				"bandit_ambush":
 					if week <= 8:
@@ -206,6 +210,8 @@ func _stakes_text(ev: int, sub: String) -> String:
 		EventKind.BATTLE_EVENT:
 			if StoryEventDB.is_story_sub_type(sub):
 				return "A chronicle moment — no combat. The household's response plays out automatically; outcome on the Weekly Summary."
+			if CombatEventDB.has_mode(sub):
+				return CombatEventDB.stakes_text_for(sub)
 			match sub:
 				"bandit_ambush": return "Win → loot reward. No game-over risk."
 				"champion_duel": return "Win → +1 to chosen stat. Loss → no penalty."
@@ -353,6 +359,11 @@ func _refresh_setup() -> void:
 				var sid: String = StoryEventDB.story_id_from_sub_type(GameState.current_battle_event)
 				var intro: String = StoryEventDB.intro_for(sid)
 				_build_simple_note("%s\n\nOutcome unfolds on the Weekly Summary." % intro)
+			elif CombatEventDB.has_mode(GameState.current_battle_event):
+				# Data-driven combat events build the same formation editor
+				# the hard-coded combat sub-types use; intro prose comes from
+				# the entry.
+				_build_formation_editor(GameState.combat_participants(), CombatEventDB.intro_for(GameState.current_battle_event))
 			else:
 				match GameState.current_battle_event:
 					"bandit_ambush":
@@ -485,6 +496,8 @@ func _forecast_event_key() -> String:
 			return "pillage"
 		EventKind.TOURNAMENT:    return "tournament"
 		EventKind.GRAND_TOURNAMENT: return "tournament"
+	if CombatEventDB.has_mode(GameState.current_battle_event):
+		return CombatEventDB.forecast_event_key_for(GameState.current_battle_event)
 	match GameState.current_battle_event:
 		"bandit_ambush", "tavern_riot": return "bandit_ambush"
 		"village_raid":                  return "home_battle"
