@@ -216,15 +216,21 @@ func _render_battle_breakdown(r: Dictionary) -> void:
 	# the event — surface them in this section so the player isn't scrolling
 	# for the prose.
 	var is_story: bool = StoryEventDB.is_story_sub_type(r.get("sub_event", ""))
+	# Notes-only fallback: oath honour grants and similar chronicle beats
+	# emit only into result["notes"] and would be silently swallowed on
+	# non-combat / non-story weeks without this. When the week has anything
+	# textual to surface, the section appears as a ❦ Chronicle block.
+	var has_notes: bool = not r.get("notes", []).is_empty()
 
-	# Hide the whole section (header + body) when there's nothing useful to show.
-	if not (has_formation or has_tourney or is_duel or fought or is_story):
+	# Hide the whole section (header + body) only when there is genuinely
+	# nothing to display.
+	if not (has_formation or has_tourney or is_duel or fought or is_story or has_notes):
 		battle_breakdown_header.visible = false
 		battle_breakdown.visible = false
 		return
 	battle_breakdown_header.visible = true
 	battle_breakdown.visible = true
-	if is_story and not fought:
+	if (is_story or has_notes) and not fought:
 		battle_breakdown_header.text = "❦  Chronicle"
 	else:
 		battle_breakdown_header.text = "Battle Breakdown"
