@@ -281,6 +281,86 @@ static func _event_line(gs: Node) -> String:
 
 # ---------- Full week entry ----------
 
+# Build a short personalised ballad about the household, weighted toward the
+# Knight's chronicle data: oath_kind shapes the opening line, earned epithet
+# (or trait if none) shapes the middle, household reputation band shapes the
+# close. Always returns at least one line. Used by the `bard_ballad` story
+# event's special effect; could be reused by future "minstrel arrives" beats.
+static func generate_household_ballad(gs: Node) -> String:
+	var knight: Unit = null
+	for u in gs.roster:
+		if u.unit_class == Unit.UnitClass.KNIGHT:
+			knight = u
+			break
+	if knight == null:
+		return "The bard's song trails off — there is no knight in residence to write of."
+
+	const OPENERS_BY_OATH: Dictionary = {
+		"loyalty":       "Hear of {n}, who kept faith while the gate yet held —",
+		"bravery":       "Hear of {n}, who in three campaigns did not turn his back —",
+		"determination": "Hear of {n}, who rose from every floor he was put upon —",
+		"leadership":    "Hear of {n}, who ate after his men and rode before them —",
+		"swordsmanship": "Hear of {n}, whose blade was drawn for cause and sheathed for result —",
+		"archery":       "Hear of {n}, whose every arrow could be answered for —",
+		"strength":      "Hear of {n}, who carried what others could not and asked no credit —",
+		"etiquette":     "Hear of {n}, who conducted himself as the chronicler watched —",
+		"speed":         "Hear of {n}, who was never where the danger expected him —",
+		"technique":     "Hear of {n}, whose precision was a quieter mercy —",
+		"horsemanship":  "Hear of {n}, who never rode harder than his horse could bear —",
+		"intimidation":  "Hear of {n}, who spoke when silence would not serve —",
+	}
+	var opener: String = str(OPENERS_BY_OATH.get(knight.oath_kind, "Hear of {n}, sworn knight of an unsung household —"))
+	opener = opener.replace("{n}", knight.unit_name)
+
+	# Middle line — earned epithet first, then trait, then a fallback that
+	# leans on the household. Each pool offers two phrasings so repeated
+	# ballads about the same knight read differently across runs.
+	var middle: String = ""
+	if knight.epithet != "":
+		const EPITHET_MIDDLES: Array[String] = [
+			"who the chroniclers call {ep}, and rightly so —",
+			"who rode the lists till heralds called him {ep} —",
+			"who is known in three valleys now as {ep} —",
+		]
+		middle = EPITHET_MIDDLES[RNG.randi_range(0, EPITHET_MIDDLES.size() - 1)].replace("{ep}", knight.epithet)
+	elif knight.trait_id != "":
+		# Trait-flavoured middles, indexed by the trait pool's id.
+		const TRAIT_MIDDLES: Dictionary = {
+			"veteran":         "whose veteran's hands knew the field before the ballad was written —",
+			"hot_headed":      "whose hot blood made the village inn the longer for him —",
+			"pious":           "whose small book of prayers travelled with him everywhere —",
+			"tournament_brat": "whose lists-trained eye saw every herald's blind spot —",
+			"scholar_knight":  "whose council was always the cooler for being last to speak —",
+			"horse_born":      "who rode strange horses for the pleasure of the lesson —",
+			"marked":          "whose long scar told its story before he did —",
+			"lucky":           "whose coin came down the right way more than chance allowed —",
+			"sworn_defender":  "whose oath was witnessed under a vow he will not name —",
+			"reluctant":       "who came to arms by inheritance and stayed by choice —",
+			"poacher":         "whose arrows had a way of finding what he chose to seek —",
+			"stoic":           "whose silence under pressure tested the patience of his enemies —",
+			"silver_tongue":   "whose words ended quarrels his sword would have made worse —",
+			"haunted":         "whose dreams woke him before any horn ever did —",
+		}
+		middle = str(TRAIT_MIDDLES.get(knight.trait_id, "whose household closed around him through hard winters —"))
+	else:
+		middle = "whose household closed around him through hard winters —"
+
+	# Close — reputation-band weighted. Plays as the verdict of the realm.
+	var rep_label: String = ResourceDB.reputation_label(gs.reputation)
+	const CLOSE_BY_BAND: Dictionary = {
+		"Legendary":     "and his name is sung at the small fires of every village in the realm.",
+		"Renowned":      "and three valleys over the smaller halls sing of him by name.",
+		"Respected":     "and the neighbouring lords now write his name carefully in their books.",
+		"Known":         "and the chronicler keeps a fresh quill near, for what is yet to come.",
+		"Suspect":       "and the chronicler keeps the entry brief, for what may yet be undone.",
+		"Disreputable":  "and the bard's voice trails off here, mid-verse, for politeness.",
+		"Outcast":       "and the bard, on second thought, accepts only a smaller fee for the song.",
+	}
+	var close: String = str(CLOSE_BY_BAND.get(rep_label, "and what comes next, the chronicler will be the first to write."))
+
+	return "%s\n%s\n%s" % [opener, middle, close]
+
+
 static func generate_week_entry(gs: Node) -> String:
 	var parts: Array[String] = []
 

@@ -51,6 +51,11 @@ extends RefCounted
 #                                                       on GameState.reputation
 #   {kind: "reputation_range", min: int, max: int}    — rolled reputation
 #                                                       delta in the range
+#   {kind: "bard_ballad"}                             — dynamic chronicle —
+#                                                       calls Chronicle's
+#                                                       generate_household_ballad
+#                                                       and surfaces the 3-line
+#                                                       result as a single note
 
 
 # A note about gates:
@@ -2265,6 +2270,25 @@ const EVENTS: Dictionary = {
 		],
 	},
 
+	"bard_ballad": {
+		"label":  "A Bard's Ballad",
+		"intro":  "A travelling bard sets up at the household's lower hall and proposes — for a small purse — to compose a verse about your knight. The chaplain wants veto rights.",
+		"weight": 1,
+		"min_week": 20,
+		"outcomes": [
+			{
+				"weight": 100,
+				"note": "The bard works late and reads at supper. The household leans in; the chronicler closes his book to listen.",
+				"effects": [
+					{"kind": "bard_ballad"},
+					{"kind": "gold_range", "min": -8, "max": -4},
+					{"kind": "reputation_range", "min": 3, "max": 6},
+					{"kind": "pa_delta", "min": 4, "max": 9},
+				],
+			},
+		],
+	},
+
 	"midsummer_long_evening": {
 		"label":  "A Long Midsummer Evening",
 		"intro":  "It is the longest evening of the year. The bonfire is lit at the back of the orchard, the table is dragged out, and the marshal — for once — has nowhere to be.",
@@ -2561,6 +2585,14 @@ static func _apply_effect(gs: Node, effect: Dictionary, result: Dictionary) -> v
 			_apply_reputation_delta(gs, int(effect.get("amount", 0)), result)
 		"reputation_range":
 			_apply_reputation_delta(gs, RNG.randi_range(int(effect.get("min", 0)), int(effect.get("max", 0))), result)
+		"bard_ballad":
+			# Generate a personalised 3-line ballad from the Knight's chronicle
+			# data (oath_kind, epithet/trait, reputation band) via Chronicle
+			# and surface it as a single multi-line note. The Weekly Summary's
+			# chronicle section already renders notes with autowrap.
+			var ballad: String = Chronicle.generate_household_ballad(gs)
+			if ballad != "":
+				result["notes"].append(ballad)
 		_:
 			result["notes"].append("(unhandled effect kind: %s)" % kind)
 
