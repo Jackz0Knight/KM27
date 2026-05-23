@@ -2109,6 +2109,186 @@ const EVENTS: Dictionary = {
 			},
 		],
 	},
+
+	# ---- Batch 9 — flagship Festival Week + trait-gated companions ----
+	#
+	# Outcomes with `requires_trait_in_roster` only enter the weighted pool
+	# when SOME unit in the roster carries that trait — so the chronicler
+	# only writes the brawl line when there's actually a Hot-Headed knight
+	# around to throw the punch. Pure prose payoff for the trait system.
+
+	"festival_week": {
+		"label":  "Festival Week",
+		"intro":  "The midsummer festival lands on the household at the worst possible time and the best. Bonfires in three fields, two travelling minstrels, a wrestling square, and a steward who has given up.",
+		"weight": 1,
+		"min_week": 10,
+		"min_roster_at_home": 2,
+		"outcomes": [
+			{
+				"weight": 30,
+				"note": "The marshal disappears for three days. He returns with a story he will not tell and a small bruise on his temple. The household closes around him without comment.",
+				"effects": [{"kind": "gold_range", "min": -10, "max": -4}, {"kind": "all_units_stat", "stat": "loyalty", "delta": 1}],
+			},
+			{
+				"weight": 25,
+				"note": "Your knight enters a wrestling match against a man twice his size. He wins on a count nobody can quite verify. The chronicler will not stop talking about it.",
+				"effects": [{"kind": "random_unit_stat", "stat": "strength", "delta": 1}, {"kind": "reputation_range", "min": 2, "max": 4}],
+			},
+			{
+				"weight": 20,
+				"note": "A bard improvises a song about your knight. By the third night the household is singing it in the kitchens; by the fourth your knight is pretending he has not heard it.",
+				"effects": [{"kind": "reputation_range", "min": 3, "max": 5}, {"kind": "pa_delta", "min": 3, "max": 7}],
+			},
+			{
+				"weight": 15,
+				"note": "The festival passes the household by, exactly as your knight had hoped. The marshal uses the quiet to drill the watch into a sharper edge than it has had in months.",
+				"effects": [{"kind": "all_units_stat", "stat": "determination", "delta": 1}],
+			},
+			# --- Trait-gated vignettes — only fire when the trait is on the roster ---
+			{
+				"weight": 28,
+				"requires_trait_in_roster": "hot_headed",
+				"note": "Your hot-headed knight starts a brawl by sunset. By midnight half the village owes him drinks; by dawn the marshal owes the publican a small purse. Everyone agrees the festival was a success.",
+				"effects": [{"kind": "gold_range", "min": -8, "max": -3}, {"kind": "random_unit_stat", "stat": "intimidation", "delta": 1}, {"kind": "reputation_range", "min": 1, "max": 3}],
+			},
+			{
+				"weight": 22,
+				"requires_trait_in_roster": "lucky",
+				"note": "Your lucky knight wins a coin toss that funded the bonfire, then a wager that funded the bard, then a third bet so unlikely the village elder asked him politely to stop. He stops politely.",
+				"effects": [{"kind": "gold_range", "min": 14, "max": 26}, {"kind": "pa_delta", "min": 2, "max": 5}],
+			},
+			{
+				"weight": 18,
+				"requires_trait_in_roster": "silver_tongue",
+				"note": "Your silver-tongued knight ends the festival as the unofficial herald of two villages, the agreed mediator of a sheep dispute, and the godfather of a child whose parents he met that evening.",
+				"effects": [{"kind": "reputation_range", "min": 4, "max": 7}, {"kind": "random_unit_stat", "stat": "etiquette", "delta": 1}],
+			},
+			{
+				"weight": 18,
+				"requires_trait_in_roster": "tournament_brat",
+				"note": "Your tournament-bred knight wins the impromptu lists three nights running, refuses the prize on the third, and accepts a smaller, better one on the fourth. The chronicler is in love.",
+				"effects": [{"kind": "random_unit_stat", "stat": "technique", "delta": 1}, {"kind": "reputation_range", "min": 2, "max": 4}],
+			},
+			{
+				"weight": 14,
+				"requires_trait_in_roster": "pious",
+				"note": "Your pious knight reads at the bonfire on the second evening — old verses, simply chosen. The village will not forget who lent them their better night.",
+				"effects": [{"kind": "reputation_range", "min": 2, "max": 4}, {"kind": "all_units_stat", "stat": "loyalty", "delta": 1}],
+			},
+		],
+	},
+
+	"the_stable_cat": {
+		"label":  "The Stable Cat Speaks",
+		"intro":  "The household's old stable cat — twelve winters and a chunk missing from one ear — has begun yowling at the back gate for an hour every dawn this week.",
+		"weight": 1,
+		"min_week": 6,
+		"outcomes": [
+			{
+				"weight": 45,
+				"note": "Three days later the marshal catches a fox in the wire trap the cat had insisted on. Mystery resolved; the cat receives, for the first time in twelve years, a small bowl of the better cream.",
+				"effects": [{"kind": "random_unit_stat", "stat": "speed", "delta": 1}],
+			},
+			{
+				"weight": 35,
+				"note": "It is, in the end, nothing. The cat goes quiet by Saturday. The chronicler files a brief note titled 'A Lesson in Hearing What Is Not Said.'",
+				"effects": [],
+			},
+			{
+				"weight": 20,
+				"note": "On the seventh morning the cat does not yowl. It does not appear at all. By dusk the chaplain has buried it under the rowan by the gate. The household stands for the small ceremony; no one speaks for a long minute after.",
+				"effects": [{"kind": "all_units_stat", "stat": "loyalty", "delta": 1}, {"kind": "pa_delta", "min": 2, "max": 5}],
+			},
+		],
+	},
+
+	"the_practical_joker": {
+		"label":  "A Practical Joker",
+		"intro":  "Someone has put boiled eggs in the marshal's boots. The marshal is taking it well, which is the worst sign.",
+		"weight": 1,
+		"min_week": 6,
+		"min_roster_at_home": 3,
+		"outcomes": [
+			{
+				"weight": 35,
+				"note": "The marshal solves it by drilling everyone an extra hour at dawn and naming no one. By the end of the week the joker has confessed and apologised, which was the actual point.",
+				"effects": [{"kind": "all_units_stat", "stat": "determination", "delta": 1}],
+			},
+			{
+				"weight": 30,
+				"note": "It escalates. By the fourth morning the chaplain finds a frog in the chalice and the chronicler finds a brief in his ink-pot. The marshal stops smiling.",
+				"effects": [{"kind": "random_unit_stat", "stat": "loyalty", "delta": -1}],
+			},
+			{
+				"weight": 20,
+				"note": "The joker confesses on day two, of his own initiative, with a small gift of his better drink. The marshal accepts the gift without comment and the matter is closed.",
+				"effects": [{"kind": "random_unit_stat", "stat": "loyalty", "delta": 1}],
+			},
+			# --- Hot-Headed trait-gated branch — high weight, very specific
+			{
+				"weight": 40,
+				"requires_trait_in_roster": "hot_headed",
+				"note": "The hot-headed knight starts a counter-prank that ends with the marshal's water bucket on the stable roof and the marshal himself laughing until he coughs. Unexpected outcome; positive on the whole.",
+				"effects": [{"kind": "all_units_stat", "stat": "loyalty", "delta": 1}, {"kind": "random_unit_stat", "stat": "bravery", "delta": 1}],
+			},
+		],
+	},
+
+	"sleepy_squire": {
+		"label":  "The Sleepy Squire",
+		"intro":  "One of yours has fallen asleep at his post for the third time this fortnight. The marshal has reached the patient stage, which is the worst stage.",
+		"weight": 2,
+		"min_week": 4,
+		"min_roster_at_home": 2,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "He is woken with the gentlest possible bucket of cold water. He learns; the household sleeps better for the lesson; the chronicler writes nothing down.",
+				"effects": [{"kind": "random_unit_stat", "stat": "determination", "delta": 1}],
+			},
+			{
+				"weight": 30,
+				"note": "He had genuine reason — the chaplain had been keeping him up reading from an old field history. The marshal confiscates the book. The chaplain protests in writing.",
+				"effects": [{"kind": "random_unit_stat", "stat": "technique", "delta": 1}],
+			},
+			{
+				"weight": 20,
+				"note": "He is reassigned to dawn rotation for a fortnight as quiet penance. By the third dawn he has caught a poacher; by the seventh he has caught a husband; by the tenth the marshal has stopped joking about it.",
+				"effects": [{"kind": "random_unit_stat", "stat": "speed", "delta": 1}, {"kind": "gold_range", "min": 4, "max": 8}],
+			},
+			{
+				"weight": 25,
+				"requires_trait_in_roster": "lucky",
+				"note": "The sleepy squire falls asleep against the right shadow on the right night. He wakes to a courier looking for the gate; the courier was lost; the household is now owed a small favour by a neighbouring house. Coincidence, the chronicler maintains, is a kind of grace.",
+				"effects": [{"kind": "reputation_range", "min": 2, "max": 4}, {"kind": "pa_delta", "min": 3, "max": 6}],
+			},
+		],
+	},
+
+	"midsummer_long_evening": {
+		"label":  "A Long Midsummer Evening",
+		"intro":  "It is the longest evening of the year. The bonfire is lit at the back of the orchard, the table is dragged out, and the marshal — for once — has nowhere to be.",
+		"weight": 1,
+		"min_week": 18,
+		"max_week": 30,
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "The household sits past the dark. The chaplain tells one story; the marshal tells two; your knight tells a third nobody had heard. By dawn the loyalty in the small wages of attention has shifted, and not by a small amount.",
+				"effects": [{"kind": "all_units_stat", "stat": "loyalty", "delta": 1}, {"kind": "pa_delta", "min": 3, "max": 7}],
+			},
+			{
+				"weight": 30,
+				"note": "Rain on the small hours sends everyone in. The fire holds; the wine holds; the smaller of the household's two dogs is the only casualty, and the chaplain has him dry by morning.",
+				"effects": [{"kind": "random_unit_stat", "stat": "determination", "delta": 1}],
+			},
+			{
+				"weight": 20,
+				"note": "Two of yours arrive late and leave early and won't say why. The chronicler files this under 'household business that is not household business' and lets it lie.",
+				"effects": [],
+			},
+		],
+	},
 }
 
 
@@ -2185,7 +2365,7 @@ static func resolve(gs: Node, story_id: String, result: Dictionary) -> void:
 	result["won"] = true
 	result["story_event_id"] = story_id
 
-	var outcome: Dictionary = _pick_outcome(event)
+	var outcome: Dictionary = _pick_outcome(event, gs)
 	if outcome.is_empty():
 		result["notes"].append("%s — the moment passed without incident." % str(event.get("label", "")))
 		return
@@ -2292,8 +2472,17 @@ static func _scope_label(scope: String, stat: String) -> String:
 		_:         return "Best %s" % stat.capitalize()
 
 
-static func _pick_outcome(event: Dictionary) -> Dictionary:
-	var outcomes: Array = event.get("outcomes", [])
+static func _pick_outcome(event: Dictionary, gs: Node = null) -> Dictionary:
+	# Optional outcome filter — outcomes can declare gating that only
+	# unlocks them when the roster satisfies a condition. Currently
+	# supported keys on an outcome:
+	#   requires_trait_in_roster: <trait_id>  — fires only when some unit
+	#       in the roster (at-home or expedition) carries that trait_id.
+	#       Lets festival / brawl / lucky events unlock vignette branches
+	#       keyed off character — Hot-Headed unlocks "starts a tavern fight,"
+	#       Lucky unlocks "wins an impossible coin toss," etc.
+	# Outcomes without a gate field always pass.
+	var outcomes: Array = _filter_outcomes(event.get("outcomes", []), gs)
 	if outcomes.is_empty():
 		return {}
 	var total: int = 0
@@ -2310,6 +2499,31 @@ static func _pick_outcome(event: Dictionary) -> Dictionary:
 			picked["_index"] = i
 			return picked
 	return outcomes[outcomes.size() - 1]
+
+
+# Filter outcomes by their optional roster-dependent gates. Returns a
+# subset of `outcomes` whose gates are satisfied by the current GameState.
+# Pass-through (returns all outcomes) when gs is null — preserves the
+# original signature for any caller that doesn't have a GameState ref.
+static func _filter_outcomes(outcomes: Array, gs: Node) -> Array:
+	if gs == null:
+		return outcomes
+	var out: Array = []
+	for o in outcomes:
+		if not (o is Dictionary):
+			continue
+		var required_trait: String = str(o.get("requires_trait_in_roster", ""))
+		if required_trait != "" and not _roster_has_trait(gs, required_trait):
+			continue
+		out.append(o)
+	return out
+
+
+static func _roster_has_trait(gs: Node, trait_id: String) -> bool:
+	for u in gs.roster:
+		if u.trait_id == trait_id:
+			return true
+	return false
 
 
 # ---------- effects ----------
