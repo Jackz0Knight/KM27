@@ -389,7 +389,45 @@ static func generate_week_entry(gs: Node) -> String:
 	if gs.maintenance_debt:
 		parts.append("The ledger fell short this week. The household will feel it.")
 
+	# Chronicler aside — a 22% chance per week of a short atmospheric
+	# parenthetical that has nothing to do with the week's main events.
+	# Builds the sense of a household with a life beyond the player's
+	# direct attention. Pure flavour, no mechanical effect.
+	if RNG.randf_range(0.0, 1.0) < 0.22:
+		parts.append(_chronicler_aside())
+
 	return " ".join(parts)
+
+
+# A pool of one-line atmospheric beats the chronicler quietly inserts into
+# a week's chronicle entry. Each is fragment-scaled to read inline with the
+# rest of the prose. Players see them as the household having an interior
+# life — the kitchen acquires a cat, the marshal receives a letter, the
+# chaplain loses an argument about ale rationing.
+static func _chronicler_aside() -> String:
+	const ASIDES: Array[String] = [
+		"(The kitchen acquired a new cat this week. The old one is unimpressed.)",
+		"(The marshal received a letter he will not discuss.)",
+		"(The chaplain lost an argument about ale rationing — narrowly, and with grace.)",
+		"(The stable lad has begun writing poems. Reviews are mixed.)",
+		"(The chronicler's quill split mid-entry on Thursday. He swore in three languages.)",
+		"(The household acquired three barrels of an excellent vintage at an inexplicable price.)",
+		"(A neighbouring lord's hound wandered through, ate three meals, and departed without comment.)",
+		"(The orchard wall settled half an inch in the rain. The mason has been notified.)",
+		"(The smith's apprentice produced a passable horseshoe. The smith is allowing himself a small pride.)",
+		"(The chaplain has finished his commentary on a minor saint nobody had heard of. Self-published.)",
+		"(The watch reported a comet, then admitted it was a lantern, then revised back to a comet.)",
+		"(One of the household's two dogs has begun limping. He limps less when food is in question.)",
+		"(The seneschal's daughter has returned from her cousin's. The household notes this without commenting on it.)",
+		"(A barrel of pickled cabbage went missing from the storeroom. The chronicler suspects the chaplain.)",
+		"(The marshal has shaved his beard. Reviews are mixed; the marshal is taking it well.)",
+		"(The cat caught a mouse and was praised. The cat was unmoved.)",
+		"(A travelling fiddler stopped one night and was paid in soup.)",
+		"(The chronicler discovered an old map in a back drawer and has been distracted ever since.)",
+		"(A pair of swallows have nested in the upper eaves. The marshal has forbidden anyone to disturb them.)",
+		"(The blacksmith's mother visited for three days. The household was on its best behaviour.)",
+	]
+	return ASIDES[RNG.randi_range(0, ASIDES.size() - 1)]
 
 
 # ---------- Unit enrichment — called once at unit creation ----------
