@@ -96,7 +96,7 @@ func _render_content() -> void:
 		label = "%s — %s" % [label, BattleEvent.label(r["sub_event"])]
 	elif int(r.get("event_kind", -1)) == EventKind.AWAY_BATTLE and AwayModeDB.has_mode(GameState.pending_away_mode):
 		label = "%s — %s" % [label, AwayModeDB.label_for(GameState.pending_away_mode)]
-	header_lbl.text = "Weekly Summary — Week %d · %s" % [GameState.week, label]
+	header_lbl.text = "Weekly Summary — Week %d  ·  %s  ·  %s" % [GameState.week, Calendar.season_chip(GameState.week), label]
 	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory, GameState.reputation))
 
 	_render_chronicle()

@@ -67,9 +67,9 @@ func _refresh_header() -> void:
 		label = "%s — %s" % [label, BattleEvent.label(GameState.current_battle_event)]
 	elif GameState.current_event == EventKind.AWAY_BATTLE and AwayModeDB.has_mode(GameState.pending_away_mode):
 		label = "%s — %s" % [label, AwayModeDB.label_for(GameState.pending_away_mode)]
-	header_lbl.text = "Pre-Battle Review — Year %d, Week %d (%d/48) · %s" % [
+	header_lbl.text = "Pre-Battle Review — Year %d, Week %d (%d/48)  ·  %s  ·  %s" % [
 		GameState.current_year(), GameState.week,
-		GameState.current_week_of_year(), label,
+		GameState.current_week_of_year(), Calendar.season_chip(GameState.week), label,
 	]
 	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory, GameState.reputation))
 	confirm_btn.text = "To Battle →" if _is_combat_week() else "Continue →"

@@ -187,8 +187,11 @@ func _refresh_all() -> void:
 
 func _refresh_header() -> void:
 	# Event has its own chip on the Overview tab — keep the year/week line clean.
-	context_lbl.text = "Year %d, Week %d (week %d / 48)" % [
+	# Season chip rides on the end so the player feels the year pass without
+	# stealing the calendar's spotlight.
+	context_lbl.text = "Year %d, Week %d (week %d / 48)  ·  %s" % [
 		GameState.current_year(), GameState.week, GameState.current_week_of_year(),
+		Calendar.season_chip(GameState.week),
 	]
 	status_lbl.text = ""
 	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory, GameState.reputation))
