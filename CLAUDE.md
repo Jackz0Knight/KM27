@@ -117,7 +117,8 @@ When the task is "tune X" or "add a new Y", these are the canonical files to ope
 | Enemy stat ranges + group power | `scripts/autoload/enemy_db.gd` |
 | Win-probability colour bands + injury rolls | `scripts/systems/outcome_bracket.gd` |
 | Chronicle prose pools (seasons, origins, oaths, epithets) | `scripts/systems/chronicle.gd` |
-| Add / re-tint / re-charge a noble house | `scripts/data/house_pool.gd` (`HOUSES` dict) — palette, ordinary, charge, stat lean live in one entry |
+| Add / re-tint / re-charge a noble house | `scripts/data/house_pool.gd` (`HOUSES` dict) — palette, ordinary, charge, default stat lean live in one entry |
+| Tune per-run house lean pools (archetype slants) | `scripts/data/house_pool.gd` (`LEAN_PLUS_POOL_BY_ARCHETYPE` / `LEAN_MINUS_POOL_BY_ARCHETYPE`) — `roll_per_run_leans()` picks 3+ / 2- from each archetype's pool at `start_run`; saved on `GameState.house_leans` |
 | Body type silhouette shape | `scripts/data/body_type.gd` (`draw_silhouette`) |
 | Heraldry drawing primitives | `scripts/ui/banner_icon.gd` — pure custom `_draw()`, scales freely |
 | Knight starting bonus, stat ranges, PA ranges | `scripts/systems/roster_generator.gd` |

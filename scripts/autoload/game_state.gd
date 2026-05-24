@@ -100,6 +100,16 @@ var maintenance_debt: bool = false
 # odds, and event gating. Cleared on start_run.
 var reputation: int = 0
 
+# Per-run randomised house stat leans, keyed by house_id. Rolled at
+# `start_run` via `HousePool.roll_per_run_leans()` so each run has a
+# different slant inside each house's archetype — Brann always reads
+# warrior but might emphasise intimidation this run and bravery the next.
+# Format: {house_id: {plus: Array[String], minus: Array[String]}}.
+# Empty until start_run rolls it (and on saves loaded before the system
+# landed; HousePool.apply_lean falls back to HOUSES static defaults in
+# that case).
+var house_leans: Dictionary = {}
+
 # Gold income sources. `weekly_stipend` is always active; others are set
 # temporarily when an event grants a recurring bonus then reset to 0.
 var gold_income_sources: Dictionary = {
@@ -223,6 +233,11 @@ func start_run(seed_value: int) -> void:
 	researched.clear()
 	maintenance_debt = false
 	reputation = 0
+	# Roll per-run house slants AFTER start_run sets the seed (via
+	# WorldGenerator.generate which calls RNG.seed_run). All RNG consumed
+	# by HousePool.roll_per_run_leans() flows through the seeded RNG, so
+	# the same seed produces the same slants every run.
+	house_leans = HousePool.roll_per_run_leans()
 	gold_income_sources = {"tournament_prize": 0, "expedition_trade": 0, "weekly_stipend": 10}
 	upgrade_costs = {}
 	suppressed_confirms.clear()

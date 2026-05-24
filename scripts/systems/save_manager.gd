@@ -136,6 +136,7 @@ func _serialise_state() -> Dictionary:
 		"researched": GameState.researched.duplicate(),
 		"maintenance_debt": GameState.maintenance_debt,
 		"reputation": GameState.reputation,
+		"house_leans": GameState.house_leans.duplicate(true),
 		"gold_income_sources": GameState.gold_income_sources.duplicate(),
 		"suppressed_confirms": GameState.suppressed_confirms.duplicate(),
 		"crafted_ids": GameState.crafted_ids.duplicate(),
@@ -181,6 +182,26 @@ func _restore_state(data: Dictionary) -> void:
 	GameState.maintenance_debt = bool(data.get("maintenance_debt", false))
 	GameState.intro_shown_for_run = bool(data.get("intro_shown_for_run", false))
 	GameState.reputation = int(data.get("reputation", 0))
+	# Per-run house lean slants. Saves predating this system have no entry,
+	# in which case the fresh roll from start_run() stays in place — old
+	# units' rolled stats are unaffected (they're restored from the save),
+	# but any new unit added via dev tools or future mechanics will use
+	# the fresh slants. Saves with the field overwrite the fresh roll so
+	# the loaded game matches what was saved.
+	var saved_leans = data.get("house_leans", {})
+	if saved_leans is Dictionary and not saved_leans.is_empty():
+		GameState.house_leans = {}
+		for house_id in saved_leans:
+			var entry = saved_leans[house_id]
+			if not (entry is Dictionary):
+				continue
+			var plus_arr: Array[String] = []
+			for s in entry.get("plus", []):
+				plus_arr.append(str(s))
+			var minus_arr: Array[String] = []
+			for s in entry.get("minus", []):
+				minus_arr.append(str(s))
+			GameState.house_leans[str(house_id)] = {"plus": plus_arr, "minus": minus_arr}
 
 	GameState.inventory = {}
 	var inv = data.get("inventory", {})

@@ -63,7 +63,7 @@ static func _roll_knight(unit_id: int) -> Unit:
 	var stats: Stats = Stats.roll(KNIGHT_STAT_MIN, KNIGHT_STAT_MAX)
 	stats.apply_flat_bonus(KNIGHT_FLAT_BONUS)
 	var house_id: String = HousePool.random_house_id()
-	HousePool.apply_lean(stats, house_id, Stats.STAT_CAP)
+	HousePool.apply_lean(stats, house_id, Stats.STAT_CAP, GameState.house_leans)
 	var pa: int = RNG.randi_range(KNIGHT_PA_MIN, KNIGHT_PA_MAX)
 	var name: String = NamePool.random_name_avoiding(_taken_names)
 	_taken_names.append(name)
@@ -87,7 +87,7 @@ static func _roll_squire(unit_id: int) -> Unit:
 	# Squires use the same lean — they're sworn to a household too.
 	# Cap squire stats at SQUIRE_STAT_MAX so the lean doesn't push them out
 	# of their roll band.
-	HousePool.apply_lean(stats, house_id, SQUIRE_STAT_MAX)
+	HousePool.apply_lean(stats, house_id, SQUIRE_STAT_MAX, GameState.house_leans)
 	var pa: int = RNG.randi_range(SQUIRE_PA_MIN, SQUIRE_PA_MAX)
 	var name: String = NamePool.random_name_avoiding(_taken_names)
 	_taken_names.append(name)
