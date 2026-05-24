@@ -2289,6 +2289,109 @@ const EVENTS: Dictionary = {
 		],
 	},
 
+	# ---- Batch 10 — house-themed events (gated by requires_house_in_roster) ----
+
+	"brann_old_rival": {
+		"label":  "An Old Rival of Brann",
+		"intro":  "A knight in Brann's own colours rides the boundary road. He bears a small, careful grudge against your knight's house and asks for a single bout to settle it.",
+		"weight": 2,
+		"min_week": 14,
+		"requires_house_in_roster": "brann",
+		"outcomes": [
+			{
+				"weight": 45,
+				"note": "The Brann knight in your household goes to meet him. They spar an afternoon, drink an evening, ride out the next morning sworn-friends. Both households are quieter for it.",
+				"effects": [{"kind": "random_unit_stat", "stat": "swordsmanship", "delta": 1}, {"kind": "reputation_range", "min": 2, "max": 4}],
+			},
+			{
+				"weight": 35,
+				"note": "Your knight goes himself. The Brann sparring is hard but fair; the grudge is named and unmade in three passes. Your knight rides home with a small bruise and a long letter.",
+				"effects": [{"kind": "random_unit_stat", "stat": "bravery", "delta": 1}, {"kind": "reputation_range", "min": 1, "max": 3}],
+			},
+			{
+				"weight": 20,
+				"note": "The bout goes badly. The grudge is settled, but at a cost — one of yours bears it home in a hand that will not close right for a week.",
+				"effects": [{"kind": "random_unit_injury"}],
+			},
+		],
+	},
+
+	"aldermere_letter": {
+		"label":  "A Letter from Aldermere",
+		"intro":  "A sealed parchment in unmistakable Aldermere hand arrives at the gate by careful courier. The seal is recent; the news, careful.",
+		"weight": 2,
+		"min_week": 10,
+		"requires_house_in_roster": "aldermere",
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "Court news, carefully worded. Your Aldermere member reads it twice, the chronicler reads it three times, and by evening the household has a clearer view of a quarrel three valleys away. Useful intelligence.",
+				"effects": [{"kind": "pa_delta", "min": 4, "max": 9}, {"kind": "random_unit_stat", "stat": "etiquette", "delta": 1}],
+			},
+			{
+				"weight": 30,
+				"note": "A small inheritance — a book and a sum of coin — passes by the letter. The chronicler files it without comment. The household is the wealthier for it.",
+				"effects": [{"kind": "gold_range", "min": 12, "max": 24}],
+			},
+			{
+				"weight": 20,
+				"note": "Aldermere asks a favour, politely, that costs more than it offers. Your knight grants it because Aldermere asked, and the chronicler notes that some debts compound differently than others.",
+				"effects": [{"kind": "gold_range", "min": -16, "max": -10}, {"kind": "reputation_range", "min": 2, "max": 4}],
+			},
+		],
+	},
+
+	"daven_scout_report": {
+		"label":  "A Daven Scout's Report",
+		"intro":  "A scout of Daven blood arrives at full gallop with the kind of news that travels faster than the chronicler can write it down.",
+		"weight": 2,
+		"min_week": 8,
+		"requires_house_in_roster": "daven",
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "Useful intelligence — an enemy column moves on the southern road. The Daven member of your household triangulates the maps; the marshal redrafts the watch roster.",
+				"effects": [{"kind": "pa_delta", "min": 3, "max": 7}, {"kind": "random_unit_stat", "stat": "speed", "delta": 1}],
+			},
+			{
+				"weight": 30,
+				"note": "A small detour brings the scout's party past a forgotten clearing. They find a cache nobody had thought to track.",
+				"effects": [{"kind": "inventory_add", "id": "iron_ore", "min": 1, "max": 3}, {"kind": "reputation", "amount": 1}],
+			},
+			{
+				"weight": 20,
+				"note": "Bad news, badly timed. The scout has ridden too hard and is in poor condition; the marshal puts him on the bench and posts a watch on the road himself.",
+				"effects": [{"kind": "random_unit_injury"}, {"kind": "all_units_stat", "stat": "loyalty", "delta": 1}],
+			},
+		],
+	},
+
+	"faldur_horse_sale": {
+		"label":  "A Faldur Horse Sale",
+		"intro":  "A breeder in Faldur colours arrives with a string of horses and the unmistakable look of someone who knows exactly what they're worth.",
+		"weight": 2,
+		"min_week": 12,
+		"min_gold": 15,
+		"requires_house_in_roster": "faldur",
+		"outcomes": [
+			{
+				"weight": 50,
+				"note": "Your Faldur member negotiates as one of the breed. By dusk the household has a horse that costs less than it should and rides better than it has any right to.",
+				"effects": [{"kind": "gold_range", "min": -18, "max": -12}, {"kind": "random_unit_stat", "stat": "horsemanship", "delta": 1}, {"kind": "reputation_range", "min": 1, "max": 3}],
+			},
+			{
+				"weight": 30,
+				"note": "Your knight buys a young horse on a hunch his Faldur companion later confirms was a bargain. The smith is excited about the shoeing.",
+				"effects": [{"kind": "gold_range", "min": -22, "max": -14}, {"kind": "all_units_stat", "stat": "horsemanship", "delta": 1}],
+			},
+			{
+				"weight": 20,
+				"note": "The breeder leaves without a sale. Your Faldur knight follows him out and they speak quietly for an hour. A favour is exchanged; the chronicler files no receipt.",
+				"effects": [{"kind": "reputation_range", "min": 2, "max": 4}],
+			},
+		],
+	},
+
 	"midsummer_long_evening": {
 		"label":  "A Long Midsummer Evening",
 		"intro":  "It is the longest evening of the year. The bonfire is lit at the back of the orchard, the table is dragged out, and the marshal — for once — has nowhere to be.",
@@ -2354,6 +2457,13 @@ static func roll_event_id(gs: Node) -> String:
 		if int(event.get("min_gold", 0)) > gs.gold:
 			continue
 		if int(event.get("min_roster_at_home", 0)) > at_home_count:
+			continue
+		# Event-level house gate. When set, the event only enters the pool
+		# if some unit in the roster comes from that house — house-themed
+		# events feel personal because they only fire when the household
+		# has a member of that lineage to react to them.
+		var required_house: String = str(event.get("requires_house_in_roster", ""))
+		if required_house != "" and not _roster_has_house(gs, required_house):
 			continue
 		var w: int = int(event.get("weight", 1))
 		if w > 0:
@@ -2546,6 +2656,15 @@ static func _filter_outcomes(outcomes: Array, gs: Node) -> Array:
 static func _roster_has_trait(gs: Node, trait_id: String) -> bool:
 	for u in gs.roster:
 		if u.trait_id == trait_id:
+			return true
+	return false
+
+
+# Used by event-level `requires_house_in_roster` gate: returns true if any
+# unit on the roster bears the given house_id (e.g., "brann").
+static func _roster_has_house(gs: Node, house_id: String) -> bool:
+	for u in gs.roster:
+		if u.house_id == house_id:
 			return true
 	return false
 
