@@ -361,6 +361,83 @@ static func generate_household_ballad(gs: Node) -> String:
 	return "%s\n%s\n%s" % [opener, middle, close]
 
 
+# Closing reflection written by the chronicler at run-end. `outcome` is
+# either "win" (Grand Tournament victory) or "loss" (Home Battle defeat).
+# Composes 3 lines: tone-set, household summary, closing verdict. Drawn
+# from oath_kind / reputation band / castles-taken / streak. Used by the
+# game_over and run_win screens.
+static func generate_run_epitaph(gs: Node, outcome: String) -> String:
+	var knight: Unit = null
+	for u in gs.roster:
+		if u.unit_class == Unit.UnitClass.KNIGHT:
+			knight = u
+			break
+
+	# Opener — tone differs sharply by outcome.
+	var opener: String
+	if outcome == "win":
+		const WIN_OPENERS: Array[String] = [
+			"The chronicler set down the final entry with care: the household had not just survived its year — it had earned the song they would write of it.",
+			"The chronicler closed the year's book with a flourish he allowed only on rare occasions. The realm had been won; the household had been the winning.",
+			"It is the chronicler's privilege to write rarely in the high style. He took it this evening.",
+		]
+		opener = WIN_OPENERS[RNG.randi_range(0, WIN_OPENERS.size() - 1)]
+	else:
+		const LOSS_OPENERS: Array[String] = [
+			"The chronicler wrote with a quiet hand: the gate had fallen, but the household had not broken — only ended.",
+			"The chronicler closed the book without a flourish. There would be other households, and other knights, and other chroniclers; this one was over.",
+			"What the chronicler wrote that night, he wrote slowly. The household had given more than it took, and the household had been taken in turn.",
+		]
+		opener = LOSS_OPENERS[RNG.randi_range(0, LOSS_OPENERS.size() - 1)]
+
+	# Middle — household summary keyed off the Knight's oath / standing.
+	var middle: String
+	if knight != null:
+		var rep_label: String = ResourceDB.reputation_label(gs.reputation)
+		var oath_clause: String = _oath_summary_clause(knight.oath_kind, outcome)
+		middle = "%s rode under the chronicler's pen as %s, %s in the realm's accounting." % [
+			knight.unit_name,
+			oath_clause,
+			rep_label,
+		]
+	else:
+		middle = "The household closed the year without a knight in its name."
+
+	# Close — final verdict, dependent on outcome + castles-taken / streak.
+	var castles_taken: int = 8 - (gs.world.castles.size() if gs.world != null else 8)
+	var close: String
+	if outcome == "win":
+		close = "Of the eight castles set against the realm, %d were taken. The Grand Tournament was won. The chronicler closes the book." % castles_taken
+	else:
+		var streak_note: String = ""
+		if gs.tournament_streak > 0:
+			streak_note = " The tournament streak stood at %d when the gate fell." % gs.tournament_streak
+		close = "Of the eight castles set against the realm, %d were taken before the end.%s" % [castles_taken, streak_note]
+
+	return "%s\n\n%s\n\n%s" % [opener, middle, close]
+
+
+# Helper for generate_run_epitaph — turns the Knight's oath_kind into a
+# short phrase the chronicler can drop mid-sentence ("...as the keeper of
+# faith, Respected in the realm's accounting").
+static func _oath_summary_clause(oath_kind: String, _outcome: String) -> String:
+	const OATH_PHRASES: Dictionary = {
+		"loyalty":       "the keeper of faith",
+		"bravery":       "the unbroken-backed",
+		"determination": "the riser-from-floors",
+		"leadership":    "the man who ate after his men",
+		"swordsmanship": "the careful blade",
+		"archery":       "the answerable arrow",
+		"strength":      "the unsung carrier",
+		"etiquette":     "the watched-by-the-chronicler",
+		"speed":         "the not-where-expected",
+		"technique":     "the quiet precision",
+		"horsemanship":  "the patient rider",
+		"intimidation":  "the man who let silence serve",
+	}
+	return str(OATH_PHRASES.get(oath_kind, "a sworn knight of the household"))
+
+
 static func generate_week_entry(gs: Node) -> String:
 	var parts: Array[String] = []
 
