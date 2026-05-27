@@ -37,6 +37,7 @@ func _ready() -> void:
 	_refresh_tick_recap()
 	_refresh_roster()
 	_refresh_confirm_button()
+	ScreenFade.fade_in(self)
 
 
 func _seed_formation_from_default() -> void:
@@ -64,11 +65,13 @@ func _refresh_header() -> void:
 	var label: String = EventKind.label(GameState.current_event)
 	if GameState.current_event == EventKind.BATTLE_EVENT and GameState.current_battle_event != "":
 		label = "%s — %s" % [label, BattleEvent.label(GameState.current_battle_event)]
-	header_lbl.text = "Pre-Battle Review — Year %d, Week %d (%d/48) · %s" % [
+	elif GameState.current_event == EventKind.AWAY_BATTLE and AwayModeDB.has_mode(GameState.pending_away_mode):
+		label = "%s — %s" % [label, AwayModeDB.label_for(GameState.pending_away_mode)]
+	header_lbl.text = "Pre-Battle Review — Year %d, Week %d (%d/48)  ·  %s  ·  %s" % [
 		GameState.current_year(), GameState.week,
-		GameState.current_week_of_year(), label,
+		GameState.current_week_of_year(), Calendar.season_chip(GameState.week), label,
 	]
-	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory))
+	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory, GameState.reputation))
 	confirm_btn.text = "To Battle →" if _is_combat_week() else "Continue →"
 
 
@@ -124,13 +127,26 @@ func _battle_enemy_power() -> int:
 		EventKind.AWAY_BATTLE:
 			if GameState.pending_away_mode == "assault" and GameState.pending_assault_castle != null:
 				return GameState.pending_assault_castle.difficulty
+			# Custom away modes can declare a different combat_template; their
+			# displayed enemy power should match the template that'll actually
+			# roll the enemy party at resolve time.
+			if AwayModeDB.has_mode(GameState.pending_away_mode):
+				var template: String = str(AwayModeDB.MODES[GameState.pending_away_mode].get("combat_template", "pillage"))
+				match template:
+					"bandit_ambush": return Combat.enemy_power_bandit_ambush(GameState.week)
+					"home_battle":   return Combat.enemy_power_home(GameState.week)
+				return Combat.enemy_power_pillage(GameState.week)
 			return Combat.enemy_power_pillage(GameState.week)
 		EventKind.HOME_BATTLE:
 			return Combat.enemy_power_home(GameState.week)
 		EventKind.BATTLE_EVENT:
+			if CombatEventDB.has_mode(GameState.current_battle_event):
+				return CombatEventDB.enemy_power_for(GameState.current_battle_event, GameState.week)
 			match GameState.current_battle_event:
 				"bandit_ambush": return Combat.enemy_power_bandit_ambush(GameState.week)
 				"champion_duel": return Combat.enemy_power_champion_duel(GameState.week)
+				"village_raid":  return Combat.enemy_power_home(GameState.week)
+				"tavern_riot":   return Combat.enemy_power_bandit_ambush(GameState.week)
 		EventKind.TOURNAMENT:
 			return Combat.enemy_power_tournament(GameState.week)
 		EventKind.GRAND_TOURNAMENT:
@@ -158,6 +174,8 @@ func _enemy_flavor_text(ev: int, sub: String) -> String:
 			else:
 				return "Orc veterans. They have held this field before."
 		EventKind.BATTLE_EVENT:
+			if CombatEventDB.has_mode(sub):
+				return CombatEventDB.flavour_text_for(sub)
 			match sub:
 				"bandit_ambush":
 					if week <= 8:
@@ -168,6 +186,10 @@ func _enemy_flavor_text(ev: int, sub: String) -> String:
 						return "Orc skirmishers. They tested the outer wall first."
 				"champion_duel":
 					return "A travelling champion — reputation arrives before him, as always."
+				"village_raid":
+					return "A war band has reached the next village over. They will move on yours next, if at all."
+				"tavern_riot":
+					return "Drunken brawlers turned dangerous — the marshal expects more steel than reason."
 		EventKind.TOURNAMENT:
 			if GameState.tournament_streak >= 2:
 				return "The field is watching. Every house has a stake in the result."
@@ -186,11 +208,19 @@ func _stakes_text(ev: int, sub: String) -> String:
 				return "Win → seize the castle and claim its reward. Loss → return empty-handed."
 			return "Win → pillage reward. Loss → return empty-handed."
 		EventKind.BATTLE_EVENT:
+			if StoryEventDB.is_story_sub_type(sub):
+				return "A chronicle moment — no combat. The household's response plays out automatically; outcome on the Weekly Summary."
+			if CombatEventDB.has_mode(sub):
+				return CombatEventDB.stakes_text_for(sub)
 			match sub:
 				"bandit_ambush": return "Win → loot reward. No game-over risk."
 				"champion_duel": return "Win → +1 to chosen stat. Loss → no penalty."
 				"bountiful_harvest": return "Free resource gift — no combat needed."
 				"merchant_caravan": return "Pick one of three bundles on the Weekly Summary screen."
+				"refugee_caravan": return "Roll: shelter (costs gold, may earn loyalty) or pass through (small kindness in cloth) or turned away (no effect)."
+				"noble_petition": return "A courtesy visit. Often a small purse + etiquette nudge for the host; sometimes only the wine bill."
+				"village_raid": return "Win → gold + bundle + +4 reputation. Loss → −2 reputation, no reward."
+				"tavern_riot": return "Win → small purse + +1 Loyalty roster-wide + +1 reputation. Loss → −1 reputation."
 		EventKind.TOURNAMENT:
 			var note: String = ""
 			if GameState.tournament_streak >= 1:
@@ -223,9 +253,14 @@ func _refresh_tick_recap() -> void:
 			var u: Unit = GameState.find_unit(entry["unit_id"])
 			var uname: String = u.unit_name if u != null else "?"
 			var stat: String = entry["stat"]
-			if entry["applied"]:
+			if int(entry.get("leveled", 0)) > 0:
 				_add_recap_line(
-					"  • %s trained %s: %d → %d" % [uname, stat.capitalize(), entry["before"], entry["after"]],
+					"  • %s trained %s: %d → %d ▲" % [uname, stat.capitalize(), entry["before"], entry["after"]],
+					false,
+				)
+			elif entry.get("developing", false):
+				_add_recap_line(
+					"  • %s trained %s — coming along (now %d)" % [uname, stat.capitalize(), entry["after"]],
 					false,
 				)
 			else:
@@ -234,10 +269,16 @@ func _refresh_tick_recap() -> void:
 					true,
 				)
 			if entry.get("bonus_stat", "") != "":
-				_add_recap_line(
-					"      ↳ bonus +1 %s (Determination)" % String(entry["bonus_stat"]).capitalize(),
-					false,
-				)
+				if entry.get("bonus_leveled", false):
+					_add_recap_line(
+						"      ↳ bonus +1 %s (Determination)" % String(entry["bonus_stat"]).capitalize(),
+						false,
+					)
+				else:
+					_add_recap_line(
+						"      ↳ %s sharpening (Determination)" % String(entry["bonus_stat"]).capitalize(),
+						false,
+					)
 
 	var det: Array = t.get("determination", [])
 	if Determination.should_trigger(GameState.week):
@@ -247,10 +288,16 @@ func _refresh_tick_recap() -> void:
 			_add_recap_line("Determination rolls:", false)
 			for entry in det:
 				var u: Unit = entry["unit"]
-				_add_recap_line(
-					"  • %s gained +1 %s" % [u.unit_name, String(entry["stat"]).capitalize()],
-					false,
-				)
+				if int(entry.get("leveled", 0)) > 0:
+					_add_recap_line(
+						"  • %s gained +1 %s" % [u.unit_name, String(entry["stat"]).capitalize()],
+						false,
+					)
+				else:
+					_add_recap_line(
+						"  • %s — grit stirs their %s (developing)" % [u.unit_name, String(entry["stat"]).capitalize()],
+						false,
+					)
 
 	var returns: Array = t.get("expedition_returns", [])
 	if not returns.is_empty():
@@ -310,27 +357,50 @@ func _refresh_roster() -> void:
 func _refresh_setup() -> void:
 	_forecast_lbl = null
 	_forecast_slots_lbl = null
+	_forecast_bar = null
+	_forecast_bar_style = null
 	_forecast_participants = []
 	for child in setup_pane.get_children():
 		child.queue_free()
 
 	match GameState.current_event:
 		EventKind.AWAY_BATTLE:
-			_build_formation_editor(GameState.combat_participants(), "Send your away party into battle.")
+			var blurb: String = "Send your away party into battle."
+			if AwayModeDB.has_mode(GameState.pending_away_mode):
+				blurb = AwayModeDB.intro_for(GameState.pending_away_mode)
+			_build_formation_editor(GameState.combat_participants(), blurb)
 		EventKind.HOME_BATTLE:
 			_build_formation_editor(GameState.combat_participants(), "All at-home units defend (Defend = full power, others = 75%).")
 		EventKind.BATTLE_EVENT:
-			match GameState.current_battle_event:
-				"bandit_ambush":
-					_build_formation_editor(GameState.combat_participants(), "Bandits at the gate — slot your defenders.")
-				"champion_duel":
-					_build_champion_picker()
-				"bountiful_harvest":
-					_build_simple_note("Bountiful Harvest — a small bundle will arrive automatically.")
-				"merchant_caravan":
-					_build_simple_note("Merchant Caravan — you'll pick a bundle on the Weekly Summary.")
-				_:
-					_build_simple_note("Battle Event with no setup.")
+			if StoryEventDB.is_story_sub_type(GameState.current_battle_event):
+				var sid: String = StoryEventDB.story_id_from_sub_type(GameState.current_battle_event)
+				var intro: String = StoryEventDB.intro_for(sid)
+				_build_simple_note("%s\n\nOutcome unfolds on the Weekly Summary." % intro)
+			elif CombatEventDB.has_mode(GameState.current_battle_event):
+				# Data-driven combat events build the same formation editor
+				# the hard-coded combat sub-types use; intro prose comes from
+				# the entry.
+				_build_formation_editor(GameState.combat_participants(), CombatEventDB.intro_for(GameState.current_battle_event))
+			else:
+				match GameState.current_battle_event:
+					"bandit_ambush":
+						_build_formation_editor(GameState.combat_participants(), "Bandits at the gate — slot your defenders.")
+					"champion_duel":
+						_build_champion_picker()
+					"bountiful_harvest":
+						_build_simple_note("Bountiful Harvest — a small bundle will arrive automatically.")
+					"merchant_caravan":
+						_build_simple_note("Merchant Caravan — you'll pick a bundle on the Weekly Summary.")
+					"refugee_caravan":
+						_build_simple_note("Refugees at the Gate — the household's choice will play out automatically; outcome on the Weekly Summary.")
+					"noble_petition":
+						_build_simple_note("A Noble's Petition — courtesy visit. Outcome on the Weekly Summary.")
+					"village_raid":
+						_build_formation_editor(GameState.combat_participants(), "A nearby village is under attack — slot your defenders to ride out.")
+					"tavern_riot":
+						_build_formation_editor(GameState.combat_participants(), "The marshal rides to the inn — slot your party to quell the riot.")
+					_:
+						_build_simple_note("Battle Event with no setup.")
 		EventKind.TOURNAMENT:
 			_build_tournament_picker(false)
 		EventKind.GRAND_TOURNAMENT:
@@ -341,6 +411,8 @@ func _refresh_setup() -> void:
 
 var _forecast_lbl: Label = null
 var _forecast_slots_lbl: Label = null
+var _forecast_bar: ProgressBar = null
+var _forecast_bar_style: StyleBoxFlat = null
 var _forecast_participants: Array = []
 
 
@@ -364,6 +436,21 @@ func _build_formation_editor(participants: Array, blurb: String) -> void:
 	editor.formation_changed.connect(_on_formation_changed)
 
 	_forecast_participants = participants
+
+	# Win-probability gauge — horizontal bar tinted by OutcomeBracket. Bar sits
+	# above the text so the eye picks up the colour first; precise percentage
+	# stays in the label underneath for players who want the number.
+	_forecast_bar = ProgressBar.new()
+	_forecast_bar.min_value = 0.0
+	_forecast_bar.max_value = 100.0
+	_forecast_bar.show_percentage = false
+	_forecast_bar.custom_minimum_size = Vector2(0, 14)
+	_forecast_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_forecast_bar_style = UiStyle.progress_fill(OutcomeBracket.COLOR_GREEN)
+	_forecast_bar.add_theme_stylebox_override("fill", _forecast_bar_style)
+	_forecast_bar.add_theme_stylebox_override("background", UiStyle.progress_bg())
+	setup_pane.add_child(_forecast_bar)
+
 	_forecast_lbl = Label.new()
 	setup_pane.add_child(_forecast_lbl)
 	_forecast_slots_lbl = Label.new()
@@ -395,23 +482,42 @@ func _update_forecast() -> void:
 
 	var analysis: Dictionary = CombatSim.analyze(player_cus, enemy_cus)
 	var pct: int = roundi(analysis["win_probability"] * 100.0)
+	var col: Color = analysis["color"]
+
+	if _forecast_bar != null:
+		# Tween the bar fill so the number doesn't snap on each slot tweak —
+		# 0.18s is fast enough not to lag behind the player's eye but slow
+		# enough to register as a deliberate update.
+		var t: Tween = _forecast_bar.create_tween()
+		t.tween_property(_forecast_bar, "value", float(pct), 0.18)
+		if _forecast_bar_style != null:
+			_forecast_bar_style.bg_color = col
 
 	_forecast_lbl.text = "Forecast: %d%% chance  ·  Score %.1f vs %.1f enemy" % [
 		pct, analysis["player_score"], analysis["enemy_score"],
 	]
-	_forecast_lbl.modulate = analysis["color"]
+	_forecast_lbl.modulate = col
 	_forecast_slots_lbl.text = "%s  ·  Slots: %d/4 filled" % [analysis["label"], _count_filled_slots()]
-	_forecast_slots_lbl.modulate = analysis["color"]
+	_forecast_slots_lbl.modulate = col
 
 
 func _forecast_event_key() -> String:
 	match GameState.current_event:
 		EventKind.HOME_BATTLE:   return "home_battle"
-		EventKind.AWAY_BATTLE:   return "pillage"
+		EventKind.AWAY_BATTLE:
+			# Custom away modes get the forecast keyed off their combat_template
+			# so the win-probability gauge reflects the actual enemy party that
+			# CombatSim will roll, not the pillage default.
+			if AwayModeDB.has_mode(GameState.pending_away_mode):
+				return str(AwayModeDB.MODES[GameState.pending_away_mode].get("combat_template", "pillage"))
+			return "pillage"
 		EventKind.TOURNAMENT:    return "tournament"
 		EventKind.GRAND_TOURNAMENT: return "tournament"
-	if GameState.current_battle_event == "bandit_ambush":
-		return "bandit_ambush"
+	if CombatEventDB.has_mode(GameState.current_battle_event):
+		return CombatEventDB.forecast_event_key_for(GameState.current_battle_event)
+	match GameState.current_battle_event:
+		"bandit_ambush", "tavern_riot": return "bandit_ambush"
+		"village_raid":                  return "home_battle"
 	return "pillage"
 
 
@@ -566,6 +672,8 @@ func _build_simple_note(text: String) -> void:
 	var lbl := Label.new()
 	lbl.text = text
 	lbl.modulate = Color(0.78, 0.78, 0.78)
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	setup_pane.add_child(lbl)
 
 
@@ -600,3 +708,14 @@ func _on_confirm() -> void:
 
 func _on_settings() -> void:
 	SettingsPopup.show_for(self)
+
+
+# Enter triggers the primary action (To Battle / Continue) so the player can
+# burn through a string of non-combat weeks with the keyboard.
+func _unhandled_input(event: InputEvent) -> void:
+	if not (event is InputEventKey) or not event.pressed or event.echo:
+		return
+	if event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER:
+		if not confirm_btn.disabled:
+			_on_confirm()
+			accept_event()

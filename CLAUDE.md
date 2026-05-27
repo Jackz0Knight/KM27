@@ -113,15 +113,34 @@ When the task is "tune X" or "add a new Y", these are the canonical files to ope
 | Event probabilities + Tournament override | `scripts/systems/event_roller.gd` |
 | Calendar / Tournament-week math | `scripts/systems/calendar.gd` |
 | Stat caps + PA-aware increment | `scripts/data/stats.gd` (`try_increment`) |
+| Staged stat development + dev-arrow pace | `scripts/data/stats.gd` (`add_progress` / `add_progress_random_excluding`; `DEV_PACE` / `DEV_HEADROOM_RANGE` / `MOMENTUM_WEEKS` / `DEV_ACTIVE_WEEKS` knobs; `development_state` + `development_glyph/color/tooltip`). Decay runs once per week via `Stats.decay_development()` (called at the top of `Tick.apply`). All **in-run** gains (training, Determination, duel/event rewards) feed `add_progress`, **not** `try_increment` — start-of-run roster gen still sets integers directly. Arrows render on `UnitCard` + `knight_overview`. |
+| FM-style "processing the week" overlay | `scripts/ui/week_processor.gd` (`WeekProcessor`); beats built by `planning.gd::_build_week_steps`, launched from `_do_advance` |
 | Crafting recipes / tier tree | `scripts/autoload/resource_db.gd` (`RESOURCES` dict) |
 | Enemy stat ranges + group power | `scripts/autoload/enemy_db.gd` |
 | Win-probability colour bands + injury rolls | `scripts/systems/outcome_bracket.gd` |
 | Chronicle prose pools (seasons, origins, oaths, epithets) | `scripts/systems/chronicle.gd` |
-| Add / re-tint / re-charge a noble house | `scripts/data/house_pool.gd` (`HOUSES` dict) — palette, ordinary, charge, stat lean live in one entry |
+| Add / re-tint / re-charge a noble house | `scripts/data/house_pool.gd` (`HOUSES` dict) — palette, ordinary, charge, default stat lean live in one entry |
+| Tune per-run house lean pools (archetype slants) | `scripts/data/house_pool.gd` (`LEAN_PLUS_POOL_BY_ARCHETYPE` / `LEAN_MINUS_POOL_BY_ARCHETYPE`) — `roll_per_run_leans()` picks 3+ / 2- from each archetype's pool at `start_run`; saved on `GameState.house_leans` |
 | Body type silhouette shape | `scripts/data/body_type.gd` (`draw_silhouette`) |
 | Heraldry drawing primitives | `scripts/ui/banner_icon.gd` — pure custom `_draw()`, scales freely |
 | Knight starting bonus, stat ranges, PA ranges | `scripts/systems/roster_generator.gd` |
+| Personal trait roster + stat/PA modifiers | `scripts/data/trait_pool.gd` (`TRAITS` dict) |
+| Body type implicit stat-cap bumps | `scripts/data/body_type.gd` (`CAP_BUMPS` dict; `cap_bump_for` / `cap_bumps` helpers) |
+| Oath honour checks (per-week PA bonus on aligned action) | `scripts/systems/oath_ledger.gd` — wired from `Resolution.run` end |
+| Origin / oath / epithet prose pools | `scripts/systems/chronicle.gd` |
+| Battle event sub-types + non-combat resolution | `scripts/systems/battle_event.gd` + `scripts/systems/resolution.gd` |
+| Random story events (chronicle moments + effect primitives) | `scripts/data/story_event_db.gd` (`EVENTS` dict — pure data; resolver dispatches kinds: gold, gold_range, random_unit_stat, all_units_stat, random_unit_injury, reward_resources, inventory_add, inventory_remove, pa_delta, clear_injury, expedition_delay, reputation, reputation_range) |
+| Away mission variants (rescue / hunt / nest / convoy) | `scripts/data/away_mode_db.gd` (`MODES` dict — pure data; `Resolution._resolve_away_custom` reads combat_template + reward_kind + epithet_tag + rep_on_win) |
+| Combat battle-event variants (harpy raid / goblin warband / cultist) | `scripts/data/combat_event_db.gd` (`EVENTS` dict — pure data; `Resolution._resolve_combat_event` reads combat_template + reward_kind + item_drop_fn + rep deltas) |
+| Reputation HUD chip + band labels | `scripts/autoload/resource_db.gd` (`reputation_label`, `reputation_color`, chip prefix in `resource_hud_bbcode`) |
+| Weapon catalog + rarity / power_rating | `scripts/data/weapon.gd` |
+| Armour catalog + rarity / power_rating | `scripts/data/armour.gd` |
+| Item drop probabilities / rarity pools | `scripts/systems/item_drops.gd` |
 | Save format / serialisation | `scripts/systems/save_manager.gd` |
+| Shared UI palette / semantic colours | `scripts/autoload/palette.gd` — gold, parchment, success/warn/danger, slot-zone tints, tournament-chip ramp, castle / difficulty / stat band tints |
+| StyleBoxFlat builders (chip / card / slot / swatch / progress) | `scripts/ui/ui_style.gd` — reads Palette, returns styled `StyleBoxFlat`s; screens drop their inline radius/border boilerplate |
+| Audio bus volumes + UI SFX | `scripts/autoload/master_audio.gd` — three buses, `play_click()` SFX synthesised on first use |
+| Screen entry animation | `scripts/ui/screen_fade.gd` — `ScreenFade.fade_in(self)` from any screen `_ready()` |
 
 ## EventBus Signals
 
@@ -167,7 +186,12 @@ The binary path is whitelisted in `.claude/settings.local.json` (gitignored — 
 | **F1** | Toggle dev toolbar overlay. `DevToolbar` is autoloaded but `queue_free()`s itself in non-debug builds, so this is debug-only. Add resources, set gold, advance N weeks, force-queue an event, edit unit stats live. |
 | **F6** (in Godot editor) | Run the focused dev scene. `scenes/dev/world_dump.tscn` validates Phase 1 world gen + determinism; `scenes/dev/event_roll_test.tscn` runs the 50-week event roller test. |
 | **F11** | Toggle windowed/fullscreen. Handled in `GameState._input` so it works on every screen. |
-| **Title → Continue** | Appears when `user://savegame.json` exists (`SaveManager.has_save()`). |
+| **1–5** (Planning) | Switch main tabs (Overview / Tactics / Map / Crafting / Research). |
+| **C** (Planning) | Toggle the Calendar pane. |
+| **Enter** (Planning / Pre-Battle / Weekly Summary) | Trigger the screen's primary action (Advance Time / To Battle / Next Week). On Weekly Summary's first press, skips the staggered fade. |
+| **Esc** | Close the settings popup, dismiss the intro splash, close the resource info overlay, or return from Knight Overview. Also cancels Confirm dialogs. |
+| **Right-click on a knight icon** (formation editor) | Opens an "Assign to slot…" popup — keyboard / touchpad alternative to drag-drop. |
+| **Title → Continue** | Appears when `user://savegame.json` exists. Opens a confirm dialog showing the saved year/week/gold/streak via `SaveManager.peek_save()` before loading. |
 | **Title → Quick Start (Dev)** | Debug-only. Jumps to week 10, gold 200, all stats 8, T1 stock — bypasses the Knight chooser. |
 
 ## Codebase Pitfalls

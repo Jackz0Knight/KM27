@@ -93,6 +93,23 @@ var inventory: Dictionary = {}
 var researched: Array[String] = []
 var maintenance_debt: bool = false
 
+# Reputation — a single signed integer accumulated across the run. Story
+# events and a handful of mission outcomes nudge it; the HUD chip surfaces
+# the value with a band label ("Outcast" → "Legendary"). Has narrative
+# weight only at the moment — future passes wire reward scaling, recruit
+# odds, and event gating. Cleared on start_run.
+var reputation: int = 0
+
+# Per-run randomised house stat leans, keyed by house_id. Rolled at
+# `start_run` via `HousePool.roll_per_run_leans()` so each run has a
+# different slant inside each house's archetype — Brann always reads
+# warrior but might emphasise intimidation this run and bravery the next.
+# Format: {house_id: {plus: Array[String], minus: Array[String]}}.
+# Empty until start_run rolls it (and on saves loaded before the system
+# landed; HousePool.apply_lean falls back to HOUSES static defaults in
+# that case).
+var house_leans: Dictionary = {}
+
 # Gold income sources. `weekly_stipend` is always active; others are set
 # temporarily when an event grants a recurring bonus then reset to 0.
 var gold_income_sources: Dictionary = {
@@ -110,9 +127,34 @@ var suppressed_confirms: Array[String] = []
 # Items crafted at least once this run — used by crafting visibility (Feature 10).
 var crafted_ids: Array[String] = []
 
+# Unequipped weapons + armours sitting in the household armoury. Each entry:
+#   {"slot": "weapon"|"armour", "id": String}
+# Items enter the stockpile through loot rolls (Resolution drops, tournament
+# prizes) and leave through equip_item(). Cleared on start_run; persisted by
+# SaveManager.
+var item_stockpile: Array[Dictionary] = []
+
 
 func gold_maintenance_cost() -> int:
 	return roster.size() * 5
+
+
+# Reputation adjust + band-crossing detector. Returns the new band label
+# when this delta crossed a band boundary, otherwise "". Callers append the
+# crossing line to their result notes so the player sees "→ The realm now
+# calls you Respected." on the Weekly Summary.
+#
+# Single chokepoint so any code path that touches reputation gets the same
+# band-aware behaviour for free.
+func adjust_reputation(delta: int) -> String:
+	if delta == 0:
+		return ""
+	var before_label: String = ResourceDB.reputation_label(reputation)
+	reputation += delta
+	var after_label: String = ResourceDB.reputation_label(reputation)
+	if before_label == after_label:
+		return ""
+	return after_label
 
 
 func purchase_research(project_id: String) -> void:
@@ -190,10 +232,17 @@ func start_run(seed_value: int) -> void:
 	inventory = {}
 	researched.clear()
 	maintenance_debt = false
+	reputation = 0
+	# Roll per-run house slants AFTER start_run sets the seed (via
+	# WorldGenerator.generate which calls RNG.seed_run). All RNG consumed
+	# by HousePool.roll_per_run_leans() flows through the seeded RNG, so
+	# the same seed produces the same slants every run.
+	house_leans = HousePool.roll_per_run_leans()
 	gold_income_sources = {"tournament_prize": 0, "expedition_trade": 0, "weekly_stipend": 10}
 	upgrade_costs = {}
 	suppressed_confirms.clear()
 	crafted_ids.clear()
+	item_stockpile.clear()
 	default_defense_formation = {"blue": -1, "green": -1, "yellow": -1, "red": -1}
 	default_attack_formation = {"blue": -1, "green": -1, "yellow": -1, "red": -1}
 	_clear_pending_away()
@@ -211,7 +260,7 @@ func roll_current_event() -> int:
 	current_event = EventRoller.roll(week, tournament_streak)
 	current_battle_event = ""
 	if current_event == EventKind.BATTLE_EVENT:
-		current_battle_event = BattleEvent.roll_sub_type()
+		current_battle_event = BattleEvent.roll_sub_type(self)
 	EventBus.event_rolled.emit(current_event)
 	return current_event
 

@@ -36,6 +36,13 @@ const STAT_TOOLTIPS: Dictionary = {
 }
 
 
+# Subtle hover lift — used by every UnitCard. Pure modulate tween so layout
+# never shifts; the scale-pop reads as "this card is active" without elbowing
+# its neighbours in the row.
+const HOVER_BRIGHT: Color = Color(1.08, 1.06, 1.02, 1.0)
+const HOVER_DURATION: float = 0.12
+
+
 # show_chronicle: when true, render the unit's origin paragraph and oath below
 # the stats (used on the Knight Chooser so recruitment feels like hiring a person).
 static func build(
@@ -47,6 +54,11 @@ static func build(
 ) -> Control:
 	var panel := PanelContainer.new()
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	# Two short tweens — brighten on hover, snap back on exit. We stash them
+	# as metadata so a fast mouse-over-and-off doesn't leave a dangling tween.
+	panel.mouse_entered.connect(_on_card_hover.bind(panel, true))
+	panel.mouse_exited.connect(_on_card_hover.bind(panel, false))
 
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 12)
@@ -129,10 +141,34 @@ static func build(
 		house_lbl.add_theme_font_size_override("font_size", 12)
 		name_block.add_child(house_lbl)
 
+	# Personal trait — one short label below the house line so the eye reads
+	# "house · body · motto" then "trait." Trait tooltip carries the prose
+	# blurb so chooser players can see the personality before committing.
+	if unit.trait_id != "" and TraitPool.is_valid(unit.trait_id):
+		var trait_lbl := Label.new()
+		trait_lbl.text = "❖ %s" % TraitPool.name_for(unit.trait_id)
+		trait_lbl.modulate = Color(0.85, 0.72, 0.45)
+		trait_lbl.add_theme_font_size_override("font_size", 12)
+		trait_lbl.tooltip_text = TraitPool.description_for(unit.trait_id)
+		name_block.add_child(trait_lbl)
+
 	var task_lbl := Label.new()
 	task_lbl.text = _status_line_for(unit)
 	task_lbl.modulate = Color(0.78, 0.74, 0.62)
 	vbox.add_child(task_lbl)
+
+	# Equipment line — compact, rarity-tinted. Uses RichTextLabel so weapon
+	# and armour can carry distinct colours without two stacked labels.
+	# Heirlooms read gold; rares blue; uncommons green; commons parchment.
+	if unit.weapon_id != "" or unit.armour_id != "":
+		var eq_rtl := RichTextLabel.new()
+		eq_rtl.bbcode_enabled = true
+		eq_rtl.fit_content = true
+		eq_rtl.scroll_active = false
+		eq_rtl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		eq_rtl.parse_bbcode(_equipment_bbcode(unit))
+		eq_rtl.tooltip_text = "%s\n%s" % [Weapon.describe(unit.weapon_id), Armour.describe(unit.armour_id)]
+		vbox.add_child(eq_rtl)
 
 	# Injury indicator.
 	if unit.is_injured():
@@ -172,6 +208,18 @@ static func build(
 			desc_lbl.text = "%s (hurt)" % Stats.descriptor(value)
 			desc_lbl.add_theme_color_override("font_color", Color(0.95, 0.45, 0.30))
 		row.add_child(desc_lbl)
+
+		# FM-style development arrow — show-not-tell. Small ▲ while a stat is
+		# quietly developing, bright ▲ the weeks after it gains a point, ▼ while
+		# an injury suppresses it. No numbers — the arrow is the whole message.
+		var dev_state: int = unit.stats.development_state(stat_key, unit.potential_ability, injured_set.has(stat_key))
+		if dev_state != Stats.DEV_NONE:
+			var arrow := Label.new()
+			arrow.text = Stats.development_glyph(dev_state)
+			arrow.add_theme_color_override("font_color", Stats.development_color(dev_state))
+			arrow.add_theme_font_size_override("font_size", 14 if dev_state == Stats.DEV_SURGING else 10)
+			arrow.tooltip_text = Stats.development_tooltip(dev_state)
+			row.add_child(arrow)
 
 		# Tooltip on the whole row gives the numeric value + the gameplay blurb.
 		var tip: String = "%s — value: %d / 20\n%s" % [
@@ -227,6 +275,34 @@ static func build(
 	# without scrolling past the chronicle.)
 
 	return panel
+
+
+# Hover lift handler. Cancels any prior tween on the panel so toggling on/off
+# quickly never leaves the card stuck at a half-brightened modulate.
+static func _on_card_hover(panel: Control, entered: bool) -> void:
+	if not is_instance_valid(panel):
+		return
+	var prior: Tween = panel.get_meta("_hover_tween", null)
+	if prior != null and prior.is_valid():
+		prior.kill()
+	var tween: Tween = panel.create_tween()
+	var target: Color = HOVER_BRIGHT if entered else Color(1, 1, 1, 1)
+	tween.tween_property(panel, "modulate", target, HOVER_DURATION)
+	panel.set_meta("_hover_tween", tween)
+
+
+# Compact equipment readout. "⚔ Longsword · 🛡 Leather Armour", each side
+# tinted by its rarity colour. The glyph prefix reads at a glance, the prose
+# carries the name. Empty when both ids are blank (won't render).
+static func _equipment_bbcode(unit: Unit) -> String:
+	var parts: Array[String] = []
+	if unit.weapon_id != "":
+		var wc: Color = Weapon.rarity_color(unit.weapon_id)
+		parts.append("[color=#%s]⚔ %s[/color]" % [wc.to_html(false), Weapon.display_name(unit.weapon_id)])
+	if unit.armour_id != "":
+		var ac: Color = Armour.rarity_color(unit.armour_id)
+		parts.append("[color=#%s]🛡 %s[/color]" % [ac.to_html(false), Armour.display_name(unit.armour_id)])
+	return "  ·  ".join(parts)
 
 
 # A centred heraldic fleuron flanked by faint rules — used between the stats

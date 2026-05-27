@@ -63,7 +63,7 @@ static func _roll_knight(unit_id: int) -> Unit:
 	var stats: Stats = Stats.roll(KNIGHT_STAT_MIN, KNIGHT_STAT_MAX)
 	stats.apply_flat_bonus(KNIGHT_FLAT_BONUS)
 	var house_id: String = HousePool.random_house_id()
-	HousePool.apply_lean(stats, house_id, Stats.STAT_CAP)
+	HousePool.apply_lean(stats, house_id, Stats.STAT_CAP, GameState.house_leans)
 	var pa: int = RNG.randi_range(KNIGHT_PA_MIN, KNIGHT_PA_MAX)
 	var name: String = NamePool.random_name_avoiding(_taken_names)
 	_taken_names.append(name)
@@ -72,6 +72,11 @@ static func _roll_knight(unit_id: int) -> Unit:
 	u.body_type = BodyType.random_body_type()
 	u.weapon_id = "longsword"
 	u.armour_id = "leather"
+	# Trait is rolled AFTER house lean — house biases the baseline, trait
+	# colours the individual on top of that baseline. Stat clamp uses the
+	# full 20 cap so a knight can plausibly stretch beyond the roll band.
+	u.trait_id = TraitPool.roll()
+	TraitPool.apply(u, u.trait_id, Stats.STAT_CAP)
 	_enrich(u)
 	return u
 
@@ -82,7 +87,7 @@ static func _roll_squire(unit_id: int) -> Unit:
 	# Squires use the same lean — they're sworn to a household too.
 	# Cap squire stats at SQUIRE_STAT_MAX so the lean doesn't push them out
 	# of their roll band.
-	HousePool.apply_lean(stats, house_id, SQUIRE_STAT_MAX)
+	HousePool.apply_lean(stats, house_id, SQUIRE_STAT_MAX, GameState.house_leans)
 	var pa: int = RNG.randi_range(SQUIRE_PA_MIN, SQUIRE_PA_MAX)
 	var name: String = NamePool.random_name_avoiding(_taken_names)
 	_taken_names.append(name)
@@ -91,6 +96,10 @@ static func _roll_squire(unit_id: int) -> Unit:
 	u.body_type = BodyType.random_body_type()
 	u.weapon_id = "shortsword"
 	u.armour_id = "unarmoured"
+	# Squires use a tighter ceiling so a trait can't push them out of the
+	# squire roll band; the trait still adds personality, just not headroom.
+	u.trait_id = TraitPool.roll()
+	TraitPool.apply(u, u.trait_id, SQUIRE_STAT_MAX + 2)
 	_enrich(u)
 	return u
 
@@ -99,3 +108,6 @@ static func _enrich(u: Unit) -> void:
 	u.origin_text = Chronicle.generate_origin(u)
 	u.banner_line  = Chronicle.generate_banner(u)
 	u.oath         = Chronicle.generate_oath(u)
+	# Capture the stat that drove the oath text so OathLedger can check
+	# honour conditions against a stable key — see Chronicle.derive_oath_kind.
+	u.oath_kind    = Chronicle.derive_oath_kind(u)

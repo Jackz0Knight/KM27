@@ -30,6 +30,25 @@ func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
 
 
+# Lightweight metadata sniff for the Title-screen "Continue" confirm dialog
+# and any future save-slot UI. Returns {} when no save exists. Reading the
+# whole file is fine — saves are small.
+func peek_save() -> Dictionary:
+	if not has_save():
+		return {}
+	var data: Dictionary = _read_json(SAVE_PATH)
+	if data.is_empty():
+		return {}
+	var week: int = int(data.get("week", 1))
+	return {
+		"week": week,
+		"year": Calendar.year_for(week),
+		"week_of_year": Calendar.week_of_year(week),
+		"gold": int(data.get("gold", 0)),
+		"tournament_streak": int(data.get("tournament_streak", 0)),
+	}
+
+
 func load_game() -> bool:
 	if not has_save():
 		return false
@@ -64,6 +83,9 @@ func _serialise_state() -> Dictionary:
 			"unit_name": u.unit_name,
 			"unit_class": int(u.unit_class),
 			"stats": stats_data,
+			"stats_progress": u.stats.progress.duplicate(),
+			"stats_momentum": u.stats.momentum.duplicate(),
+			"stats_developing": u.stats.developing.duplicate(),
 			"potential_ability": u.potential_ability,
 			"current_task": u.current_task,
 			"expedition_id": u.expedition_id,
@@ -76,6 +98,8 @@ func _serialise_state() -> Dictionary:
 			"oath": u.oath,
 			"weapon_id": u.weapon_id,
 			"armour_id": u.armour_id,
+			"trait_id": u.trait_id,
+			"oath_kind": u.oath_kind,
 		})
 
 	var expeditions_data: Array = []
@@ -114,9 +138,12 @@ func _serialise_state() -> Dictionary:
 		"inventory": GameState.inventory.duplicate(),
 		"researched": GameState.researched.duplicate(),
 		"maintenance_debt": GameState.maintenance_debt,
+		"reputation": GameState.reputation,
+		"house_leans": GameState.house_leans.duplicate(true),
 		"gold_income_sources": GameState.gold_income_sources.duplicate(),
 		"suppressed_confirms": GameState.suppressed_confirms.duplicate(),
 		"crafted_ids": GameState.crafted_ids.duplicate(),
+		"item_stockpile": GameState.item_stockpile.duplicate(true),
 		"world_seed": _world_seed(),
 		"explored_tiles": explored_tiles,
 		"castles_remaining": castles_data,
@@ -157,6 +184,27 @@ func _restore_state(data: Dictionary) -> void:
 	GameState.current_battle_event = str(data.get("current_battle_event", ""))
 	GameState.maintenance_debt = bool(data.get("maintenance_debt", false))
 	GameState.intro_shown_for_run = bool(data.get("intro_shown_for_run", false))
+	GameState.reputation = int(data.get("reputation", 0))
+	# Per-run house lean slants. Saves predating this system have no entry,
+	# in which case the fresh roll from start_run() stays in place — old
+	# units' rolled stats are unaffected (they're restored from the save),
+	# but any new unit added via dev tools or future mechanics will use
+	# the fresh slants. Saves with the field overwrite the fresh roll so
+	# the loaded game matches what was saved.
+	var saved_leans = data.get("house_leans", {})
+	if saved_leans is Dictionary and not saved_leans.is_empty():
+		GameState.house_leans = {}
+		for house_id in saved_leans:
+			var entry = saved_leans[house_id]
+			if not (entry is Dictionary):
+				continue
+			var plus_arr: Array[String] = []
+			for s in entry.get("plus", []):
+				plus_arr.append(str(s))
+			var minus_arr: Array[String] = []
+			for s in entry.get("minus", []):
+				minus_arr.append(str(s))
+			GameState.house_leans[str(house_id)] = {"plus": plus_arr, "minus": minus_arr}
 
 	GameState.inventory = {}
 	var inv = data.get("inventory", {})
@@ -178,6 +226,16 @@ func _restore_state(data: Dictionary) -> void:
 	GameState.crafted_ids.clear()
 	for k in data.get("crafted_ids", []):
 		GameState.crafted_ids.append(str(k))
+
+	GameState.item_stockpile.clear()
+	for entry in data.get("item_stockpile", []):
+		if not (entry is Dictionary):
+			continue
+		var slot: String = str(entry.get("slot", ""))
+		var id: String = str(entry.get("id", ""))
+		if slot == "" or id == "":
+			continue
+		GameState.item_stockpile.append({"slot": slot, "id": id})
 
 	var def_d = data.get("default_defense_formation", {})
 	for k in def_d:
@@ -220,6 +278,20 @@ func _restore_state(data: Dictionary) -> void:
 		var stats := Stats.new()
 		for k in rd.get("stats", {}):
 			stats.set_value(str(k), int(rd["stats"][k]))
+		# Staged development (FM-style). Old saves lack these — default empty,
+		# coercing JSON's stringly numbers back to float / int.
+		var prog: Dictionary = {}
+		for k in rd.get("stats_progress", {}):
+			prog[str(k)] = float(rd["stats_progress"][k])
+		stats.progress = prog
+		var mom: Dictionary = {}
+		for k in rd.get("stats_momentum", {}):
+			mom[str(k)] = int(rd["stats_momentum"][k])
+		stats.momentum = mom
+		var devg: Dictionary = {}
+		for k in rd.get("stats_developing", {}):
+			devg[str(k)] = int(rd["stats_developing"][k])
+		stats.developing = devg
 		u.stats = stats
 		u.current_task = str(rd.get("current_task", Unit.TASK_DEFEND))
 		u.expedition_id = int(rd.get("expedition_id", -1))
@@ -239,8 +311,21 @@ func _restore_state(data: Dictionary) -> void:
 		u.banner_line = str(rd.get("banner_line", ""))
 		u.origin_text = str(rd.get("origin_text", ""))
 		u.oath      = str(rd.get("oath", ""))
+		# Restore oath_kind, or back-derive it from the current highest stat
+		# for saves predating the field. Chronicle.derive_oath_kind() returns
+		# the stat key the oath text was originally drawn from, so the
+		# back-derivation usually matches; not guaranteed if stats shifted
+		# heavily, but acceptable for old saves.
+		u.oath_kind = str(rd.get("oath_kind", ""))
+		if u.oath_kind == "":
+			u.oath_kind = Chronicle.derive_oath_kind(u)
 		u.weapon_id = str(rd.get("weapon_id", ""))
 		u.armour_id = str(rd.get("armour_id", ""))
+		# Trait — only restore valid ids so a renamed/removed trait in a
+		# newer build doesn't leave a broken descriptor on a loaded knight.
+		var saved_trait: String = str(rd.get("trait_id", ""))
+		if saved_trait != "" and TraitPool.is_valid(saved_trait):
+			u.trait_id = saved_trait
 		GameState.roster.append(u)
 
 	# Restore expeditions

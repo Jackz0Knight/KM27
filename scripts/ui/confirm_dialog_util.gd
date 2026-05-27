@@ -17,15 +17,19 @@ static func ask(
 	action_id: String,
 	message: String,
 	on_confirm: Callable,
+	force: bool = false,
 ) -> void:
-	if not GameState.has_active_run():
-		on_confirm.call()
-		return
-
-	# Skip dialog if player suppressed it this run.
-	if GameState.suppressed_confirms.has(action_id):
-		on_confirm.call()
-		return
+	# Title-screen flows (load confirm) pass force=true so the prompt always
+	# fires regardless of run state; mid-run callers use the default behaviour,
+	# which skips the dialog when there is nothing at stake yet.
+	if not force:
+		if not GameState.has_active_run():
+			on_confirm.call()
+			return
+		# Skip dialog if player suppressed it this run.
+		if GameState.suppressed_confirms.has(action_id):
+			on_confirm.call()
+			return
 
 	var dialog := _build_dialog(parent, action_id, message, on_confirm)
 	parent.add_child(dialog)
@@ -88,11 +92,13 @@ static func _build_dialog(
 		win.queue_free()
 
 	confirm_btn.pressed.connect(func():
+		MasterAudio.play_click()
 		win.queue_free()
 		on_confirm.call()
 	)
 
 	cancel_btn.pressed.connect(func():
+		MasterAudio.play_click()
 		win.queue_free()
 	)
 
@@ -105,6 +111,16 @@ static func _build_dialog(
 
 	win.close_requested.connect(func():
 		win.queue_free()
+	)
+
+	# Keyboard nav: focus lands on Confirm so Enter/Space fires it (Godot
+	# routes ui_accept to the focused button automatically). Esc cancels via
+	# window_input — Cancel isn't focusable from the keyboard otherwise.
+	confirm_btn.grab_focus.call_deferred()
+	win.window_input.connect(func(event: InputEvent):
+		if event is InputEventKey and event.pressed and not event.echo:
+			if event.keycode == KEY_ESCAPE and is_instance_valid(cancel_btn):
+				cancel_btn.pressed.emit()
 	)
 
 	return win

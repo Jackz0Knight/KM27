@@ -18,8 +18,9 @@ static func should_trigger(week: int) -> bool:
 	return week > 0 and week % TRIGGER_INTERVAL == 0
 
 
-# Returns an array of {unit: Unit, stat: String} dicts, one per successful roll.
-# Empty array if nobody got lucky.
+# Returns an array of {unit: Unit, stat: String, leveled: int} dicts, one per
+# successful roll. `leveled` is the points actually ticked (often 0 now that
+# the gain is staged). Empty array if nobody got lucky.
 static func roll_for_units(units: Array[Unit]) -> Array:
 	var results: Array = []
 	for u in units:
@@ -28,7 +29,9 @@ static func roll_for_units(units: Array[Unit]) -> Array:
 		var chance_pct: float = float(u.stats.determination) * CHANCE_PER_POINT
 		var roll: float = RNG.randf_range(0.0, 100.0)
 		if roll < chance_pct:
-			var stat_picked: String = u.stats.try_increment_random(u.potential_ability)
-			if stat_picked != "":
-				results.append({"unit": u, "stat": stat_picked})
+			# Staged: the lucky roll feeds development into a random stat rather
+			# than instantly popping +1 (it may or may not tick a point yet).
+			var dev: Dictionary = u.stats.add_progress_random_excluding(1.0, u.potential_ability, "", BodyType.cap_bumps(u.body_type))
+			if str(dev["stat"]) != "":
+				results.append({"unit": u, "stat": dev["stat"], "leveled": int(dev["leveled"])})
 	return results

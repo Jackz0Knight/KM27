@@ -36,6 +36,17 @@ var epithet: String = ""
 var banner_line: String = ""
 var origin_text: String = ""
 var oath: String = ""
+# Stat key the oath text was drawn from at unit creation. The oath text
+# itself can drift in player perception (they remember the sentence, not
+# the stat); this field lets `OathLedger` check honour conditions against
+# a stable key even if the unit's highest stat changes through play.
+var oath_kind: String = ""
+
+# Personal trait — one snake_case key into `TraitPool.TRAITS`. Rolled at
+# unit creation, applied once as stat_mods + pa_mod, and surfaced on cards
+# as a one-line descriptor + flavour. Empty for units created before the
+# trait system (old saves); UI tolerates that case.
+var trait_id: String = ""
 
 # Household + body type — rolled at unit creation by RosterGenerator. Drives
 # the visual crest rendered by BannerIcon plus the implicit stat lean.

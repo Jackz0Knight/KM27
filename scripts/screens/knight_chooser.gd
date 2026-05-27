@@ -37,6 +37,8 @@ func _ready() -> void:
 		card.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		cards.add_child(card)
 
+	ScreenFade.fade_in(self)
+
 
 func _on_choose(index: int) -> void:
 	var chosen: Unit = GameState.knight_candidates[index]

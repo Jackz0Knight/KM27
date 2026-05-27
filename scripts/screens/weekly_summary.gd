@@ -86,7 +86,7 @@ func _process(delta: float) -> void:
 		set_process(false)
 		# Re-enable Next now that everything is visible.
 		_refresh_next_button(GameState.last_battle_result)
-		resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory))
+		resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory, GameState.reputation))
 
 
 func _render_content() -> void:
@@ -94,8 +94,10 @@ func _render_content() -> void:
 	var label: String = r.get("event_label", "—")
 	if r.get("sub_event", "") != "":
 		label = "%s — %s" % [label, BattleEvent.label(r["sub_event"])]
-	header_lbl.text = "Weekly Summary — Week %d · %s" % [GameState.week, label]
-	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory))
+	elif int(r.get("event_kind", -1)) == EventKind.AWAY_BATTLE and AwayModeDB.has_mode(GameState.pending_away_mode):
+		label = "%s — %s" % [label, AwayModeDB.label_for(GameState.pending_away_mode)]
+	header_lbl.text = "Weekly Summary — Week %d  ·  %s  ·  %s" % [GameState.week, Calendar.season_chip(GameState.week), label]
+	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory, GameState.reputation))
 
 	_render_chronicle()
 	_render_outcome(r)
@@ -153,7 +155,7 @@ func _render_chronicle() -> void:
 func _render(r: Dictionary = GameState.last_battle_result) -> void:
 	_render_content()
 	_refresh_next_button(r)
-	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory))
+	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory, GameState.reputation))
 
 
 func _render_outcome(r: Dictionary) -> void:
@@ -173,8 +175,16 @@ func _render_outcome(r: Dictionary) -> void:
 		return
 
 	if not r.get("fought", false):
-		outcome_lbl.text = "%s — no battle this week." % EventKind.label(r["event_kind"])
-		outcome_lbl.modulate = Color(0.78, 0.78, 0.78, 0.0)
+		# Story events get their full chronicle label here instead of the
+		# generic "Battle Event — no battle this week." line; the prose notes
+		# carry the rest of the meaning underneath.
+		if StoryEventDB.is_story_sub_type(r.get("sub_event", "")):
+			var sid: String = StoryEventDB.story_id_from_sub_type(r["sub_event"])
+			outcome_lbl.text = "❦  %s" % StoryEventDB.label_for(sid)
+			outcome_lbl.modulate = Color(0.92, 0.78, 0.42, 0.0)
+		else:
+			outcome_lbl.text = "%s — no battle this week." % EventKind.label(r["event_kind"])
+			outcome_lbl.modulate = Color(0.78, 0.78, 0.78, 0.0)
 		return
 
 	if r["won"]:
@@ -202,14 +212,28 @@ func _render_battle_breakdown(r: Dictionary) -> void:
 	var has_tourney: bool = not r.get("tournament_per_unit", []).is_empty()
 	var is_duel: bool = r.get("sub_event", "") == "champion_duel"
 	var fought: bool = r.get("fought", false)
+	# Story events are non-combat but their chronicle notes are the point of
+	# the event — surface them in this section so the player isn't scrolling
+	# for the prose.
+	var is_story: bool = StoryEventDB.is_story_sub_type(r.get("sub_event", ""))
+	# Notes-only fallback: oath honour grants and similar chronicle beats
+	# emit only into result["notes"] and would be silently swallowed on
+	# non-combat / non-story weeks without this. When the week has anything
+	# textual to surface, the section appears as a ❦ Chronicle block.
+	var has_notes: bool = not r.get("notes", []).is_empty()
 
-	# Hide the whole section (header + body) when there's nothing useful to show.
-	if not (has_formation or has_tourney or is_duel or fought):
+	# Hide the whole section (header + body) only when there is genuinely
+	# nothing to display.
+	if not (has_formation or has_tourney or is_duel or fought or is_story or has_notes):
 		battle_breakdown_header.visible = false
 		battle_breakdown.visible = false
 		return
 	battle_breakdown_header.visible = true
 	battle_breakdown.visible = true
+	if (is_story or has_notes) and not fought:
+		battle_breakdown_header.text = "❦  Chronicle"
+	else:
+		battle_breakdown_header.text = "Battle Breakdown"
 
 	if has_formation:
 		_render_formation_rows(r)
@@ -277,6 +301,10 @@ func _render_tournament_rows(r: Dictionary) -> void:
 			Combat.TOURNAMENT_BASE_POWER,
 			entry["str"], entry["tec"], entry["skill"],
 		]
+		var weap_p: int = int(entry.get("weapon_power", 0))
+		var arm_p: int = int(entry.get("armour_power", 0))
+		if weap_p > 0 or arm_p > 0:
+			build_str += "  (+%d kit)" % (weap_p + arm_p)
 		battle_breakdown.add_child(_breakdown_row(
 			[unit_name, build_str, "%d" % entry["total"]], false,
 		))
@@ -333,15 +361,39 @@ func _render_rewards(r: Dictionary) -> void:
 		lbl.modulate = Color(0.85, 0.85, 0.6)
 		rewards_list.add_child(lbl)
 
+	# Item drop from ItemDrops loot roll — rarity-tinted so heirlooms read at
+	# a glance against the rest of the rewards section.
+	var drop: Dictionary = r.get("item_drop", {})
+	if not drop.is_empty():
+		var slot: String = str(drop.get("slot", ""))
+		var id: String = str(drop.get("id", ""))
+		var rarity_col: Color = (
+			Weapon.rarity_color(id) if slot == "weapon" else Armour.rarity_color(id)
+		)
+		var rarity_lbl: String = (
+			Weapon.rarity_label(id) if slot == "weapon" else Armour.rarity_label(id)
+		)
+		var item_name: String = (
+			Weapon.display_name(id) if slot == "weapon" else Armour.display_name(id)
+		)
+		var glyph: String = "⚔" if slot == "weapon" else "🛡"
+		var lbl := Label.new()
+		lbl.text = "%s %s (%s) — added to the armoury" % [glyph, item_name, rarity_lbl]
+		lbl.modulate = rarity_col
+		rewards_list.add_child(lbl)
+
 	if r.get("sub_event", "") == "champion_duel" and r.get("won", false):
 		var champ: Unit = GameState.find_unit(r["duel_unit_id"])
 		var stat: String = r.get("duel_stat", "")
 		var lbl := Label.new()
 		if champ != null and stat != "" and r.get("duel_stat_applied", false):
-			lbl.text = "+1 %s applied to %s." % [stat.capitalize(), champ.unit_name]
+			lbl.text = "+1 %s applied to %s. ▲" % [stat.capitalize(), champ.unit_name]
 			lbl.modulate = Color(0.7, 0.95, 0.7)
+		elif champ != null and stat != "":
+			lbl.text = "Duel won — its lessons deepen %s's %s over time." % [champ.unit_name, stat.capitalize()]
+			lbl.modulate = Color(0.72, 0.9, 0.8)
 		else:
-			lbl.text = "Duel won but no stat growth (cap or no pick)."
+			lbl.text = "Duel won but no target stat was chosen."
 			lbl.modulate = Color(0.85, 0.85, 0.6)
 		rewards_list.add_child(lbl)
 
@@ -425,12 +477,17 @@ func _build_delta_bbcode() -> String:
 			var u: Unit = GameState.find_unit(entry["unit_id"])
 			var uname: String = "%-14s" % (u.unit_name if u != null else "?")
 			var stat_name: String = "%-14s" % String(entry["stat"]).capitalize()
-			if entry["applied"]:
+			if int(entry.get("leveled", 0)) > 0:
 				lines.append("[color=%s]%s %s %d → %d  ▲[/color]" % [GREEN, uname, stat_name, entry["before"], entry["after"]])
+			elif entry.get("developing", false):
+				lines.append("[color=%s]%s %s %d    (developing ▲)[/color]" % [AMBER, uname, stat_name, entry["after"]])
 			else:
 				lines.append("[color=%s]%s %s %d    (capped)[/color]" % [GREY, uname, stat_name, entry["after"]])
 			if entry.get("bonus_stat", "") != "":
-				lines.append("[color=%s]      ↳ +1 %s bonus (Determination)  ▲[/color]" % [GREEN, String(entry["bonus_stat"]).capitalize()])
+				if entry.get("bonus_leveled", false):
+					lines.append("[color=%s]      ↳ +1 %s bonus (Determination)  ▲[/color]" % [GREEN, String(entry["bonus_stat"]).capitalize()])
+				else:
+					lines.append("[color=%s]      ↳ %s sharpening (Determination)[/color]" % [AMBER, String(entry["bonus_stat"]).capitalize()])
 		lines.append(DIV)
 
 	# Determination
@@ -439,7 +496,10 @@ func _build_delta_bbcode() -> String:
 		lines.append("[color=%s]── DETERMINATION[/color]" % AMBER)
 		for entry in det:
 			var u: Unit = entry["unit"]
-			lines.append("[color=%s]%s  +1 %s  ▲[/color]" % [GREEN, u.unit_name, String(entry["stat"]).capitalize()])
+			if int(entry.get("leveled", 0)) > 0:
+				lines.append("[color=%s]%s  +1 %s  ▲[/color]" % [GREEN, u.unit_name, String(entry["stat"]).capitalize()])
+			else:
+				lines.append("[color=%s]%s  %s stirs (developing)[/color]" % [AMBER, u.unit_name, String(entry["stat"]).capitalize()])
 		lines.append(DIV)
 
 	# Expedition returns
@@ -571,3 +631,27 @@ func _record_completed_run(outcome: String) -> void:
 
 func _on_settings() -> void:
 	SettingsPopup.show_for(self)
+
+
+# Spacebar / Enter both skip the staggered fade-in and advance to the next
+# week; matches the visible Next Week button. Esc on a Merchant Caravan week
+# is intentionally inert — the player must pick a bundle before continuing.
+func _unhandled_input(event: InputEvent) -> void:
+	if not (event is InputEventKey) or not event.pressed or event.echo:
+		return
+	if event.keycode != KEY_ENTER and event.keycode != KEY_KP_ENTER and event.keycode != KEY_SPACE:
+		return
+	if not _anim_done:
+		# First press — skip the fade. Reveal every section instantly and
+		# let the player press again to actually proceed.
+		for sec in _anim_sections:
+			sec.modulate.a = 1.0
+		_anim_done = true
+		set_process(false)
+		_refresh_next_button(GameState.last_battle_result)
+		resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory, GameState.reputation))
+		accept_event()
+		return
+	if not next_btn.disabled:
+		_on_next()
+		accept_event()

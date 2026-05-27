@@ -281,6 +281,163 @@ static func _event_line(gs: Node) -> String:
 
 # ---------- Full week entry ----------
 
+# Build a short personalised ballad about the household, weighted toward the
+# Knight's chronicle data: oath_kind shapes the opening line, earned epithet
+# (or trait if none) shapes the middle, household reputation band shapes the
+# close. Always returns at least one line. Used by the `bard_ballad` story
+# event's special effect; could be reused by future "minstrel arrives" beats.
+static func generate_household_ballad(gs: Node) -> String:
+	var knight: Unit = null
+	for u in gs.roster:
+		if u.unit_class == Unit.UnitClass.KNIGHT:
+			knight = u
+			break
+	if knight == null:
+		return "The bard's song trails off — there is no knight in residence to write of."
+
+	const OPENERS_BY_OATH: Dictionary = {
+		"loyalty":       "Hear of {n}, who kept faith while the gate yet held —",
+		"bravery":       "Hear of {n}, who in three campaigns did not turn his back —",
+		"determination": "Hear of {n}, who rose from every floor he was put upon —",
+		"leadership":    "Hear of {n}, who ate after his men and rode before them —",
+		"swordsmanship": "Hear of {n}, whose blade was drawn for cause and sheathed for result —",
+		"archery":       "Hear of {n}, whose every arrow could be answered for —",
+		"strength":      "Hear of {n}, who carried what others could not and asked no credit —",
+		"etiquette":     "Hear of {n}, who conducted himself as the chronicler watched —",
+		"speed":         "Hear of {n}, who was never where the danger expected him —",
+		"technique":     "Hear of {n}, whose precision was a quieter mercy —",
+		"horsemanship":  "Hear of {n}, who never rode harder than his horse could bear —",
+		"intimidation":  "Hear of {n}, who spoke when silence would not serve —",
+	}
+	var opener: String = str(OPENERS_BY_OATH.get(knight.oath_kind, "Hear of {n}, sworn knight of an unsung household —"))
+	opener = opener.replace("{n}", knight.unit_name)
+
+	# Middle line — earned epithet first, then trait, then a fallback that
+	# leans on the household. Each pool offers two phrasings so repeated
+	# ballads about the same knight read differently across runs.
+	var middle: String = ""
+	if knight.epithet != "":
+		const EPITHET_MIDDLES: Array[String] = [
+			"who the chroniclers call {ep}, and rightly so —",
+			"who rode the lists till heralds called him {ep} —",
+			"who is known in three valleys now as {ep} —",
+		]
+		middle = EPITHET_MIDDLES[RNG.randi_range(0, EPITHET_MIDDLES.size() - 1)].replace("{ep}", knight.epithet)
+	elif knight.trait_id != "":
+		# Trait-flavoured middles, indexed by the trait pool's id.
+		const TRAIT_MIDDLES: Dictionary = {
+			"veteran":         "whose veteran's hands knew the field before the ballad was written —",
+			"hot_headed":      "whose hot blood made the village inn the longer for him —",
+			"pious":           "whose small book of prayers travelled with him everywhere —",
+			"tournament_brat": "whose lists-trained eye saw every herald's blind spot —",
+			"scholar_knight":  "whose council was always the cooler for being last to speak —",
+			"horse_born":      "who rode strange horses for the pleasure of the lesson —",
+			"marked":          "whose long scar told its story before he did —",
+			"lucky":           "whose coin came down the right way more than chance allowed —",
+			"sworn_defender":  "whose oath was witnessed under a vow he will not name —",
+			"reluctant":       "who came to arms by inheritance and stayed by choice —",
+			"poacher":         "whose arrows had a way of finding what he chose to seek —",
+			"stoic":           "whose silence under pressure tested the patience of his enemies —",
+			"silver_tongue":   "whose words ended quarrels his sword would have made worse —",
+			"haunted":         "whose dreams woke him before any horn ever did —",
+		}
+		middle = str(TRAIT_MIDDLES.get(knight.trait_id, "whose household closed around him through hard winters —"))
+	else:
+		middle = "whose household closed around him through hard winters —"
+
+	# Close — reputation-band weighted. Plays as the verdict of the realm.
+	var rep_label: String = ResourceDB.reputation_label(gs.reputation)
+	const CLOSE_BY_BAND: Dictionary = {
+		"Legendary":     "and his name is sung at the small fires of every village in the realm.",
+		"Renowned":      "and three valleys over the smaller halls sing of him by name.",
+		"Respected":     "and the neighbouring lords now write his name carefully in their books.",
+		"Known":         "and the chronicler keeps a fresh quill near, for what is yet to come.",
+		"Suspect":       "and the chronicler keeps the entry brief, for what may yet be undone.",
+		"Disreputable":  "and the bard's voice trails off here, mid-verse, for politeness.",
+		"Outcast":       "and the bard, on second thought, accepts only a smaller fee for the song.",
+	}
+	var close: String = str(CLOSE_BY_BAND.get(rep_label, "and what comes next, the chronicler will be the first to write."))
+
+	return "%s\n%s\n%s" % [opener, middle, close]
+
+
+# Closing reflection written by the chronicler at run-end. `outcome` is
+# either "win" (Grand Tournament victory) or "loss" (Home Battle defeat).
+# Composes 3 lines: tone-set, household summary, closing verdict. Drawn
+# from oath_kind / reputation band / castles-taken / streak. Used by the
+# game_over and run_win screens.
+static func generate_run_epitaph(gs: Node, outcome: String) -> String:
+	var knight: Unit = null
+	for u in gs.roster:
+		if u.unit_class == Unit.UnitClass.KNIGHT:
+			knight = u
+			break
+
+	# Opener — tone differs sharply by outcome.
+	var opener: String
+	if outcome == "win":
+		const WIN_OPENERS: Array[String] = [
+			"The chronicler set down the final entry with care: the household had not just survived its year — it had earned the song they would write of it.",
+			"The chronicler closed the year's book with a flourish he allowed only on rare occasions. The realm had been won; the household had been the winning.",
+			"It is the chronicler's privilege to write rarely in the high style. He took it this evening.",
+		]
+		opener = WIN_OPENERS[RNG.randi_range(0, WIN_OPENERS.size() - 1)]
+	else:
+		const LOSS_OPENERS: Array[String] = [
+			"The chronicler wrote with a quiet hand: the gate had fallen, but the household had not broken — only ended.",
+			"The chronicler closed the book without a flourish. There would be other households, and other knights, and other chroniclers; this one was over.",
+			"What the chronicler wrote that night, he wrote slowly. The household had given more than it took, and the household had been taken in turn.",
+		]
+		opener = LOSS_OPENERS[RNG.randi_range(0, LOSS_OPENERS.size() - 1)]
+
+	# Middle — household summary keyed off the Knight's oath / standing.
+	var middle: String
+	if knight != null:
+		var rep_label: String = ResourceDB.reputation_label(gs.reputation)
+		var oath_clause: String = _oath_summary_clause(knight.oath_kind, outcome)
+		middle = "%s rode under the chronicler's pen as %s, %s in the realm's accounting." % [
+			knight.unit_name,
+			oath_clause,
+			rep_label,
+		]
+	else:
+		middle = "The household closed the year without a knight in its name."
+
+	# Close — final verdict, dependent on outcome + castles-taken / streak.
+	var castles_taken: int = 8 - (gs.world.castles.size() if gs.world != null else 8)
+	var close: String
+	if outcome == "win":
+		close = "Of the eight castles set against the realm, %d were taken. The Grand Tournament was won. The chronicler closes the book." % castles_taken
+	else:
+		var streak_note: String = ""
+		if gs.tournament_streak > 0:
+			streak_note = " The tournament streak stood at %d when the gate fell." % gs.tournament_streak
+		close = "Of the eight castles set against the realm, %d were taken before the end.%s" % [castles_taken, streak_note]
+
+	return "%s\n\n%s\n\n%s" % [opener, middle, close]
+
+
+# Helper for generate_run_epitaph — turns the Knight's oath_kind into a
+# short phrase the chronicler can drop mid-sentence ("...as the keeper of
+# faith, Respected in the realm's accounting").
+static func _oath_summary_clause(oath_kind: String, _outcome: String) -> String:
+	const OATH_PHRASES: Dictionary = {
+		"loyalty":       "the keeper of faith",
+		"bravery":       "the unbroken-backed",
+		"determination": "the riser-from-floors",
+		"leadership":    "the man who ate after his men",
+		"swordsmanship": "the careful blade",
+		"archery":       "the answerable arrow",
+		"strength":      "the unsung carrier",
+		"etiquette":     "the watched-by-the-chronicler",
+		"speed":         "the not-where-expected",
+		"technique":     "the quiet precision",
+		"horsemanship":  "the patient rider",
+		"intimidation":  "the man who let silence serve",
+	}
+	return str(OATH_PHRASES.get(oath_kind, "a sworn knight of the household"))
+
+
 static func generate_week_entry(gs: Node) -> String:
 	var parts: Array[String] = []
 
@@ -309,7 +466,45 @@ static func generate_week_entry(gs: Node) -> String:
 	if gs.maintenance_debt:
 		parts.append("The ledger fell short this week. The household will feel it.")
 
+	# Chronicler aside — a 22% chance per week of a short atmospheric
+	# parenthetical that has nothing to do with the week's main events.
+	# Builds the sense of a household with a life beyond the player's
+	# direct attention. Pure flavour, no mechanical effect.
+	if RNG.randf_range(0.0, 1.0) < 0.22:
+		parts.append(_chronicler_aside())
+
 	return " ".join(parts)
+
+
+# A pool of one-line atmospheric beats the chronicler quietly inserts into
+# a week's chronicle entry. Each is fragment-scaled to read inline with the
+# rest of the prose. Players see them as the household having an interior
+# life — the kitchen acquires a cat, the marshal receives a letter, the
+# chaplain loses an argument about ale rationing.
+static func _chronicler_aside() -> String:
+	const ASIDES: Array[String] = [
+		"(The kitchen acquired a new cat this week. The old one is unimpressed.)",
+		"(The marshal received a letter he will not discuss.)",
+		"(The chaplain lost an argument about ale rationing — narrowly, and with grace.)",
+		"(The stable lad has begun writing poems. Reviews are mixed.)",
+		"(The chronicler's quill split mid-entry on Thursday. He swore in three languages.)",
+		"(The household acquired three barrels of an excellent vintage at an inexplicable price.)",
+		"(A neighbouring lord's hound wandered through, ate three meals, and departed without comment.)",
+		"(The orchard wall settled half an inch in the rain. The mason has been notified.)",
+		"(The smith's apprentice produced a passable horseshoe. The smith is allowing himself a small pride.)",
+		"(The chaplain has finished his commentary on a minor saint nobody had heard of. Self-published.)",
+		"(The watch reported a comet, then admitted it was a lantern, then revised back to a comet.)",
+		"(One of the household's two dogs has begun limping. He limps less when food is in question.)",
+		"(The seneschal's daughter has returned from her cousin's. The household notes this without commenting on it.)",
+		"(A barrel of pickled cabbage went missing from the storeroom. The chronicler suspects the chaplain.)",
+		"(The marshal has shaved his beard. Reviews are mixed; the marshal is taking it well.)",
+		"(The cat caught a mouse and was praised. The cat was unmoved.)",
+		"(A travelling fiddler stopped one night and was paid in soup.)",
+		"(The chronicler discovered an old map in a back drawer and has been distracted ever since.)",
+		"(A pair of swallows have nested in the upper eaves. The marshal has forbidden anyone to disturb them.)",
+		"(The blacksmith's mother visited for three days. The household was on its best behaviour.)",
+	]
+	return ASIDES[RNG.randi_range(0, ASIDES.size() - 1)]
 
 
 # ---------- Unit enrichment — called once at unit creation ----------
@@ -325,6 +520,15 @@ static func generate_origin(unit: Unit) -> String:
 		"A tournament knight by training, {n} has more wins in the lists than on the field. He arrived here because the lists grew too comfortable and he recognised the danger in that.",
 		"{n} came highly recommended by a lord who could not afford to keep him. The recommendation was sincere; the inability to keep him was more informative.",
 		"A younger son of a minor house, {n} holds no inheritance and expects none. What he holds is a sword and an instruction that said, in brief, make something of yourself.",
+		"{n} took his vows in a chapel his grandfather built and his father lost. The chapel is still there. The land around it is not.",
+		"Twice promised, twice freed — {n}'s first engagement died of a fever and his second of a politics. He arrived here travelling light and travelling alone.",
+		"{n} earned his spurs in a campaign nobody now remembers, against an enemy nobody now names. His commander died of old age. The lessons did not.",
+		"A bastard acknowledged late but acknowledged in writing, {n} carries the household seal alongside his own. He uses both sparingly, and never together.",
+		"{n} spent six years in a foreign court as a hostage-pageboy. Came home reading three languages, weighing his words in all of them, and trusting none of his audience.",
+		"Lost his first lord at the Bone Ford, his second to plague, and his third to a quarrel he refuses to discuss. He is in no hurry to acquire a fourth.",
+		"{n} returned from a pilgrimage four years late, wearing different armour and not explaining the difference. The household chronicler has stopped asking.",
+		"Raised on a frontier estate where every passing year brought either fire or famine, {n} learned to fight before to read and reads now with the patience of a man who learned both late.",
+		"{n} spent his youth in the lists and his manhood at the border. He still has the cheekbones of the lists and the hands of the border.",
 	]
 
 	const ORIGINS_SQUIRE: Array[String] = [
@@ -336,6 +540,14 @@ static func generate_origin(unit: Unit) -> String:
 		"Quiet and technically minded, {n} spent his adolescence in a scriptorium before a priest recommended military service as a cure for excessive stillness. The cure is ongoing.",
 		"From the eastern provinces, {n} rides differently than the western-trained knights expect and fights differently than they're ready for. He has stopped explaining this and started using it.",
 		"{n} is the newest of the household's additions and the most earnest. The earnestness will either season into something useful or be trained out of him. Both outcomes are acceptable.",
+		"A village reeve's clever boy, {n} keeps the household ledgers in his head and the household quarrels in his hand. So far the ledger is winning.",
+		"{n} grew up on a tournament circuit, holding horses and counting purses. He knows the lists already; he is still learning the field.",
+		"Sent in lieu of taxes by a holding too poor to pay them, {n} arrived with an absurdly polite letter and a slightly less polite mother behind him.",
+		"A foundling raised in a hedge-knight's care, {n} learned the forms one summer at a time. The summers were never quite long enough.",
+		"{n} talked his way past the gatekeeper, the steward, and the chamberlain before someone had the sense to put a sword in his hand and a roof over his head.",
+		"A poacher's son with the eyes of a hawk and the reflexes of a hare, {n} has never missed a target he chose to aim at. Choosing is the hard part.",
+		"{n} came down from the hill country with two letters of grievance, one of recommendation, and a knack for staying out of arguments he didn't start.",
+		"The runt of a large fighting family, {n} has spent his childhood being beaten by his older brothers and is grateful, in retrospect, for the calibration.",
 	]
 
 	var pool: Array[String] = (
@@ -437,7 +649,14 @@ static func generate_oath(unit: Unit) -> String:
 		"intimidation":  "I will not speak first when silence will serve.",
 	}
 
-	# Oath follows the unit's highest stat.
+	return OATHS.get(derive_oath_kind(unit), "I will serve as I have sworn, and in serving find my worth.")
+
+
+# Oath kind = the stat key that drove oath text selection. Stored on
+# `Unit.oath_kind` so `OathLedger` can check honour conditions without
+# re-deriving (and without being thrown off when the unit's highest stat
+# shifts during play — the oath you swore is the oath you keep).
+static func derive_oath_kind(unit: Unit) -> String:
 	var best_stat: String = ""
 	var best_val: int = 0
 	for key in Stats.STAT_KEYS:
@@ -445,8 +664,7 @@ static func generate_oath(unit: Unit) -> String:
 		if v > best_val:
 			best_val = v
 			best_stat = key
-
-	return OATHS.get(best_stat, "I will serve as I have sworn, and in serving find my worth.")
+	return best_stat
 
 
 # ---------- Epithet granting ----------
@@ -467,13 +685,32 @@ static func grant_epithet(unit: Unit, event_tag: String) -> void:
 		return
 
 	const EPITHETS: Dictionary = {
-		"tournament_win":          ["the Steadfast", "the Lance", "the Day's Victor", "the Listed"],
-		"grand_tournament_win":    ["the Realm-Winner", "Victor of the Grand", "the Champion"],
-		"duel_win":                ["the Duelist", "the Quiet Lance", "the Answerer"],
-		"home_battle_survived":    ["the Bulwark", "the Wall", "the Unfleeing"],
-		"home_battle_won":         ["the Defender", "the Gate-Holder"],
-		"pillage_win":             ["the Bold", "the Opportunist"],
-		"assault_win":             ["the Castle-Taker", "the Resolved"],
+		"tournament_win":          [
+			"the Steadfast", "the Lance", "the Day's Victor", "the Listed",
+			"the Held-Field", "the Crested", "the Banner-Marshal",
+		],
+		"grand_tournament_win":    [
+			"the Realm-Winner", "Victor of the Grand", "the Champion",
+			"the Crowned-in-Steel", "the Sung-Of",
+		],
+		"duel_win":                [
+			"the Duelist", "the Quiet Lance", "the Answerer",
+			"the Counter-Strike", "the Sure-Hand",
+		],
+		"home_battle_survived":    [
+			"the Bulwark", "the Wall", "the Unfleeing", "the Last-Standing",
+		],
+		"home_battle_won":         [
+			"the Defender", "the Gate-Holder", "the Hearth-Keeper",
+			"the Threshold-Won",
+		],
+		"pillage_win":             [
+			"the Bold", "the Opportunist", "the Far-Rider", "the Tax-Taker",
+		],
+		"assault_win":             [
+			"the Castle-Taker", "the Resolved", "the Breaker-of-Gates",
+			"the Tower-Climber",
+		],
 	}
 
 	var pool: Array = EPITHETS.get(event_tag, [])

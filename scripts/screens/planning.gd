@@ -20,6 +20,8 @@ const TAB_NAMES: Array[String] = ["Overview", "Tactics", "Map", "Crafting", "Res
 const SettingsPopup = preload("res://scripts/ui/settings_popup.gd")
 
 @onready var tabs: TabBar                 = $Margin/VBox/TopBar/Tabs
+@onready var tournament_chip: PanelContainer = $Margin/VBox/TopBar/TournamentChip
+@onready var tournament_chip_lbl: Label   = $Margin/VBox/TopBar/TournamentChip/TournamentChipMargin/TournamentChipLabel
 @onready var calendar_btn: Button         = $Margin/VBox/TopBar/CalendarBtn
 @onready var advance_btn: Button          = $Margin/VBox/TopBar/AdvanceBtn
 @onready var settings_btn: Button         = $Margin/VBox/TopBar/SettingsBtn
@@ -105,6 +107,8 @@ func _ready() -> void:
 	_default_pending_tasks()
 	_show_intro_if_first_week()
 	_refresh_all()
+	advance_btn.tooltip_text = "Lock in this week's plans and resolve the Tick. (Enter)"
+	ScreenFade.fade_in(self)
 
 
 func _build_tabs() -> void:
@@ -112,7 +116,10 @@ func _build_tabs() -> void:
 		tabs.add_tab(tab_name)
 	tabs.current_tab = TAB_MAP
 	content.current_tab = TAB_MAP
-	tabs.tab_changed.connect(_on_tab_changed)
+	# `tab_clicked` (not `tab_changed`) so re-clicking the already-selected tab
+	# still routes through — that's what lets you leave the Calendar overlay,
+	# which lives on content index 5 but isn't a real entry in this TabBar.
+	tabs.tab_clicked.connect(_select_main_tab)
 
 	tactics_mode_tabs.add_tab("Defense")
 	tactics_mode_tabs.add_tab("Attack")
@@ -127,10 +134,15 @@ func _build_map_panzoom() -> void:
 	_map_panzoom.set_world(GameState.world)
 
 
-func _on_tab_changed(idx: int) -> void:
+func _select_main_tab(idx: int) -> void:
+	# Always clears the Calendar overlay and re-syncs the TabBar highlight, so
+	# selecting a main tab works whether or not Calendar is currently showing
+	# and even when the clicked tab was already the highlighted one.
 	_calendar_active = false
 	_last_main_tab = idx
 	calendar_btn.modulate = Color.WHITE
+	if tabs.current_tab != idx:
+		tabs.current_tab = idx
 	content.current_tab = idx
 	if idx == TAB_MAP and _map_panzoom != null:
 		_map_panzoom.center_on_town()
@@ -183,12 +195,56 @@ func _refresh_all() -> void:
 
 func _refresh_header() -> void:
 	# Event has its own chip on the Overview tab — keep the year/week line clean.
-	context_lbl.text = "Year %d, Week %d (week %d / 48)" % [
+	# Season chip rides on the end so the player feels the year pass without
+	# stealing the calendar's spotlight.
+	context_lbl.text = "Year %d, Week %d (week %d / 48)  ·  %s" % [
 		GameState.current_year(), GameState.week, GameState.current_week_of_year(),
+		Calendar.season_chip(GameState.week),
 	]
 	status_lbl.text = ""
-	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory))
+	resources_lbl.parse_bbcode(ResourceDB.resource_hud_bbcode(GameState.gold, GameState.inventory, GameState.reputation))
 	_refresh_event_chip()
+	_refresh_tournament_chip()
+
+
+# Persistent countdown in the top bar so the tournament is always at the
+# player's elbow, not buried two tabs deep on Tactics. Goes warm-amber by
+# default and bright gold + bigger text when a Grand Tournament is imminent.
+func _refresh_tournament_chip() -> void:
+	if tournament_chip == null:
+		return
+	var next_t: int = _next_tournament_week()
+	if next_t <= 0:
+		tournament_chip.visible = false
+		return
+	tournament_chip.visible = true
+	var weeks_away: int = next_t - GameState.week
+	var is_grand: bool = GameState.tournament_streak >= 2
+	var prefix: String = "★ GRAND TOURNAMENT" if is_grand else "Tournament"
+	if weeks_away <= 0:
+		tournament_chip_lbl.text = "%s — THIS WEEK" % prefix
+	elif weeks_away == 1:
+		tournament_chip_lbl.text = "%s — next week (W%d)" % [prefix, next_t]
+	else:
+		tournament_chip_lbl.text = "%s in %d weeks (W%d)" % [prefix, weeks_away, next_t]
+
+	# Colour ramp: Grand-imminent → bright gold; ≤2 weeks → warm amber;
+	# otherwise → muted parchment. Same chip shape across all bands —
+	# UiStyle.chip() builds the StyleBoxFlat; we just pick palette pairs.
+	var sb: StyleBoxFlat
+	if is_grand or weeks_away <= 0:
+		sb = UiStyle.chip(Palette.CHIP_IMMINENT_BG, Palette.CHIP_IMMINENT_BORDER)
+		tournament_chip_lbl.add_theme_color_override("font_color", Palette.CHIP_IMMINENT_TEXT)
+		tournament_chip_lbl.add_theme_font_size_override("font_size", 15)
+	elif weeks_away <= 2:
+		sb = UiStyle.chip(Palette.CHIP_SOON_BG, Palette.CHIP_SOON_BORDER)
+		tournament_chip_lbl.add_theme_color_override("font_color", Palette.CHIP_SOON_TEXT)
+		tournament_chip_lbl.add_theme_font_size_override("font_size", 14)
+	else:
+		sb = UiStyle.chip(Palette.CHIP_FAR_BG, Palette.CHIP_FAR_BORDER)
+		tournament_chip_lbl.add_theme_color_override("font_color", Palette.CHIP_FAR_TEXT)
+		tournament_chip_lbl.add_theme_font_size_override("font_size", 13)
+	tournament_chip.add_theme_stylebox_override("panel", sb)
 
 
 func _refresh_event_chip() -> void:
@@ -333,11 +389,19 @@ func _formation_advice() -> String:
 		EventKind.AWAY_BATTLE:
 			return "→ Use Attack formation for your away party"
 		EventKind.BATTLE_EVENT:
+			if StoryEventDB.is_story_sub_type(GameState.current_battle_event):
+				return "→ A chronicle moment — no combat, no setup required"
+			if CombatEventDB.has_mode(GameState.current_battle_event):
+				return "→ " + CombatEventDB.tactics_advice_for(GameState.current_battle_event)
 			match GameState.current_battle_event:
 				"bandit_ambush": return "→ Use Defense formation"
 				"champion_duel": return "→ Pick your strongest Str+Bra+Sword unit as champion"
 				"bountiful_harvest": return "→ No combat — harvest arrives automatically"
 				"merchant_caravan": return "→ No combat — pick a bundle on the summary screen"
+				"refugee_caravan": return "→ No combat — the household's response plays out automatically"
+				"noble_petition": return "→ No combat — court courtesy, resolved on the summary"
+				"village_raid": return "→ Use Attack formation — riding out to defend a village"
+				"tavern_riot": return "→ Use Defense formation — light combat near the village inn"
 		EventKind.TOURNAMENT:
 			return "→ Select up to 4 units on the Pre-Battle screen"
 		EventKind.GRAND_TOURNAMENT:
@@ -571,6 +635,42 @@ func _refresh_away_section() -> void:
 		for castle in explored_castles:
 			away_section.add_child(_build_castle_card(castle))
 
+	# Away Mission Variants — data-driven modes from AwayModeDB. Gated by
+	# min_week so early-game weeks see only pillage/assault. Each available
+	# mode renders as a labelled button under a small subhead.
+	var unlocked_modes: Array[String] = AwayModeDB.available_at_week(GameState.week)
+	if not unlocked_modes.is_empty():
+		var variants_hint := Label.new()
+		variants_hint.text = "Other targets in the marches:"
+		variants_hint.modulate = Color(0.78, 0.74, 0.60)
+		variants_hint.add_theme_font_size_override("font_size", 13)
+		away_section.add_child(variants_hint)
+
+		# Wrapping container — 8+ unlocked variants at endgame would overflow
+		# a single HBox at 1280-wide. HFlowContainer wraps to a new line as
+		# needed and keeps each button at its natural width.
+		var variants_row := HFlowContainer.new()
+		variants_row.add_theme_constant_override("h_separation", 8)
+		variants_row.add_theme_constant_override("v_separation", 6)
+		variants_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		away_section.add_child(variants_row)
+
+		for mode_id in unlocked_modes:
+			var btn := Button.new()
+			btn.text = AwayModeDB.label_for(mode_id)
+			btn.disabled = party_size == 0
+			btn.tooltip_text = AwayModeDB.tooltip_for(mode_id)
+			btn.pressed.connect(_on_pick_away_variant.bind(mode_id))
+			if GameState.pending_away_mode == mode_id:
+				btn.modulate = Color(0.7, 1.0, 0.7)
+			variants_row.add_child(btn)
+
+
+func _on_pick_away_variant(mode_id: String) -> void:
+	GameState.pending_away_mode = mode_id
+	GameState.pending_assault_castle = null
+	_refresh_away_section()
+
 
 func _on_pick_pillage() -> void:
 	GameState.pending_away_mode = "pillage"
@@ -602,21 +702,11 @@ func _build_castle_card(castle: Castle) -> Control:
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.pressed.connect(_on_castle_card_picked.bind(castle))
 
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.16, 0.12, 0.08, 0.75) if not is_target else Color(0.28, 0.18, 0.08, 0.90)
-	sb.border_color = Color(0.50, 0.36, 0.20) if not is_target else Color(0.95, 0.78, 0.30)
-	sb.border_width_left = 2
-	sb.border_width_right = 2
-	sb.border_width_top = 2
-	sb.border_width_bottom = 2
-	sb.corner_radius_top_left = 6
-	sb.corner_radius_top_right = 6
-	sb.corner_radius_bottom_left = 6
-	sb.corner_radius_bottom_right = 6
-	sb.content_margin_left = 12
-	sb.content_margin_right = 12
-	sb.content_margin_top = 8
-	sb.content_margin_bottom = 8
+	# Card stylebox — idle vs target colour pair from Palette.
+	var sb := UiStyle.card(
+		Palette.CASTLE_BG_TARGET if is_target else Palette.CASTLE_BG_IDLE,
+		Palette.CASTLE_BORDER_TARGET if is_target else Palette.CASTLE_BORDER_IDLE,
+	)
 	btn.add_theme_stylebox_override("normal", sb)
 	btn.add_theme_stylebox_override("hover", sb)
 	btn.add_theme_stylebox_override("pressed", sb)
@@ -689,10 +779,10 @@ func _castle_difficulty_band(d: int) -> String:
 
 
 func _castle_difficulty_color(d: int) -> Color:
-	if d < 60:    return Color(0.65, 0.88, 0.55)
-	if d < 110:   return Color(0.92, 0.85, 0.45)
-	if d < 160:   return Color(0.95, 0.65, 0.35)
-	return Color(0.95, 0.45, 0.40)
+	if d < 60:    return Palette.DIFF_LIGHT
+	if d < 110:   return Palette.DIFF_MEDIUM
+	if d < 160:   return Palette.DIFF_HEAVY
+	return Palette.DIFF_FORMIDABLE
 
 
 func _explored_castles() -> Array:
@@ -972,8 +1062,10 @@ func _refresh_crafting_tab() -> void:
 				continue
 			if not ResourceDB.is_craftable(id, GameState.researched):
 				continue
-			if not ResourceDB.can_afford(id, GameState.inventory):
-				continue
+			# Show ALL unlocked recipes — affordable or not. The Craft button
+			# disables itself for short-on-materials recipes with a tooltip
+			# explaining which input is short, so the player learns the recipe
+			# without needing the Research tab to remind them.
 			rows_for_type.append(_build_recipe_row(id, entry, res_type))
 
 		if rows_for_type.is_empty():
@@ -985,7 +1077,7 @@ func _refresh_crafting_tab() -> void:
 
 	if not any_recipe_anywhere:
 		var none_lbl := Label.new()
-		none_lbl.text = "The workshop stands idle — your scouts have brought back nothing the smiths can put hands to. Gather more raw materials, or unlock a new craft from the Research tab."
+		none_lbl.text = "The workshop stands idle — no recipes are unlocked. Visit the Research tab to learn your first craft."
 		none_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
 		none_lbl.modulate = Color(0.58, 0.52, 0.40)
 		crafting_vbox.add_child(none_lbl)
@@ -998,34 +1090,84 @@ func _build_recipe_row(id: String, entry: Dictionary, res_type: int) -> Control:
 	# Tier-colored swatch icon — small visual anchor next to the name.
 	row.add_child(_make_recipe_icon(entry["tier"], res_type))
 
-	# Clickable tier-coloured name → info popup.
+	# Clickable tier-coloured name → info popup. Hover also shows the same
+	# detail body as a quick-reference tooltip so players don't need to click
+	# every recipe to see what it does.
 	var name_btn := LinkButton.new()
 	name_btn.text = entry["name"]
 	name_btn.add_theme_color_override("font_color", ResourceDB.color_for_tier(entry["tier"]))
 	name_btn.custom_minimum_size = Vector2(140, 0)
 	name_btn.pressed.connect(_show_resource_popup.bind(id))
+	var name_tip: String = _recipe_tooltip(id, entry)
+	name_btn.tooltip_text = name_tip
 	row.add_child(name_btn)
 
-	# Recipe inputs with current stock.
+	# Recipe inputs with current stock — shortfall coloured red so the eye
+	# lands on the missing material instantly.
 	var recipe: Dictionary = entry["recipe"]
 	var recipe_parts: PackedStringArray = PackedStringArray()
 	for input_id: String in recipe:
 		var input_entry: Dictionary = ResourceDB.RESOURCES.get(input_id, {})
 		var input_name: String = input_entry.get("name", input_id)
 		var have: int = GameState.inventory.get(input_id, 0)
-		recipe_parts.append("%s ×%d (have %d)" % [input_name, recipe[input_id], have])
-	var recipe_lbl := Label.new()
-	recipe_lbl.text = " + ".join(recipe_parts)
-	recipe_lbl.modulate = Color(0.72, 0.72, 0.72)
-	recipe_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(recipe_lbl)
+		var need: int = int(recipe[input_id])
+		if have < need:
+			recipe_parts.append("[color=#E07050]%s ×%d (have %d)[/color]" % [input_name, need, have])
+		else:
+			recipe_parts.append("%s ×%d (have %d)" % [input_name, need, have])
+	var recipe_rtl := RichTextLabel.new()
+	recipe_rtl.bbcode_enabled = true
+	recipe_rtl.fit_content = true
+	recipe_rtl.scroll_active = false
+	recipe_rtl.parse_bbcode(" + ".join(recipe_parts))
+	recipe_rtl.modulate = Color(0.82, 0.78, 0.62)
+	recipe_rtl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	recipe_rtl.tooltip_text = name_tip
+	row.add_child(recipe_rtl)
 
 	var craft_btn := Button.new()
 	craft_btn.text = "Craft"
-	craft_btn.pressed.connect(_on_craft.bind(id))
+	var affordable: bool = ResourceDB.can_afford(id, GameState.inventory)
+	craft_btn.disabled = not affordable
+	if affordable:
+		craft_btn.tooltip_text = "Craft 1 × %s." % entry["name"]
+		craft_btn.pressed.connect(_on_craft.bind(id))
+	else:
+		craft_btn.tooltip_text = _recipe_shortfall_text(id, entry)
 	row.add_child(craft_btn)
 
 	return row
+
+
+# Tooltip body shared by the recipe name and the inputs row — answers
+# "what does this make and what does it need?" without opening the popup.
+func _recipe_tooltip(id: String, entry: Dictionary) -> String:
+	var bits: Array[String] = []
+	bits.append("%s — Tier %d" % [entry["name"], int(entry["tier"])])
+	var recipe: Dictionary = entry.get("recipe", {})
+	if not recipe.is_empty():
+		var input_parts: Array[String] = []
+		for input_id: String in recipe:
+			var ie: Dictionary = ResourceDB.RESOURCES.get(input_id, {})
+			input_parts.append("%s ×%d" % [ie.get("name", input_id), int(recipe[input_id])])
+		bits.append("Needs: " + " + ".join(input_parts))
+	bits.append("Click name for full details.")
+	return "\n".join(bits)
+
+
+# "Short by N Plant Fibres" — the exact list of what's missing, ordered by
+# how short you are so the player can prioritise which material to gather.
+func _recipe_shortfall_text(id: String, entry: Dictionary) -> String:
+	var shortfalls: Array[String] = []
+	for input_id: String in entry.get("recipe", {}):
+		var need: int = int(entry["recipe"][input_id])
+		var have: int = GameState.inventory.get(input_id, 0)
+		if have < need:
+			var ie: Dictionary = ResourceDB.RESOURCES.get(input_id, {})
+			shortfalls.append("%s ×%d more" % [ie.get("name", input_id), need - have])
+	if shortfalls.is_empty():
+		return ""
+	return "Need: " + ", ".join(shortfalls)
 
 
 # Shared styling for runtime-built section headers. Same fleuron prefix +
@@ -1049,18 +1191,12 @@ func _make_recipe_icon(tier: int, res_type: int) -> Control:
 	}
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(28, 28)
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = ResourceDB.color_for_tier(tier).darkened(0.45)
-	sb.border_color = ResourceDB.color_for_tier(tier)
-	sb.border_width_left = 1
-	sb.border_width_right = 1
-	sb.border_width_top = 1
-	sb.border_width_bottom = 1
-	sb.corner_radius_top_left = 4
-	sb.corner_radius_top_right = 4
-	sb.corner_radius_bottom_left = 4
-	sb.corner_radius_bottom_right = 4
-	panel.add_theme_stylebox_override("panel", sb)
+	# Tier-coloured swatch — UiStyle handles the small-corner rounding +
+	# 1-px border; we just pass the darkened bg and the tier accent.
+	var tier_color: Color = ResourceDB.color_for_tier(tier)
+	panel.add_theme_stylebox_override("panel", UiStyle.swatch(
+		tier_color.darkened(0.45), tier_color,
+	))
 
 	var lbl := Label.new()
 	lbl.text = TYPE_GLYPH.get(res_type, "·")
@@ -1239,18 +1375,9 @@ func _research_empty_cell(category_color: Color) -> Control:
 	# than "missing element." A dim ◦ glyph sits centred in the cell.
 	var c := PanelContainer.new()
 	c.custom_minimum_size = RESEARCH_CELL_SIZE
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0, 0, 0, 0)
-	sb.border_color = category_color.darkened(0.65)
-	sb.border_width_left = 1
-	sb.border_width_right = 1
-	sb.border_width_top = 1
-	sb.border_width_bottom = 1
-	sb.corner_radius_top_left = 6
-	sb.corner_radius_top_right = 6
-	sb.corner_radius_bottom_left = 6
-	sb.corner_radius_bottom_right = 6
-	c.add_theme_stylebox_override("panel", sb)
+	c.add_theme_stylebox_override("panel", UiStyle.chip(
+		Color(0, 0, 0, 0), category_color.darkened(0.65), 1,
+	))
 	var dot := Label.new()
 	dot.text = "◦"
 	dot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1275,17 +1402,10 @@ func _make_research_icon(project_id: String) -> Control:
 	btn.button_pressed = (_selected_research_id == project_id)
 	btn.tooltip_text = proj["name"] + ("  ✓" if is_done else "")
 
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = color.darkened(0.55 if not is_done else 0.30)
-	sb.border_color = color if prereqs_met or is_done else color.darkened(0.4)
-	sb.border_width_left = 2
-	sb.border_width_right = 2
-	sb.border_width_top = 2
-	sb.border_width_bottom = 2
-	sb.corner_radius_top_left = 6
-	sb.corner_radius_top_right = 6
-	sb.corner_radius_bottom_left = 6
-	sb.corner_radius_bottom_right = 6
+	var sb := UiStyle.chip(
+		color.darkened(0.55 if not is_done else 0.30),
+		color if prereqs_met or is_done else color.darkened(0.4),
+	)
 	btn.add_theme_stylebox_override("normal", sb)
 	btn.add_theme_stylebox_override("hover", sb)
 	btn.add_theme_stylebox_override("pressed", sb)
@@ -1639,9 +1759,178 @@ func _do_advance() -> void:
 	SaveManager.save_game()
 
 	GameState.phase_machine.transition(PhaseMachine.Phase.TICK)
-	Tick.apply(GameState)
-	get_tree().change_scene_to_file("res://scenes/screens/pre_battle_review.tscn")
+	var results: Dictionary = Tick.apply(GameState)
+
+	# FM-style "processing the week" sweep: hand the tick results to the
+	# WeekProcessor overlay, which reveals each beat and pauses on notable
+	# ones before jumping to Pre-Battle. Planning stops handling hotkeys while
+	# the overlay owns input.
+	set_process_unhandled_input(false)
+	var header: String = "Year %d, Week %d — the week unfolds" % [
+		GameState.current_year(), GameState.week,
+	]
+	var processor := WeekProcessor.new()
+	add_child(processor)
+	processor.begin(header, _build_week_steps(results), func() -> void:
+		get_tree().change_scene_to_file("res://scenes/screens/pre_battle_review.tscn")
+	)
+
+
+# Translate the raw Tick result Dictionary into the ordered list of FM-style
+# beats the WeekProcessor reveals. Only beats with something to say are
+# included; the closing "week ahead" beat always pauses, mirroring how FM
+# stops the schedule before a match.
+func _build_week_steps(results: Dictionary) -> Array:
+	var steps: Array = []
+
+	# 1 — Upkeep & coffers. Always shown; pauses only if wages went unpaid.
+	var coffer_lines: Array[String] = []
+	var income: int = int(results.get("gold_income", 0))
+	var upkeep: int = int(results.get("gold_deducted", 0))
+	if income > 0:
+		coffer_lines.append("Holdings yield +%d gold." % income)
+	if upkeep > 0:
+		coffer_lines.append("Weekly upkeep costs %d gold." % upkeep)
+	var debt: bool = bool(results.get("maintenance_debt", false))
+	if debt:
+		coffer_lines.append("⚠ The coffers ran dry — wages went unpaid this week!")
+	else:
+		coffer_lines.append("The treasury holds %d gold." % GameState.gold)
+	steps.append({
+		"title": "Upkeep & Coffers", "icon": "⚖", "lines": coffer_lines,
+		"tone": "bad" if debt else "gold", "pause": debt,
+	})
+
+	# 2 — Training yard.
+	var train_lines: Array[String] = []
+	for entry in results.get("training", []):
+		var u: Unit = GameState.find_unit(int(entry.get("unit_id", -1)))
+		var who: String = u.unit_name if u != null else "A unit"
+		var stat: String = str(entry.get("stat", "")).capitalize()
+		if int(entry.get("leveled", 0)) > 0:
+			var line: String = "%s drilled %s → %d.  ▲" % [who, stat, int(entry.get("after", 0))]
+			if entry.get("bonus_leveled", false) and str(entry.get("bonus_stat", "")) != "":
+				line += "  A spark of %s, too!" % str(entry.get("bonus_stat", "")).capitalize()
+			train_lines.append(line)
+		elif bool(entry.get("developing", false)):
+			train_lines.append("%s works at %s — coming along." % [who, stat])
+		else:
+			train_lines.append("%s trained %s, but it holds firm at %d." % [
+				who, stat, int(entry.get("after", 0)),
+			])
+	if not train_lines.is_empty():
+		steps.append({
+			"title": "The Training Yard", "icon": "⚔", "lines": train_lines,
+			"tone": "good", "pause": false,
+		})
+
+	# 3 — Determination stirrings (every 4th week). Entries carry the Unit
+	# object directly (see Determination.roll_for_units).
+	var det_lines: Array[String] = []
+	for entry in results.get("determination", []):
+		var du: Unit = entry.get("unit", null)
+		var who: String = du.unit_name if du != null else "A unit"
+		det_lines.append("%s feels something stir within — %s sharpens." % [
+			who, str(entry.get("stat", "")).capitalize(),
+		])
+	if not det_lines.is_empty():
+		steps.append({
+			"title": "A Stirring of Resolve", "icon": "✶", "lines": det_lines,
+			"tone": "info", "pause": false,
+		})
+
+	# 4 — Returning expeditions. Pauses if a castle is uncovered.
+	var exp_lines: Array[String] = []
+	var castle_found: bool = false
+	for ret in results.get("expedition_returns", []):
+		var tx: int = int(ret.get("target_x", 0))
+		var ty: int = int(ret.get("target_y", 0))
+		if int(ret.get("kind", -1)) == Expedition.Kind.GATHER and int(ret.get("yield_amount", 0)) > 0:
+			var rkey: String = str(ret.get("yield_resource", ""))
+			var rname: String = ResourceDB.RESOURCES.get(rkey, {}).get("name", rkey.capitalize())
+			exp_lines.append("A gathering party returns from (%d, %d) bearing %d %s." % [
+				tx, ty, int(ret.get("yield_amount", 0)), rname,
+			])
+		elif str(ret.get("revealed_terrain", "")) != "":
+			var terr: String = str(ret.get("revealed_terrain", "")).capitalize()
+			if ret.get("revealed_castle", null) != null:
+				castle_found = true
+				exp_lines.append("Scouts chart the %s at (%d, %d) — and a castle looms there!" % [terr, tx, ty])
+			else:
+				exp_lines.append("Scouts chart the %s at (%d, %d)." % [terr, tx, ty])
+		else:
+			exp_lines.append("An expedition returns from (%d, %d)." % [tx, ty])
+	if not exp_lines.is_empty():
+		steps.append({
+			"title": "Expeditions Return", "icon": "🧭", "lines": exp_lines,
+			"tone": "good", "pause": castle_found,
+		})
+
+	# 5 — Infirmary recoveries.
+	var heal_lines: Array[String] = []
+	for entry in results.get("injury_recoveries", []):
+		var u: Unit = GameState.find_unit(int(entry.get("unit_id", -1)))
+		var who: String = u.unit_name if u != null else "A unit"
+		heal_lines.append("%s has recovered — %s is whole again." % [
+			who, str(entry.get("stat", "")).capitalize(),
+		])
+	if not heal_lines.is_empty():
+		steps.append({
+			"title": "The Infirmary", "icon": "✚", "lines": heal_lines,
+			"tone": "heal", "pause": false,
+		})
+
+	# 6 — The week ahead. Always last, always pauses — the FM "stop for the match".
+	steps.append({
+		"title": "The Week Ahead", "icon": "❦",
+		"lines": [_current_event_full_label(), _formation_advice()],
+		"tone": "neutral", "pause": true,
+	})
+
+	return steps
 
 
 func _on_settings() -> void:
 	SettingsPopup.show_for(self)
+
+
+# Keyboard shortcuts:
+#   1-5         switch main tabs (Overview / Tactics / Map / Crafting / Research)
+#   C           toggle Calendar pane
+#   Esc         close intro splash or info overlay
+#   Enter       advance time (matches the primary action of the screen)
+func _unhandled_input(event: InputEvent) -> void:
+	if not (event is InputEventKey) or not event.pressed or event.echo:
+		return
+	# When any modal is up the underlying screen ignores hotkeys — the modal
+	# owns the keys (intro splash has its own dismiss button, info overlay
+	# closes on Esc below).
+	if intro_panel != null and intro_panel.visible:
+		if event.keycode == KEY_ESCAPE:
+			_on_dismiss_intro()
+			accept_event()
+		return
+	if info_overlay != null and info_overlay.visible:
+		if event.keycode == KEY_ESCAPE:
+			info_overlay.visible = false
+			accept_event()
+		return
+
+	# Route through the same selector the TabBar uses so Calendar state resets
+	# and the highlight stays in sync (see `_select_main_tab`).
+	match event.keycode:
+		KEY_1:
+			_select_main_tab(TAB_OVERVIEW); accept_event()
+		KEY_2:
+			_select_main_tab(TAB_TACTICS); accept_event()
+		KEY_3:
+			_select_main_tab(TAB_MAP); accept_event()
+		KEY_4:
+			_select_main_tab(TAB_CRAFTING); accept_event()
+		KEY_5:
+			_select_main_tab(TAB_RESEARCH); accept_event()
+		KEY_C:
+			_on_calendar_btn(); accept_event()
+		KEY_ENTER, KEY_KP_ENTER:
+			if not advance_btn.disabled:
+				_on_advance(); accept_event()

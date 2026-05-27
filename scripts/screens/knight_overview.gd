@@ -70,6 +70,7 @@ func _ready() -> void:
 	settings_btn.pressed.connect(_on_settings)
 
 	_render(unit)
+	ScreenFade.fade_in(self)
 
 
 func _render(unit: Unit) -> void:
@@ -82,6 +83,7 @@ func _render(unit: Unit) -> void:
 	_render_stats(unit)
 	_render_chronicle_card(unit)
 	_render_task(unit)
+	_render_equipment(unit)
 	_render_history(unit)
 
 
@@ -164,6 +166,20 @@ func _build_stat_group(unit: Unit, group_label: String, stat_keys: Array) -> Con
 		desc_lbl.custom_minimum_size = Vector2(80, 0)
 		row.add_child(desc_lbl)
 
+		# FM-style development arrow (show-not-tell): ▲ developing, bright ▲
+		# recently improved, ▼ injury-suppressed. Fixed-width cell so the blurb
+		# column stays aligned whether or not an arrow is present.
+		var dev_state: int = unit.stats.development_state(key, unit.potential_ability, unit.injured_stats().has(key))
+		var arrow := Label.new()
+		arrow.custom_minimum_size = Vector2(18, 0)
+		arrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		if dev_state != Stats.DEV_NONE:
+			arrow.text = Stats.development_glyph(dev_state)
+			arrow.add_theme_color_override("font_color", Stats.development_color(dev_state))
+			arrow.add_theme_font_size_override("font_size", 16 if dev_state == Stats.DEV_SURGING else 12)
+			arrow.tooltip_text = Stats.development_tooltip(dev_state)
+		row.add_child(arrow)
+
 		var blurb := Label.new()
 		blurb.text = STAT_BLURBS.get(key, "")
 		blurb.modulate = Color(0.6, 0.58, 0.46)
@@ -245,6 +261,24 @@ func _render_chronicle_card(unit: Unit) -> void:
 	body_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
 	house_block.add_child(body_lbl)
 
+	# Trait — name + full prose description. The chronicle card is the place
+	# the player goes when they want to know "who is this knight?"; the trait
+	# blurb earns its space here even when it's truncated to a glyph on
+	# smaller cards.
+	if unit.trait_id != "" and TraitPool.is_valid(unit.trait_id):
+		var trait_name := Label.new()
+		trait_name.text = "❖ %s" % TraitPool.name_for(unit.trait_id)
+		trait_name.add_theme_font_size_override("font_size", 14)
+		trait_name.modulate = Color(0.95, 0.78, 0.45)
+		house_block.add_child(trait_name)
+
+		var trait_desc := Label.new()
+		trait_desc.text = TraitPool.description_for(unit.trait_id)
+		trait_desc.add_theme_font_size_override("font_size", 12)
+		trait_desc.modulate = Color(0.78, 0.72, 0.55)
+		trait_desc.autowrap_mode = TextServer.AUTOWRAP_WORD
+		house_block.add_child(trait_desc)
+
 	vbox.add_child(_fleuron_divider())
 
 	# Origin
@@ -312,6 +346,140 @@ func _render_task(unit: Unit) -> void:
 			_add_info_line(task_info, "  Party size: %d unit(s)" % exp.unit_ids.size())
 
 
+# ---------- equipment ----------
+#
+# Sits in the RightCol below "Current Status". Each slot (weapon / armour)
+# shows the current item with rarity-tinted name + stat-line + flavour, plus
+# a Change… button that opens a popup of stockpile alternatives. Equipping
+# from the stockpile swaps — the old item returns to stockpile so nothing is
+# lost.
+
+func _render_equipment(unit: Unit) -> void:
+	for c in task_info.get_children():
+		if c.has_meta("_eq_block"):
+			c.queue_free()
+
+	var header := Label.new()
+	header.text = "❦  Equipment"
+	header.add_theme_font_size_override("font_size", 16)
+	header.add_theme_color_override("font_color", Color(0.92, 0.78, 0.42))
+	header.set_meta("_eq_block", true)
+	task_info.add_child(header)
+
+	_render_equipment_row(unit, "weapon", unit.weapon_id)
+	_render_equipment_row(unit, "armour", unit.armour_id)
+
+
+func _render_equipment_row(unit: Unit, slot: String, item_id: String) -> void:
+	var row := VBoxContainer.new()
+	row.add_theme_constant_override("separation", 2)
+	row.set_meta("_eq_block", true)
+	task_info.add_child(row)
+
+	var name_row := HBoxContainer.new()
+	name_row.add_theme_constant_override("separation", 8)
+	row.add_child(name_row)
+
+	var slot_lbl := Label.new()
+	slot_lbl.text = "%s:" % slot.capitalize()
+	slot_lbl.custom_minimum_size = Vector2(60, 0)
+	slot_lbl.modulate = Color(0.72, 0.62, 0.40)
+	name_row.add_child(slot_lbl)
+
+	var name_lbl := Label.new()
+	var display: String = (
+		Weapon.display_name(item_id) if slot == "weapon" else Armour.display_name(item_id)
+	)
+	var rarity_lbl: String = (
+		Weapon.rarity_label(item_id) if slot == "weapon" else Armour.rarity_label(item_id)
+	)
+	var rarity_col: Color = (
+		Weapon.rarity_color(item_id) if slot == "weapon" else Armour.rarity_color(item_id)
+	)
+	name_lbl.text = "%s (%s)" % [display, rarity_lbl]
+	name_lbl.add_theme_color_override("font_color", rarity_col)
+	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_row.add_child(name_lbl)
+
+	var change_btn := Button.new()
+	change_btn.text = "Change…"
+	var available: int = _stockpile_count_for_slot(slot)
+	if available == 0:
+		change_btn.disabled = true
+		change_btn.tooltip_text = "Armoury empty — win battles to pick up spare kit."
+	else:
+		change_btn.tooltip_text = "%d spare %s in the armoury" % [available, slot]
+	change_btn.pressed.connect(_open_equip_popup.bind(unit, slot, change_btn))
+	name_row.add_child(change_btn)
+
+	# Stat summary line — concise, dimmer than the name.
+	var detail_lbl := Label.new()
+	detail_lbl.text = (
+		Weapon.describe(item_id) if slot == "weapon" else Armour.describe(item_id)
+	)
+	detail_lbl.modulate = Color(0.78, 0.74, 0.60)
+	detail_lbl.add_theme_font_size_override("font_size", 12)
+	detail_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+	row.add_child(detail_lbl)
+
+	# Flavour blurb — italicised feel via colour, kept under name for tone.
+	var flavour_text: String = (
+		Weapon.flavour(item_id) if slot == "weapon" else Armour.flavour(item_id)
+	)
+	if flavour_text != "":
+		var flavour_lbl := Label.new()
+		flavour_lbl.text = "\"%s\"" % flavour_text
+		flavour_lbl.modulate = Color(0.62, 0.56, 0.42)
+		flavour_lbl.add_theme_font_size_override("font_size", 11)
+		flavour_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+		row.add_child(flavour_lbl)
+
+
+func _stockpile_count_for_slot(slot: String) -> int:
+	var n: int = 0
+	for entry in GameState.item_stockpile:
+		if str(entry.get("slot", "")) == slot:
+			n += 1
+	return n
+
+
+func _open_equip_popup(unit: Unit, slot: String, anchor: Button) -> void:
+	var popup := PopupMenu.new()
+	popup.add_item("Available %s in the armoury" % slot.capitalize(), -1)
+	popup.set_item_disabled(0, true)
+	popup.add_separator()
+	# Map: popup item id → stockpile index. Item ids run from 0 to size-1.
+	var pairs: Array = []   # Array of [stockpile_index, label]
+	for i in range(GameState.item_stockpile.size()):
+		var entry: Dictionary = GameState.item_stockpile[i]
+		if str(entry.get("slot", "")) != slot:
+			continue
+		var id: String = str(entry.get("id", ""))
+		var label: String = (
+			"%s — %s" % [Weapon.display_name(id), Weapon.rarity_label(id)]
+			if slot == "weapon"
+			else "%s — %s" % [Armour.display_name(id), Armour.rarity_label(id)]
+		)
+		pairs.append([i, label])
+	for j in range(pairs.size()):
+		popup.add_item(pairs[j][1], j)
+	popup.id_pressed.connect(_on_equip_picked.bind(unit, pairs, popup))
+	popup.close_requested.connect(func(): popup.queue_free())
+	add_child(popup)
+	var p: Vector2 = anchor.get_screen_position() + Vector2(0, anchor.size.y)
+	popup.position = Vector2i(p)
+	popup.popup()
+
+
+func _on_equip_picked(picked: int, unit: Unit, pairs: Array, popup: PopupMenu) -> void:
+	if picked >= 0 and picked < pairs.size():
+		var stockpile_index: int = int(pairs[picked][0])
+		if ItemDrops.equip_from_stockpile(GameState, unit, stockpile_index):
+			MasterAudio.play_click()
+			_render(unit)
+	popup.queue_free()
+
+
 # ---------- per-unit history ----------
 
 # Scan the run-history log for entries that involved this unit. The log
@@ -374,3 +542,12 @@ func _on_back() -> void:
 
 func _on_settings() -> void:
 	SettingsPopup.show_for(self)
+
+
+# Esc → back to Planning, matching the visible Back button.
+func _unhandled_input(event: InputEvent) -> void:
+	if not (event is InputEventKey) or not event.pressed or event.echo:
+		return
+	if event.keycode == KEY_ESCAPE:
+		_on_back()
+		accept_event()

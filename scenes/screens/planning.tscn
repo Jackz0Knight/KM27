@@ -40,6 +40,23 @@ scrolling_enabled = false
 layout_mode = 2
 size_flags_horizontal = 3
 
+[node name="TournamentChip" type="PanelContainer" parent="Margin/VBox/TopBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 40)
+visible = false
+
+[node name="TournamentChipMargin" type="MarginContainer" parent="Margin/VBox/TopBar/TournamentChip"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_bottom = 4
+
+[node name="TournamentChipLabel" type="Label" parent="Margin/VBox/TopBar/TournamentChip/TournamentChipMargin"]
+layout_mode = 2
+text = "Tournament in — weeks"
+vertical_alignment = 1
+
 [node name="CalendarBtn" type="Button" parent="Margin/VBox/TopBar"]
 layout_mode = 2
 text = "📅 Calendar"

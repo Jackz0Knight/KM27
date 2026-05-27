@@ -132,7 +132,10 @@ func best_for_type(inventory: Dictionary, res_type: int) -> String:
 # Gold + best-held resource per type, each prefixed with the same tier glyph
 # we use in the Crafting tab so the HUD reads like a proper inventory strip
 # even when slots are empty.
-func resource_hud_bbcode(gold: int, inventory: Dictionary) -> String:
+# `reputation` is optional with a 0 default — callers that don't pass it
+# (legacy or unit tests) see the original Gold + types line. Passing a value
+# prepends a "❦ Rep:" chip styled by reputation band.
+func resource_hud_bbcode(gold: int, inventory: Dictionary, reputation: int = 0) -> String:
 	const TYPE_LABEL: Dictionary = {
 		ResType.FABRIC: "Fabric",
 		ResType.TIMBER: "Timber",
@@ -152,6 +155,14 @@ func resource_hud_bbcode(gold: int, inventory: Dictionary) -> String:
 	}
 
 	var parts: Array[String] = []
+	# Reputation chip — coloured by band. Skipped when zero/default so callers
+	# that haven't been updated yet still get the original HUD layout.
+	if reputation != 0:
+		var rep_hex: String = _reputation_hex(reputation)
+		var rep_label: String = _reputation_label(reputation)
+		parts.append("[color=#C4A24B]❦ Rep:[/color] [color=%s]%d (%s)[/color]" % [
+			rep_hex, reputation, rep_label,
+		])
 	parts.append("[color=#FFD61A]✦ Gold:[/color] [color=#F1E2A4]%d[/color]" % gold)
 
 	for res_type: int in [ResType.FABRIC, ResType.TIMBER, ResType.METAL]:
@@ -290,3 +301,35 @@ func can_afford(id: String, inventory: Dictionary) -> bool:
 		if inventory.get(input_id, 0) < entry["recipe"][input_id]:
 			return false
 	return true
+
+
+# Reputation band → display label. Used by the HUD chip and any other surface
+# that wants a one-word descriptor instead of a raw number.
+func reputation_label(rep: int) -> String:
+	return _reputation_label(rep)
+
+
+func reputation_color(rep: int) -> Color:
+	return Color(_reputation_hex(rep))
+
+
+# Bands chosen so the player crosses a label every ~10 reputation, both ways.
+# Negatives are darker; positives warm up; the legend tier reads bright gold.
+func _reputation_label(rep: int) -> String:
+	if rep <= -30: return "Outcast"
+	if rep <= -10: return "Disreputable"
+	if rep <  0:   return "Suspect"
+	if rep <  10:  return "Known"
+	if rep <  20:  return "Respected"
+	if rep <  40:  return "Renowned"
+	return "Legendary"
+
+
+func _reputation_hex(rep: int) -> String:
+	if rep <= -30: return "#8A4A4A"
+	if rep <= -10: return "#A86A55"
+	if rep <  0:   return "#B89A6A"
+	if rep <  10:  return "#C4A24B"
+	if rep <  20:  return "#E6C25A"
+	if rep <  40:  return "#FFD61A"
+	return "#FFEB7A"

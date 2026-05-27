@@ -13,6 +13,11 @@ var slot_key: String = "blue"
 var slot_label: String = "Slot"
 var occupant: KnightIcon = null
 var matched: bool = false
+# Live drag preview state — true while the cursor is dragging a knight icon
+# whose primary stat matches this slot's bonus axis. Independent of `matched`
+# (which describes the currently-dropped occupant). Repaints the border with
+# a gold glow so the player can see "yes, drop here" before releasing.
+var preview_match: bool = false
 
 
 func _ready() -> void:
@@ -40,22 +45,26 @@ func set_matched(is_match: bool) -> void:
 	_apply_style()
 
 
+func set_preview_match(is_match: bool) -> void:
+	if preview_match == is_match:
+		return
+	preview_match = is_match
+	_apply_style()
+
+
 func _apply_style() -> void:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.22, 0.22, 0.26, 1.0)
-	if matched:
-		style.border_color = Color(0.55, 0.95, 0.55, 1.0)
-		style.bg_color = Color(0.20, 0.30, 0.22, 1.0)
+	# Three visual states share the same chip shape — only colour + border
+	# width vary. UiStyle.slot() builds the chip; this function just picks
+	# which palette pair to feed it.
+	var style: StyleBoxFlat
+	if preview_match:
+		# Live "drop here" hint — gold glow + warm bed, distinct from the
+		# post-drop green-match border so the two states never blur together.
+		style = UiStyle.slot(Palette.SLOT_BG_PREVIEW, Palette.SLOT_BORDER_PREVIEW, 3)
+	elif matched:
+		style = UiStyle.slot(Palette.SLOT_BG_MATCHED, Palette.SLOT_BORDER_MATCHED, 2)
 	else:
-		style.border_color = Color(0.45, 0.45, 0.5, 1.0)
-	style.border_width_left = 2
-	style.border_width_right = 2
-	style.border_width_top = 2
-	style.border_width_bottom = 2
-	style.corner_radius_top_left = 6
-	style.corner_radius_top_right = 6
-	style.corner_radius_bottom_left = 6
-	style.corner_radius_bottom_right = 6
+		style = UiStyle.slot(Palette.SLOT_BG_IDLE, Palette.SLOT_BORDER_IDLE, 2)
 	add_theme_stylebox_override("panel", style)
 
 

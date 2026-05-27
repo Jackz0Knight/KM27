@@ -379,8 +379,24 @@ func _on_seed_submitted(_text: String) -> void:
 
 
 func _on_continue() -> void:
-	if SaveManager.load_game():
-		get_tree().change_scene_to_file("res://scenes/screens/planning.tscn")
+	# Peek the save metadata so the player sees what they're about to load
+	# before committing — no silent overwrite of an in-progress run if they
+	# accidentally hit Continue.
+	var meta: Dictionary = SaveManager.peek_save()
+	if meta.is_empty():
+		# Stale UI (save was deleted under us). Just bail silently.
+		return
+	ConfirmDialogUtil.ask(
+		self, "load_save",
+		"Resume saved run?\nYear %d, Week %d (week %d of 48)  ·  Gold %d  ·  Streak %d" % [
+			meta["year"], meta["week"], meta["week_of_year"],
+			meta["gold"], meta["tournament_streak"],
+		],
+		func():
+			if SaveManager.load_game():
+				get_tree().change_scene_to_file("res://scenes/screens/planning.tscn"),
+		true,
+	)
 
 
 func _on_options() -> void:
