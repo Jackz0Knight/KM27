@@ -116,7 +116,10 @@ func _build_tabs() -> void:
 		tabs.add_tab(tab_name)
 	tabs.current_tab = TAB_MAP
 	content.current_tab = TAB_MAP
-	tabs.tab_changed.connect(_on_tab_changed)
+	# `tab_clicked` (not `tab_changed`) so re-clicking the already-selected tab
+	# still routes through — that's what lets you leave the Calendar overlay,
+	# which lives on content index 5 but isn't a real entry in this TabBar.
+	tabs.tab_clicked.connect(_select_main_tab)
 
 	tactics_mode_tabs.add_tab("Defense")
 	tactics_mode_tabs.add_tab("Attack")
@@ -131,10 +134,15 @@ func _build_map_panzoom() -> void:
 	_map_panzoom.set_world(GameState.world)
 
 
-func _on_tab_changed(idx: int) -> void:
+func _select_main_tab(idx: int) -> void:
+	# Always clears the Calendar overlay and re-syncs the TabBar highlight, so
+	# selecting a main tab works whether or not Calendar is currently showing
+	# and even when the clicked tab was already the highlighted one.
 	_calendar_active = false
 	_last_main_tab = idx
 	calendar_btn.modulate = Color.WHITE
+	if tabs.current_tab != idx:
+		tabs.current_tab = idx
 	content.current_tab = idx
 	if idx == TAB_MAP and _map_panzoom != null:
 		_map_panzoom.center_on_town()
@@ -1751,8 +1759,133 @@ func _do_advance() -> void:
 	SaveManager.save_game()
 
 	GameState.phase_machine.transition(PhaseMachine.Phase.TICK)
-	Tick.apply(GameState)
-	get_tree().change_scene_to_file("res://scenes/screens/pre_battle_review.tscn")
+	var results: Dictionary = Tick.apply(GameState)
+
+	# FM-style "processing the week" sweep: hand the tick results to the
+	# WeekProcessor overlay, which reveals each beat and pauses on notable
+	# ones before jumping to Pre-Battle. Planning stops handling hotkeys while
+	# the overlay owns input.
+	set_process_unhandled_input(false)
+	var header: String = "Year %d, Week %d — the week unfolds" % [
+		GameState.current_year(), GameState.week,
+	]
+	var processor := WeekProcessor.new()
+	add_child(processor)
+	processor.begin(header, _build_week_steps(results), func() -> void:
+		get_tree().change_scene_to_file("res://scenes/screens/pre_battle_review.tscn")
+	)
+
+
+# Translate the raw Tick result Dictionary into the ordered list of FM-style
+# beats the WeekProcessor reveals. Only beats with something to say are
+# included; the closing "week ahead" beat always pauses, mirroring how FM
+# stops the schedule before a match.
+func _build_week_steps(results: Dictionary) -> Array:
+	var steps: Array = []
+
+	# 1 — Upkeep & coffers. Always shown; pauses only if wages went unpaid.
+	var coffer_lines: Array[String] = []
+	var income: int = int(results.get("gold_income", 0))
+	var upkeep: int = int(results.get("gold_deducted", 0))
+	if income > 0:
+		coffer_lines.append("Holdings yield +%d gold." % income)
+	if upkeep > 0:
+		coffer_lines.append("Weekly upkeep costs %d gold." % upkeep)
+	var debt: bool = bool(results.get("maintenance_debt", false))
+	if debt:
+		coffer_lines.append("⚠ The coffers ran dry — wages went unpaid this week!")
+	else:
+		coffer_lines.append("The treasury holds %d gold." % GameState.gold)
+	steps.append({
+		"title": "Upkeep & Coffers", "icon": "⚖", "lines": coffer_lines,
+		"tone": "bad" if debt else "gold", "pause": debt,
+	})
+
+	# 2 — Training yard.
+	var train_lines: Array[String] = []
+	for entry in results.get("training", []):
+		var u: Unit = GameState.find_unit(int(entry.get("unit_id", -1)))
+		var who: String = u.unit_name if u != null else "A unit"
+		var stat: String = str(entry.get("stat", "")).capitalize()
+		if bool(entry.get("applied", false)):
+			var line: String = "%s drilled %s → %d." % [who, stat, int(entry.get("after", 0))]
+			var bonus: String = str(entry.get("bonus_stat", ""))
+			if bonus != "":
+				line += "  A spark of %s, too!" % bonus.capitalize()
+			train_lines.append(line)
+		else:
+			train_lines.append("%s trained %s, but it held firm at %d." % [
+				who, stat, int(entry.get("after", 0)),
+			])
+	if not train_lines.is_empty():
+		steps.append({
+			"title": "The Training Yard", "icon": "⚔", "lines": train_lines,
+			"tone": "good", "pause": false,
+		})
+
+	# 3 — Determination stirrings (every 4th week).
+	var det_lines: Array[String] = []
+	for entry in results.get("determination", []):
+		var u: Unit = GameState.find_unit(int(entry.get("unit_id", -1)))
+		var who: String = u.unit_name if u != null else "A unit"
+		det_lines.append("%s feels something stir within — %s sharpens." % [
+			who, str(entry.get("stat", "")).capitalize(),
+		])
+	if not det_lines.is_empty():
+		steps.append({
+			"title": "A Stirring of Resolve", "icon": "✶", "lines": det_lines,
+			"tone": "info", "pause": false,
+		})
+
+	# 4 — Returning expeditions. Pauses if a castle is uncovered.
+	var exp_lines: Array[String] = []
+	var castle_found: bool = false
+	for ret in results.get("expedition_returns", []):
+		var tx: int = int(ret.get("target_x", 0))
+		var ty: int = int(ret.get("target_y", 0))
+		if int(ret.get("kind", -1)) == Expedition.Kind.GATHER and int(ret.get("yield_amount", 0)) > 0:
+			var rkey: String = str(ret.get("yield_resource", ""))
+			var rname: String = ResourceDB.RESOURCES.get(rkey, {}).get("name", rkey.capitalize())
+			exp_lines.append("A gathering party returns from (%d, %d) bearing %d %s." % [
+				tx, ty, int(ret.get("yield_amount", 0)), rname,
+			])
+		elif str(ret.get("revealed_terrain", "")) != "":
+			var terr: String = str(ret.get("revealed_terrain", "")).capitalize()
+			if ret.get("revealed_castle", null) != null:
+				castle_found = true
+				exp_lines.append("Scouts chart the %s at (%d, %d) — and a castle looms there!" % [terr, tx, ty])
+			else:
+				exp_lines.append("Scouts chart the %s at (%d, %d)." % [terr, tx, ty])
+		else:
+			exp_lines.append("An expedition returns from (%d, %d)." % [tx, ty])
+	if not exp_lines.is_empty():
+		steps.append({
+			"title": "Expeditions Return", "icon": "🧭", "lines": exp_lines,
+			"tone": "good", "pause": castle_found,
+		})
+
+	# 5 — Infirmary recoveries.
+	var heal_lines: Array[String] = []
+	for entry in results.get("injury_recoveries", []):
+		var u: Unit = GameState.find_unit(int(entry.get("unit_id", -1)))
+		var who: String = u.unit_name if u != null else "A unit"
+		heal_lines.append("%s has recovered — %s is whole again." % [
+			who, str(entry.get("stat", "")).capitalize(),
+		])
+	if not heal_lines.is_empty():
+		steps.append({
+			"title": "The Infirmary", "icon": "✚", "lines": heal_lines,
+			"tone": "heal", "pause": false,
+		})
+
+	# 6 — The week ahead. Always last, always pauses — the FM "stop for the match".
+	steps.append({
+		"title": "The Week Ahead", "icon": "❦",
+		"lines": [_current_event_full_label(), _formation_advice()],
+		"tone": "neutral", "pause": true,
+	})
+
+	return steps
 
 
 func _on_settings() -> void:
@@ -1781,19 +1914,19 @@ func _unhandled_input(event: InputEvent) -> void:
 			accept_event()
 		return
 
-	# `tabs.current_tab = X` already fires `tab_changed`, which is wired to
-	# `_on_tab_changed` — so just nudge the tab bar and the rest happens.
+	# Route through the same selector the TabBar uses so Calendar state resets
+	# and the highlight stays in sync (see `_select_main_tab`).
 	match event.keycode:
 		KEY_1:
-			tabs.current_tab = TAB_OVERVIEW; accept_event()
+			_select_main_tab(TAB_OVERVIEW); accept_event()
 		KEY_2:
-			tabs.current_tab = TAB_TACTICS; accept_event()
+			_select_main_tab(TAB_TACTICS); accept_event()
 		KEY_3:
-			tabs.current_tab = TAB_MAP; accept_event()
+			_select_main_tab(TAB_MAP); accept_event()
 		KEY_4:
-			tabs.current_tab = TAB_CRAFTING; accept_event()
+			_select_main_tab(TAB_CRAFTING); accept_event()
 		KEY_5:
-			tabs.current_tab = TAB_RESEARCH; accept_event()
+			_select_main_tab(TAB_RESEARCH); accept_event()
 		KEY_C:
 			_on_calendar_btn(); accept_event()
 		KEY_ENTER, KEY_KP_ENTER:
