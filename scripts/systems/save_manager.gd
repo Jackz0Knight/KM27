@@ -83,6 +83,9 @@ func _serialise_state() -> Dictionary:
 			"unit_name": u.unit_name,
 			"unit_class": int(u.unit_class),
 			"stats": stats_data,
+			"stats_progress": u.stats.progress.duplicate(),
+			"stats_momentum": u.stats.momentum.duplicate(),
+			"stats_developing": u.stats.developing.duplicate(),
 			"potential_ability": u.potential_ability,
 			"current_task": u.current_task,
 			"expedition_id": u.expedition_id,
@@ -275,6 +278,20 @@ func _restore_state(data: Dictionary) -> void:
 		var stats := Stats.new()
 		for k in rd.get("stats", {}):
 			stats.set_value(str(k), int(rd["stats"][k]))
+		# Staged development (FM-style). Old saves lack these — default empty,
+		# coercing JSON's stringly numbers back to float / int.
+		var prog: Dictionary = {}
+		for k in rd.get("stats_progress", {}):
+			prog[str(k)] = float(rd["stats_progress"][k])
+		stats.progress = prog
+		var mom: Dictionary = {}
+		for k in rd.get("stats_momentum", {}):
+			mom[str(k)] = int(rd["stats_momentum"][k])
+		stats.momentum = mom
+		var devg: Dictionary = {}
+		for k in rd.get("stats_developing", {}):
+			devg[str(k)] = int(rd["stats_developing"][k])
+		stats.developing = devg
 		u.stats = stats
 		u.current_task = str(rd.get("current_task", Unit.TASK_DEFEND))
 		u.expedition_id = int(rd.get("expedition_id", -1))

@@ -209,6 +209,18 @@ static func build(
 			desc_lbl.add_theme_color_override("font_color", Color(0.95, 0.45, 0.30))
 		row.add_child(desc_lbl)
 
+		# FM-style development arrow — show-not-tell. Small ▲ while a stat is
+		# quietly developing, bright ▲ the weeks after it gains a point, ▼ while
+		# an injury suppresses it. No numbers — the arrow is the whole message.
+		var dev_state: int = unit.stats.development_state(stat_key, unit.potential_ability, injured_set.has(stat_key))
+		if dev_state != Stats.DEV_NONE:
+			var arrow := Label.new()
+			arrow.text = Stats.development_glyph(dev_state)
+			arrow.add_theme_color_override("font_color", Stats.development_color(dev_state))
+			arrow.add_theme_font_size_override("font_size", 14 if dev_state == Stats.DEV_SURGING else 10)
+			arrow.tooltip_text = Stats.development_tooltip(dev_state)
+			row.add_child(arrow)
+
 		# Tooltip on the whole row gives the numeric value + the gameplay blurb.
 		var tip: String = "%s — value: %d / 20\n%s" % [
 			String(stat_key).capitalize(),

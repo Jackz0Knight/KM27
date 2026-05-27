@@ -165,13 +165,15 @@ static func _trained_this_week(unit: Unit, _gs: Node) -> bool:
 	return unit.is_training()
 
 
-# True if the training entry for this unit in last_tick_results has
-# applied=true (the +1 actually landed, no cap or PA block).
+# True if the unit's training this week was productive — under staged
+# development that means it gained a point OR made hidden progress (i.e. it
+# wasn't blocked by a cap / potential). The oath honours the *act* of diligent
+# training, not the rare week the integer happens to tick.
 static func _trained_successfully(unit: Unit, gs: Node) -> bool:
 	var tick: Dictionary = gs.last_tick_results
 	for entry in tick.get("training", []):
 		if int(entry.get("unit_id", -1)) == unit.id:
-			return bool(entry.get("applied", false))
+			return bool(entry.get("applied", false)) or bool(entry.get("developing", false))
 	return false
 
 

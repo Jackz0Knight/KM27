@@ -253,9 +253,14 @@ func _refresh_tick_recap() -> void:
 			var u: Unit = GameState.find_unit(entry["unit_id"])
 			var uname: String = u.unit_name if u != null else "?"
 			var stat: String = entry["stat"]
-			if entry["applied"]:
+			if int(entry.get("leveled", 0)) > 0:
 				_add_recap_line(
-					"  • %s trained %s: %d → %d" % [uname, stat.capitalize(), entry["before"], entry["after"]],
+					"  • %s trained %s: %d → %d ▲" % [uname, stat.capitalize(), entry["before"], entry["after"]],
+					false,
+				)
+			elif entry.get("developing", false):
+				_add_recap_line(
+					"  • %s trained %s — coming along (now %d)" % [uname, stat.capitalize(), entry["after"]],
 					false,
 				)
 			else:
@@ -264,10 +269,16 @@ func _refresh_tick_recap() -> void:
 					true,
 				)
 			if entry.get("bonus_stat", "") != "":
-				_add_recap_line(
-					"      ↳ bonus +1 %s (Determination)" % String(entry["bonus_stat"]).capitalize(),
-					false,
-				)
+				if entry.get("bonus_leveled", false):
+					_add_recap_line(
+						"      ↳ bonus +1 %s (Determination)" % String(entry["bonus_stat"]).capitalize(),
+						false,
+					)
+				else:
+					_add_recap_line(
+						"      ↳ %s sharpening (Determination)" % String(entry["bonus_stat"]).capitalize(),
+						false,
+					)
 
 	var det: Array = t.get("determination", [])
 	if Determination.should_trigger(GameState.week):
@@ -277,10 +288,16 @@ func _refresh_tick_recap() -> void:
 			_add_recap_line("Determination rolls:", false)
 			for entry in det:
 				var u: Unit = entry["unit"]
-				_add_recap_line(
-					"  • %s gained +1 %s" % [u.unit_name, String(entry["stat"]).capitalize()],
-					false,
-				)
+				if int(entry.get("leveled", 0)) > 0:
+					_add_recap_line(
+						"  • %s gained +1 %s" % [u.unit_name, String(entry["stat"]).capitalize()],
+						false,
+					)
+				else:
+					_add_recap_line(
+						"  • %s — grit stirs their %s (developing)" % [u.unit_name, String(entry["stat"]).capitalize()],
+						false,
+					)
 
 	var returns: Array = t.get("expedition_returns", [])
 	if not returns.is_empty():

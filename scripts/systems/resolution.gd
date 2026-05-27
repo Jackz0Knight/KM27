@@ -527,11 +527,16 @@ static func _resolve_champion_duel(gs: Node, result: Dictionary) -> void:
 		if stat == "":
 			result["notes"].append("No target stat picked — reward forfeit.")
 		else:
-			var applied: bool = champ.stats.try_increment(stat, champ.potential_ability, BodyType.cap_bump_for(champ.body_type, stat))
+			var bump: int = BodyType.cap_bump_for(champ.body_type, stat)
+			# Staged: the duel feeds development rather than an instant +1.
+			var dev: Dictionary = champ.stats.add_progress(stat, 2.5, champ.potential_ability, bump)
 			result["duel_stat"] = stat
-			result["duel_stat_applied"] = applied
-			if not applied:
-				result["notes"].append("Duel won but %s is capped — no growth." % stat)
+			result["duel_stat_applied"] = int(dev["leveled"]) > 0
+			if int(dev["leveled"]) == 0:
+				if champ.stats.get_value(stat) >= Stats.STAT_CAP + bump:
+					result["notes"].append("Duel won but %s is already mastered." % stat)
+				else:
+					result["notes"].append("Duel won — its lessons settle into %s's %s over the weeks." % [champ.unit_name, stat])
 	else:
 		result["notes"].append("Duel lost — champion limps home.")
 
@@ -567,8 +572,11 @@ static func _resolve_refugee_caravan(gs: Node, result: Dictionary) -> void:
 		result["notes"].append("Refugees sheltered at the gate. The kitchen ran lean and warm.")
 		if not defenders.is_empty():
 			var witness: Unit = defenders[RNG.randi_range(0, defenders.size() - 1)]
-			if witness.stats.try_increment("loyalty", witness.potential_ability, BodyType.cap_bump_for(witness.body_type, "loyalty")):
+			var dev: Dictionary = witness.stats.add_progress("loyalty", 1.5, witness.potential_ability, BodyType.cap_bump_for(witness.body_type, "loyalty"))
+			if int(dev["leveled"]) > 0:
 				result["notes"].append("%s stood at the gate. He saw it, and a stat changed quietly. (+1 Loyalty)" % witness.unit_name)
+			else:
+				result["notes"].append("%s stood at the gate — something in him steadies." % witness.unit_name)
 		result["refugee_outcome"] = "sheltered"
 		result["refugee_cost"] = cost
 	elif roll < 0.80:
@@ -599,8 +607,11 @@ static func _resolve_noble_petition(gs: Node, result: Dictionary) -> void:
 		result["notes"].append("A neighbouring lord's envoy paid call — a small purse for hospitality. (+%d gold)" % purse)
 		if not defenders.is_empty():
 			var host: Unit = defenders[RNG.randi_range(0, defenders.size() - 1)]
-			if host.stats.try_increment("etiquette", host.potential_ability, BodyType.cap_bump_for(host.body_type, "etiquette")):
+			var dev: Dictionary = host.stats.add_progress("etiquette", 1.5, host.potential_ability, BodyType.cap_bump_for(host.body_type, "etiquette"))
+			if int(dev["leveled"]) > 0:
 				result["notes"].append("%s hosted the table. Watched, listened, learned. (+1 Etiquette)" % host.unit_name)
+			else:
+				result["notes"].append("%s hosted the table — courtesy sinks a little deeper." % host.unit_name)
 		result["petition_outcome"] = "honoured"
 	else:
 		result["notes"].append("A noble's envoy arrived, drank deep, and rode out at dawn with vague promises.")
@@ -685,12 +696,11 @@ static func _resolve_tavern_riot(gs: Node, result: Dictionary) -> void:
 		var purse: int = 6 + floori(gs.week / 8.0)
 		gs.gold += purse
 		result["notes"].append("Riot quelled — innkeeper presses %d gold on the marshal." % purse)
-		# Roster-wide loyalty tick — the show of unity at a small action
-		# matters more than the action itself.
+		# Roster-wide loyalty development — the show of unity at a small action
+		# matters more than the action itself. Staged, so it deepens over time.
 		for u in party:
-			if u.stats.try_increment("loyalty", u.potential_ability, BodyType.cap_bump_for(u.body_type, "loyalty")):
-				pass   # silent; the marshal does not announce these
-		result["notes"].append("Household discipline tightens. (+1 Loyalty across the roster, where caps allow.)")
+			u.stats.add_progress("loyalty", 1.0, u.potential_ability, BodyType.cap_bump_for(u.body_type, "loyalty"))
+		result["notes"].append("Household discipline tightens — loyalty deepens across the roster.")
 		_maybe_grant_survival_epithets(party, bracket, injuries, result)
 		for u in party:
 			var old_ep: String = u.epithet

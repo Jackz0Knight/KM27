@@ -387,10 +387,13 @@ func _render_rewards(r: Dictionary) -> void:
 		var stat: String = r.get("duel_stat", "")
 		var lbl := Label.new()
 		if champ != null and stat != "" and r.get("duel_stat_applied", false):
-			lbl.text = "+1 %s applied to %s." % [stat.capitalize(), champ.unit_name]
+			lbl.text = "+1 %s applied to %s. ▲" % [stat.capitalize(), champ.unit_name]
 			lbl.modulate = Color(0.7, 0.95, 0.7)
+		elif champ != null and stat != "":
+			lbl.text = "Duel won — its lessons deepen %s's %s over time." % [champ.unit_name, stat.capitalize()]
+			lbl.modulate = Color(0.72, 0.9, 0.8)
 		else:
-			lbl.text = "Duel won but no stat growth (cap or no pick)."
+			lbl.text = "Duel won but no target stat was chosen."
 			lbl.modulate = Color(0.85, 0.85, 0.6)
 		rewards_list.add_child(lbl)
 
@@ -474,12 +477,17 @@ func _build_delta_bbcode() -> String:
 			var u: Unit = GameState.find_unit(entry["unit_id"])
 			var uname: String = "%-14s" % (u.unit_name if u != null else "?")
 			var stat_name: String = "%-14s" % String(entry["stat"]).capitalize()
-			if entry["applied"]:
+			if int(entry.get("leveled", 0)) > 0:
 				lines.append("[color=%s]%s %s %d → %d  ▲[/color]" % [GREEN, uname, stat_name, entry["before"], entry["after"]])
+			elif entry.get("developing", false):
+				lines.append("[color=%s]%s %s %d    (developing ▲)[/color]" % [AMBER, uname, stat_name, entry["after"]])
 			else:
 				lines.append("[color=%s]%s %s %d    (capped)[/color]" % [GREY, uname, stat_name, entry["after"]])
 			if entry.get("bonus_stat", "") != "":
-				lines.append("[color=%s]      ↳ +1 %s bonus (Determination)  ▲[/color]" % [GREEN, String(entry["bonus_stat"]).capitalize()])
+				if entry.get("bonus_leveled", false):
+					lines.append("[color=%s]      ↳ +1 %s bonus (Determination)  ▲[/color]" % [GREEN, String(entry["bonus_stat"]).capitalize()])
+				else:
+					lines.append("[color=%s]      ↳ %s sharpening (Determination)[/color]" % [AMBER, String(entry["bonus_stat"]).capitalize()])
 		lines.append(DIV)
 
 	# Determination
@@ -488,7 +496,10 @@ func _build_delta_bbcode() -> String:
 		lines.append("[color=%s]── DETERMINATION[/color]" % AMBER)
 		for entry in det:
 			var u: Unit = entry["unit"]
-			lines.append("[color=%s]%s  +1 %s  ▲[/color]" % [GREEN, u.unit_name, String(entry["stat"]).capitalize()])
+			if int(entry.get("leveled", 0)) > 0:
+				lines.append("[color=%s]%s  +1 %s  ▲[/color]" % [GREEN, u.unit_name, String(entry["stat"]).capitalize()])
+			else:
+				lines.append("[color=%s]%s  %s stirs (developing)[/color]" % [AMBER, u.unit_name, String(entry["stat"]).capitalize()])
 		lines.append(DIV)
 
 	# Expedition returns

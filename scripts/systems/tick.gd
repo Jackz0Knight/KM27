@@ -32,6 +32,8 @@ static func apply(gs: Node) -> Dictionary:
 		"gold_income": 0,
 		"injury_recoveries": [],
 	}
+	for u in gs.roster:
+		u.stats.decay_development()
 	_apply_injury_tick(gs, results)
 	_apply_training(gs, results)
 	_apply_expedition_returns(gs, results)
@@ -89,22 +91,31 @@ static func _apply_training(gs: Node, results: Dictionary) -> void:
 		var stat: String = u.training_target()
 		var before: int = u.stats.get_value(stat)
 		var body_bumps: Dictionary = BodyType.cap_bumps(u.body_type)
-		var applied: bool = u.stats.try_increment(stat, u.potential_ability, int(body_bumps.get(stat, 0)))
+		# Staged: a drill feeds hidden progress rather than always popping +1.
+		# The point only ticks when enough accumulates (GDD §10, FM-style).
+		var dev: Dictionary = u.stats.add_progress(stat, 1.0, u.potential_ability, int(body_bumps.get(stat, 0)))
+		var after: int = u.stats.get_value(stat)
+		var leveled: int = int(dev["leveled"])
+		var ceiling: int = Stats.STAT_CAP + int(body_bumps.get(stat, 0))
 		var entry: Dictionary = {
 			"unit_id": u.id,
 			"stat": stat,
-			"applied": applied,
+			"leveled": leveled,
+			"applied": leveled > 0,  # back-compat alias for older readers
+			"developing": leveled == 0 and after < ceiling and (u.potential_ability - u.stats.sum()) > 0,
 			"before": before,
-			"after": u.stats.get_value(stat),
+			"after": after,
 			"bonus_stat": "",
+			"bonus_leveled": false,
 		}
 		# GDD §7 training-bonus roll. Independent of the every-4-weeks
 		# Determination roll in GDD §10 (that's handled by Determination.gd).
 		var chance_pct: float = float(u.stats.determination) * Determination.CHANCE_PER_POINT
 		if RNG.randf_range(0.0, 100.0) < chance_pct:
-			var bonus: String = u.stats.try_increment_random_excluding(u.potential_ability, stat, body_bumps)
-			if bonus != "":
-				entry["bonus_stat"] = bonus
+			var bonus: Dictionary = u.stats.add_progress_random_excluding(1.0, u.potential_ability, stat, body_bumps)
+			if str(bonus["stat"]) != "":
+				entry["bonus_stat"] = bonus["stat"]
+				entry["bonus_leveled"] = int(bonus["leveled"]) > 0
 		results["training"].append(entry)
 
 

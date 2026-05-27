@@ -2742,15 +2742,15 @@ static func _apply_all_units_stat(gs: Node, stat: String, delta: int, result: Di
 
 static func _apply_stat_delta(unit: Unit, stat: String, delta: int, result: Dictionary) -> void:
 	if delta > 0:
-		var applied_any: bool = false
 		var body_bump: int = BodyType.cap_bump_for(unit.body_type, stat)
-		for _i in range(delta):
-			if unit.stats.try_increment(stat, unit.potential_ability, body_bump):
-				applied_any = true
-			else:
-				break
-		if applied_any:
-			result["notes"].append("%s: +%d %s" % [unit.unit_name, delta, stat.capitalize()])
+		# Staged: the grant feeds development. A bigger delta feeds more, so it
+		# may tick a point now or just nudge the hidden progress along.
+		var dev: Dictionary = unit.stats.add_progress(stat, float(delta) * 1.5, unit.potential_ability, body_bump)
+		var leveled: int = int(dev["leveled"])
+		if leveled > 0:
+			result["notes"].append("%s: +%d %s" % [unit.unit_name, leveled, stat.capitalize()])
+		else:
+			result["notes"].append("%s grows into their %s." % [unit.unit_name, stat.capitalize()])
 	else:
 		# Negative deltas clamp at 1 (a stat shouldn't fall to 0 from flavour).
 		var current: int = unit.stats.get_value(stat)

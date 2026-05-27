@@ -1807,14 +1807,15 @@ func _build_week_steps(results: Dictionary) -> Array:
 		var u: Unit = GameState.find_unit(int(entry.get("unit_id", -1)))
 		var who: String = u.unit_name if u != null else "A unit"
 		var stat: String = str(entry.get("stat", "")).capitalize()
-		if bool(entry.get("applied", false)):
-			var line: String = "%s drilled %s → %d." % [who, stat, int(entry.get("after", 0))]
-			var bonus: String = str(entry.get("bonus_stat", ""))
-			if bonus != "":
-				line += "  A spark of %s, too!" % bonus.capitalize()
+		if int(entry.get("leveled", 0)) > 0:
+			var line: String = "%s drilled %s → %d.  ▲" % [who, stat, int(entry.get("after", 0))]
+			if entry.get("bonus_leveled", false) and str(entry.get("bonus_stat", "")) != "":
+				line += "  A spark of %s, too!" % str(entry.get("bonus_stat", "")).capitalize()
 			train_lines.append(line)
+		elif bool(entry.get("developing", false)):
+			train_lines.append("%s works at %s — coming along." % [who, stat])
 		else:
-			train_lines.append("%s trained %s, but it held firm at %d." % [
+			train_lines.append("%s trained %s, but it holds firm at %d." % [
 				who, stat, int(entry.get("after", 0)),
 			])
 	if not train_lines.is_empty():
@@ -1823,11 +1824,12 @@ func _build_week_steps(results: Dictionary) -> Array:
 			"tone": "good", "pause": false,
 		})
 
-	# 3 — Determination stirrings (every 4th week).
+	# 3 — Determination stirrings (every 4th week). Entries carry the Unit
+	# object directly (see Determination.roll_for_units).
 	var det_lines: Array[String] = []
 	for entry in results.get("determination", []):
-		var u: Unit = GameState.find_unit(int(entry.get("unit_id", -1)))
-		var who: String = u.unit_name if u != null else "A unit"
+		var du: Unit = entry.get("unit", null)
+		var who: String = du.unit_name if du != null else "A unit"
 		det_lines.append("%s feels something stir within — %s sharpens." % [
 			who, str(entry.get("stat", "")).capitalize(),
 		])

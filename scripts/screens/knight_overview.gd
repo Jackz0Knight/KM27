@@ -166,6 +166,20 @@ func _build_stat_group(unit: Unit, group_label: String, stat_keys: Array) -> Con
 		desc_lbl.custom_minimum_size = Vector2(80, 0)
 		row.add_child(desc_lbl)
 
+		# FM-style development arrow (show-not-tell): ▲ developing, bright ▲
+		# recently improved, ▼ injury-suppressed. Fixed-width cell so the blurb
+		# column stays aligned whether or not an arrow is present.
+		var dev_state: int = unit.stats.development_state(key, unit.potential_ability, unit.injured_stats().has(key))
+		var arrow := Label.new()
+		arrow.custom_minimum_size = Vector2(18, 0)
+		arrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		if dev_state != Stats.DEV_NONE:
+			arrow.text = Stats.development_glyph(dev_state)
+			arrow.add_theme_color_override("font_color", Stats.development_color(dev_state))
+			arrow.add_theme_font_size_override("font_size", 16 if dev_state == Stats.DEV_SURGING else 12)
+			arrow.tooltip_text = Stats.development_tooltip(dev_state)
+		row.add_child(arrow)
+
 		var blurb := Label.new()
 		blurb.text = STAT_BLURBS.get(key, "")
 		blurb.modulate = Color(0.6, 0.58, 0.46)

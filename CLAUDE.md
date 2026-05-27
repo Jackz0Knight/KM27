@@ -113,6 +113,8 @@ When the task is "tune X" or "add a new Y", these are the canonical files to ope
 | Event probabilities + Tournament override | `scripts/systems/event_roller.gd` |
 | Calendar / Tournament-week math | `scripts/systems/calendar.gd` |
 | Stat caps + PA-aware increment | `scripts/data/stats.gd` (`try_increment`) |
+| Staged stat development + dev-arrow pace | `scripts/data/stats.gd` (`add_progress` / `add_progress_random_excluding`; `DEV_PACE` / `DEV_HEADROOM_RANGE` / `MOMENTUM_WEEKS` / `DEV_ACTIVE_WEEKS` knobs; `development_state` + `development_glyph/color/tooltip`). Decay runs once per week via `Stats.decay_development()` (called at the top of `Tick.apply`). All **in-run** gains (training, Determination, duel/event rewards) feed `add_progress`, **not** `try_increment` — start-of-run roster gen still sets integers directly. Arrows render on `UnitCard` + `knight_overview`. |
+| FM-style "processing the week" overlay | `scripts/ui/week_processor.gd` (`WeekProcessor`); beats built by `planning.gd::_build_week_steps`, launched from `_do_advance` |
 | Crafting recipes / tier tree | `scripts/autoload/resource_db.gd` (`RESOURCES` dict) |
 | Enemy stat ranges + group power | `scripts/autoload/enemy_db.gd` |
 | Win-probability colour bands + injury rolls | `scripts/systems/outcome_bracket.gd` |
