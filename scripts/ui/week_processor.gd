@@ -210,6 +210,9 @@ func _finish() -> void:
 	if _finished:
 		return
 	_finished = true
+	# Stop handling input the instant we hand off — the scene change frees this
+	# node, and a late event must not reach a half-torn-down overlay.
+	set_process_unhandled_input(false)
 	if _on_finished.is_valid():
 		_on_finished.call()
 
@@ -217,17 +220,29 @@ func _finish() -> void:
 # ── Input ─────────────────────────────────────────────────────────────────
 
 func _on_veil_gui_input(event: InputEvent) -> void:
+	if _finished or not is_inside_tree():
+		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		# Consume BEFORE advancing — _handle_advance_input may finish and trigger
+		# the scene change, after which get_viewport() would be null.
+		_consume_input()
 		_handle_advance_input()
-		get_viewport().set_input_as_handled()
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _finished or not is_inside_tree():
+		return
 	if not (event is InputEventKey) or not event.pressed or event.echo:
 		return
 	if event.keycode in [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE]:
+		_consume_input()
 		_handle_advance_input()
-		get_viewport().set_input_as_handled()
+
+
+func _consume_input() -> void:
+	var vp: Viewport = get_viewport()
+	if vp != null:
+		vp.set_input_as_handled()
 
 
 func _handle_advance_input() -> void:
