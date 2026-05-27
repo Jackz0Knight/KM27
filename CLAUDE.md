@@ -17,7 +17,12 @@ Persistent context for Claude Code sessions working on KM27.
 - **Persistence + run shell** — `SaveManager` autoload (auto-save + cross-run history), rebuilt main menu with run history panel, Continue, and Quick Start.
 - **UX layer** — drag-and-drop formation editor, map pan/zoom, tabbed Planning UI (Overview / Tactics / Map / Crafting / Research, with Calendar as a top-bar toggle), confirm dialogs with suppress-this-run, animated weekly summary, F1 dev toolbar, full stat tooltips, settings popup, medieval theme palette.
 - **Chronicle layer (2026-05-17)** — `Chronicle` system generates seeded prose week entries, plus per-unit origins, heraldic banners, sworn oaths, and earned epithets. Surfaces on the Knight Chooser, Knight Overview, and Weekly Summary.
-- **Houses & Body Types (2026-05-17, most recent)** — four archetypal noble houses (Brann/Aldermere/Daven/Faldur) with implicit stat leans + four independent body silhouettes. Procedural heraldry via `BannerIcon` custom `_draw()` (no PNG assets). Crests appear on every `UnitCard`, scaled larger on Knight Chooser and Knight Overview. Leans are deliberately implicit — motto + origin hint, no stat tooltips.
+- **Houses & Body Types (2026-05-17)** — four archetypal noble houses (Brann/Aldermere/Daven/Faldur) with implicit stat leans + four independent body silhouettes. Procedural heraldry via `BannerIcon` custom `_draw()` (no PNG assets). Leans are deliberately implicit — motto + origin hint, no stat tooltips. Later extended with **per-run house lean randomisation** (`HousePool.roll_per_run_leans`) and **body-type cap bumps**.
+- **Item system (2026-05-20)** — weapons (21) + armours (15) across 4 rarity tiers, each with `power_rating` + flavour; `Combat` reads kit; `ItemDrops` loot pipeline (assault / tournament / guaranteed-Heirloom Grand); equip/swap UI on Knight Overview; stockpile saved.
+- **Character depth (2026-05-20)** — `TraitPool` (one weighted trait per unit), `GameState.reputation` (7-band HUD chip + mechanical hooks + purse scaling), and **oath honour** (`OathLedger` — a per-week hidden-PA bonus when behaviour aligns with the sworn oath).
+- **Data-driven event engine (2026-05-20)** — `StoryEventDB` (~92 chronicle events on shared effect primitives + gates), `AwayModeDB` (10 away-mission variants), `CombatEventDB` (5 battle-event combat sub-types). Adding content is mostly pure data. Plus flagship flavour: Festival Week, the Bard's Ballad, house-themed events, chronicler asides, season header chips, enriched run-end "chronicler's closing" screens.
+- **FM week processor (2026-05-27)** — `WeekProcessor` overlay plays a "processing the week" sweep after the Tick (spinner + progress bar, reveals each beat, pauses on notable ones) before Pre-Battle.
+- **Staged stat development (2026-05-27, most recent)** — stats grow via a hidden fractional accumulator (`Stats.add_progress`), ~4.5 weeks/point, tapering near the hidden PA. **FM-style development arrows** (bright ▲ recent level-up, small ▲ developing, ▼ injury) on `UnitCard` + Knight Overview — show-not-tell, no numbers.
 
 **See `ROADMAP.md` for the canonical checkbox status and Progress Log; that's the source of truth, this file is just the orientation.**
 
@@ -63,23 +68,29 @@ scripts/
     game_state.gd                 Run state — see header for owned fields
     event_bus.gd                  Cross-scene signal hub
     rng.gd                        Seedable RandomNumberGenerator wrapper
-    resource_db.gd                T1–T5 resource tree + tier→colour + helpers
+    resource_db.gd                T1–T5 resource tree + tier→colour + reputation helpers
     enemy_db.gd                   9 enemy types, stat ranges, group-power helper
+    palette.gd                    Centralised semantic colour constants
+    master_audio.gd               3 audio buses + procedural UI click SFX
   data/                           class_name resources:
                                   Unit, Stats, ResourceBundle, MapTile, Castle,
                                   World, WorldGenerator, EventKind, NamePool,
-                                  Expedition, HousePool, BodyType
+                                  Expedition, HousePool, BodyType, TraitPool,
+                                  Weapon, Armour, StoryEventDB, AwayModeDB,
+                                  CombatEventDB
   systems/                        Stateless rules (each is a single static helper
                                   unless noted):
                                   Calendar, EventRoller, PhaseMachine,
                                   RosterGenerator, Determination, Tick, Combat,
                                   BattleEvent, Resolution, OutcomeBracket,
-                                  Chronicle, SaveManager (autoload Node)
+                                  Chronicle, OathLedger, ItemDrops,
+                                  SaveManager (autoload Node)
   ui/                             Shared widgets / utils:
                                   UnitCard, WorldMapView, FormationEditor,
                                   KnightIcon, MapPanZoom, PoolDropZone,
                                   SlotDropZone, ConfirmDialogUtil,
-                                  SettingsPopup, DevToolbar, BannerIcon
+                                  SettingsPopup, DevToolbar, BannerIcon,
+                                  UiStyle, ScreenFade, WeekProcessor
   screens/                        Scene controllers (one per .tscn under screens/)
   dev/                            Dev-only tooling (F6 in editor)
 
@@ -91,14 +102,17 @@ data/                             Reserved for static CSV/JSON (future)
 
 | Area | State |
 |---|---|
-| Core week loop | **Done** — Planning → Tick → Pre-Battle → Resolution end-to-end. |
-| All 4 event types + Tournament + Grand Tournament | **Done.** |
+| Core week loop | **Done** — Planning → Tick → (Week Processor sweep) → Pre-Battle → Resolution end-to-end. |
+| All 4 event types + Tournament + Grand Tournament | **Done.** Plus data-driven story events, away-mission variants, and combat-event sub-types. |
 | Crafting tab + recipes | **Manual craft works.** Most raw material *sources* (mobs, specific tile types) are still placeholders — MVP raw materials still come mostly from pillage/assault loot. |
-| Research tab | **Stub** — exists as a tab, has no content yet. |
-| Chronicle epithet grants | System exists; trigger points on events not yet fired everywhere. |
-| Oath consequences | Oaths are generated and displayed; honour/break mechanic not wired. |
-| Save / Load / Run History | **Done** (`user://savegame.json`, `user://run_history.json`). |
-| Phase 8 balance tuning | **Not started.** Enemy multipliers, gather yields, injury rates all per-GDD placeholder. |
+| Research tab | **Done** — swimlane tech tree (`ResourceDB.RESEARCH_PROJECTS`), unlocks gate higher-tier recipes via `GameState.researched`. |
+| Item system (weapons / armour / drops) | **Done** — catalog + rarity + `power_rating` into combat, `ItemDrops` loot pipeline, equip/swap UI, saved stockpile. |
+| Traits + Reputation | **Done** — `TraitPool` per unit; `GameState.reputation` with HUD chip, combat hooks, purse scaling, band-crossing prose. |
+| Staged stat development + dev arrows | **Done** — `Stats.add_progress` accumulator + ▲/▼ arrows. Pace constants (`DEV_PACE` etc.) are Phase-8 tuning knobs. |
+| Oath consequences | **Honour wired** (`OathLedger` — per-week PA bonus on aligned action). The *break* side (penalties on violation) is still not wired. |
+| Chronicle epithet grants | System exists; most trigger points fired (duel, home-battle-survived, etc.), but not every event yet. |
+| Save / Load / Run History | **Done** (`user://savegame.json`, `user://run_history.json`); now also persists items, reputation, traits, house leans, staged dev progress. |
+| Phase 8 balance tuning | **Not started.** Enemy multipliers, gather yields, injury rates, and the new `DEV_PACE`/loot-rate constants all per-GDD placeholder. |
 
 ## Touch-Point Cheat Sheet
 
@@ -209,13 +223,12 @@ The non-obvious things that have bitten previous sessions:
 
 These aren't committed scope — they're the threads Jack tends to pull. Use as hints, not a plan.
 
-1. **Phase 8 balance pass** — first real playthroughs to ground-truth enemy power curves, gather yields, injury frequency, gold cashflow.
+1. **Phase 8 balance pass** — first real playthroughs to ground-truth enemy power curves, gather yields, injury frequency, gold cashflow, and the new staged-development pace (`DEV_PACE`) + loot rates. **This is now the most likely next push** — a lot of systems have landed without balance work behind them.
 2. **Wire raw-material sources into gather/expedition flow** — so the Crafting tab has a sensible input pipeline beyond castle loot.
-3. **Research tab content** — gate higher-tier recipes behind unlock keys (the `researched: Array[String]` field on GameState already exists).
-4. **Epithet trigger coverage** — fire `Chronicle.grant_epithet()` from the right Resolution points (duel win, tournament win, etc.).
-5. **Oath honour/break mechanic** — stat consequences when behaviour matches or violates the oath.
-6. **More variety** — additional Battle Event templates, more enemy types in `EnemyDB`, possibly more formations beyond 4-0-0 (per GDD §17 these are future scope).
-7. **Squire promotion / recruitment / morale** — explicitly excluded from MVP (GDD §17) but the most likely post-MVP expansion.
+3. **Oath *break* mechanic** — honour is wired (`OathLedger`); the penalty side (consequences when behaviour violates the oath) is not.
+4. **Epithet trigger coverage** — most points fire; sweep for any remaining Resolution beats that should grant epithets.
+5. **More variety** — more `StoryEventDB` / `AwayModeDB` / `CombatEventDB` entries (mostly pure data now), more enemy types, possibly more formations beyond 4-0-0 (per GDD §17 future scope).
+6. **Squire promotion / recruitment / morale** — explicitly excluded from MVP (GDD §17) but the most likely post-MVP expansion.
 
 ## How Jack Likes to Work
 
