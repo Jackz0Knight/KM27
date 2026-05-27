@@ -282,7 +282,7 @@ static func build(
 static func _on_card_hover(panel: Control, entered: bool) -> void:
 	if not is_instance_valid(panel):
 		return
-	var prior: Tween = panel.get_meta("_hover_tween", null)
+	var prior: Tween = panel.get_meta("_hover_tween") if panel.has_meta("_hover_tween") else null
 	if prior != null and prior.is_valid():
 		prior.kill()
 	var tween: Tween = panel.create_tween()
