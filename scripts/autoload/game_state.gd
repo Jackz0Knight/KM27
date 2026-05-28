@@ -395,11 +395,15 @@ func append_history_entry() -> void:
 		outcome = "Resolved"
 
 	var reward_str: String = ""
-	var reward: Dictionary = r.get("reward", {})
-	if not reward.is_empty():
+	# Untyped reads — Dictionary.get(key, default) returns the stored value
+	# even when it's null, so a typed `: Dictionary` declaration would crash
+	# on any path that stashed null at the key. Defensive `is Dictionary`
+	# check protects against future regressions.
+	var reward = r.get("reward", {})
+	if reward is Dictionary and not reward.is_empty():
 		reward_str = ResourceDB.describe(reward)
-	var spoils: Dictionary = r.get("spoils", {})
-	if not spoils.is_empty():
+	var spoils = r.get("spoils", {})
+	if spoils is Dictionary and not spoils.is_empty():
 		var spoils_str: String = ResourceDB.describe(spoils)
 		reward_str = ("%s · spoils: %s" % [reward_str, spoils_str]) if reward_str != "" else "spoils: %s" % spoils_str
 

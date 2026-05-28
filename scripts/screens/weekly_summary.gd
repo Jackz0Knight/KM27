@@ -341,8 +341,11 @@ func _render_rewards(r: Dictionary) -> void:
 		c.queue_free()
 
 	# Encounter reward — pre-rolled bundle from RewardTableDB.
-	var reward: Dictionary = r.get("reward", {})
-	if not reward.is_empty():
+	# Untyped + `is Dictionary` guard so a null at the key doesn't crash;
+	# the typed-Dictionary form would (Dictionary.get returns null when the
+	# stored value is null, even with a default arg).
+	var reward = r.get("reward", {})
+	if reward is Dictionary and not reward.is_empty():
 		var lbl := Label.new()
 		lbl.text = "+ Reward: %s" % ResourceDB.describe(reward)
 		lbl.modulate = Color(0.7, 0.95, 0.7)
@@ -350,8 +353,8 @@ func _render_rewards(r: Dictionary) -> void:
 
 	# Mob drops — per-kill spoils from each dead enemy's EnemyDB.drops table.
 	# Surfaced as a distinct line so the player feels the kill itself paid out.
-	var spoils: Dictionary = r.get("spoils", {})
-	if not spoils.is_empty():
+	var spoils = r.get("spoils", {})
+	if spoils is Dictionary and not spoils.is_empty():
 		var slbl := Label.new()
 		slbl.text = "+ Spoils: %s" % ResourceDB.describe(spoils)
 		slbl.modulate = Color(0.95, 0.78, 0.55)

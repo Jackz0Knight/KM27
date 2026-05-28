@@ -2786,8 +2786,10 @@ static func _apply_reward_resources(lo: int, hi: int, result: Dictionary) -> voi
 	}
 	# Don't clobber an existing reward — some outcomes pair a story bundle
 	# with a separate effect that already set one. Merge through ResourceDB.
-	var existing: Dictionary = result.get("reward", {})
-	if existing.is_empty():
+	# Untyped read in case any caller stashed null at the key (Resolution
+	# initialises to {} but defense-in-depth is cheap here).
+	var existing = result.get("reward", {})
+	if not (existing is Dictionary) or existing.is_empty():
 		result["reward"] = bundle
 	else:
 		var merged: Dictionary = existing.duplicate(true)

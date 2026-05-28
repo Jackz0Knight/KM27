@@ -62,14 +62,15 @@ static func _blank_result(gs: Node) -> Dictionary:
 		"intimidation_reduction": 0,
 		"per_unit": [],
 		"tournament_per_unit": [],
-		"reward": null,
+		"reward": {},
+		"spoils": {},
 		"castle_taken": null,
 		"duel_unit_id": -1,
 		"duel_stat": "",
 		"duel_stat_applied": false,
 		"duel_player_power": 0,
 		"duel_enemy_power": 0,
-		"harvest_bundle": null,
+		"harvest_bundle": {},
 		"is_game_over": false,
 		"is_run_win": false,
 		"notes": [],
@@ -979,10 +980,16 @@ static func _remove_castle(gs: Node, castle: Castle) -> void:
 # inventory. Caravan reward is delivered by the Weekly Summary picker (not here).
 # Spoils (per-kill mob drops, accumulated in result["spoils"]) are merged the
 # same way so the inventory sees the full take of the week.
+#
+# Defensive note: `Dictionary.get(key, default)` only returns the default when
+# the key is absent — if any code path explicitly stashed `null` at the key,
+# get returns null and a `: Dictionary` declaration would crash. The two
+# untyped reads + `is Dictionary` checks make this resilient regardless of how
+# upstream rolls or skips a reward.
 static func _apply_reward(gs: Node, result: Dictionary) -> void:
-	var reward: Dictionary = result.get("reward", {})
-	if not reward.is_empty():
+	var reward = result.get("reward", {})
+	if reward is Dictionary and not reward.is_empty():
 		ResourceDB.merge(gs.inventory, reward)
-	var spoils: Dictionary = result.get("spoils", {})
-	if not spoils.is_empty():
+	var spoils = result.get("spoils", {})
+	if spoils is Dictionary and not spoils.is_empty():
 		ResourceDB.merge(gs.inventory, spoils)

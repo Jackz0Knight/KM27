@@ -56,7 +56,9 @@ var current_morale: int
 # each round and read by its sort comparator. Lives on the unit so the
 # comparator is a pure key compare (deterministic for any given pair) instead
 # of calling RNG inside the lambda, which would violate sort invariants.
-var _init_jitter:   int = 0
+# (Public-looking name on purpose — leading-underscore "private" form trips
+# the linter into "declared but never used" because the read is cross-class.)
+var init_jitter:   int = 0
 
 
 # power_mult: applied to HP and damage after derivation. Use 0.75 for
