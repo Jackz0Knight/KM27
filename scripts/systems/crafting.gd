@@ -18,8 +18,8 @@ static func craft(gs: Node, resource_id: String) -> void:
 
 static func accept_caravan_offer(gs: Node, idx: int) -> void:
 	gs.merchant_pick = idx
-	var offer: ResourceBundle = gs.merchant_offers[idx]
-	var inv_delta: Dictionary = offer.to_inventory_dict()
-	for id: String in inv_delta:
-		gs.inventory[id] = gs.inventory.get(id, 0) + inv_delta[id]
-	gs.last_battle_result["reward"] = offer
+	# Caravan offers are now plain Dictionaries (ResourceDB ids → ints) per
+	# the resource-system unification — same shape as every other reward.
+	var offer: Dictionary = gs.merchant_offers[idx]
+	ResourceDB.merge(gs.inventory, offer)
+	gs.last_battle_result["reward"] = offer.duplicate(true)

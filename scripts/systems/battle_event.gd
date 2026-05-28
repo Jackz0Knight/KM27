@@ -97,41 +97,19 @@ static func is_combat(sub_type: String) -> bool:
 # ---------- non-combat rewards ----------
 
 # Bountiful Harvest — small bundle delivered automatically (GDD §6).
-static func roll_harvest_bundle(week: int) -> ResourceBundle:
-	# Bountiful Harvest is comfortably "T1 bundle" sized — slightly skewed up
-	# from a Bandit Ambush win because it has no risk.
-	var lo: int = 1 + floori(week / 12.0)
-	var hi: int = 3 + floori(week / 8.0)
-	var b := ResourceBundle.new()
-	for key in ResourceBundle.KEYS:
-		b.set(key, RNG.randi_range(lo, hi))
-	return b
+# Routes through RewardTableDB so the harvest curve is one table entry.
+static func roll_harvest_bundle(week: int) -> Dictionary:
+	return RewardTableDB.roll("harvest", week, 1.0)
 
 
 # Merchant Caravan offer — 3 small bundles the player picks from on the
-# Weekly Summary screen.
+# Weekly Summary screen. Each offer is an independent roll of the caravan
+# table so they vary in composition without explicit "biasing" logic.
 static func roll_caravan_offers(week: int, count: int = 3) -> Array:
 	var offers: Array = []
 	for i in range(count):
-		offers.append(_roll_caravan_offer(week))
+		offers.append(RewardTableDB.roll("caravan_offer", week, 1.0))
 	return offers
-
-
-static func _roll_caravan_offer(week: int) -> ResourceBundle:
-	# Each offer biases heavily toward one resource so the choice matters.
-	var primary_idx: int = RNG.randi_range(0, ResourceBundle.KEYS.size() - 1)
-	var lo_primary: int = 2 + floori(week / 10.0)
-	var hi_primary: int = 4 + floori(week / 6.0)
-	var lo_secondary: int = 0
-	var hi_secondary: int = 1 + floori(week / 15.0)
-	var b := ResourceBundle.new()
-	for i in range(ResourceBundle.KEYS.size()):
-		var key: String = ResourceBundle.KEYS[i]
-		if i == primary_idx:
-			b.set(key, RNG.randi_range(lo_primary, hi_primary))
-		else:
-			b.set(key, RNG.randi_range(lo_secondary, hi_secondary))
-	return b
 
 
 # ---------- Champion's Duel ----------

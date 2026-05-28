@@ -111,7 +111,7 @@ static func _resolve_away(gs: Node, result: Dictionary) -> void:
 	var player_cus: Array = _player_cus(party)
 	var enemy_cus: Array  = EnemyDB.roll_combat_party("pillage", gs.week)
 	var sim: Dictionary   = CombatSim.run(player_cus, enemy_cus)
-	_fill_from_sim(result, sim)
+	_fill_from_sim(result, sim, enemy_cus)
 
 	var bracket: int = _bracket_from_sim(sim, player_cus)
 	var injuries: Array[Dictionary] = OutcomeBracket.maybe_apply_injuries(party, bracket)
@@ -126,7 +126,7 @@ static func _resolve_away(gs: Node, result: Dictionary) -> void:
 	if result["won"]:
 		if gs.pending_away_mode == "assault":
 			var castle: Castle = gs.pending_assault_castle
-			result["reward"] = castle.reward.duplicate_bundle()
+			result["reward"] = castle.reward.duplicate(true)
 			result["castle_taken"] = castle
 			_remove_castle(gs, castle)
 			# Castle-takers earn realm attention.
@@ -168,7 +168,7 @@ static func _resolve_away_custom(gs: Node, party: Array[Unit], result: Dictionar
 	var player_cus: Array = _player_cus(party)
 	var enemy_cus: Array  = EnemyDB.roll_combat_party(template, gs.week)
 	var sim: Dictionary   = CombatSim.run(player_cus, enemy_cus)
-	_fill_from_sim(result, sim)
+	_fill_from_sim(result, sim, enemy_cus)
 
 	var bracket: int = _bracket_from_sim(sim, player_cus)
 	var injuries: Array[Dictionary] = OutcomeBracket.maybe_apply_injuries(party, bracket)
@@ -202,7 +202,8 @@ static func _resolve_away_custom(gs: Node, party: Array[Unit], result: Dictionar
 
 
 # Apply the reward shape declared on the mode entry. Three kinds today:
-#   gold_and_bundle — gold_range + ResourceBundle roll (legacy MVP triple)
+#   gold_and_bundle — gold_range + a Dictionary {logs, plant_fibres, copper_ore}
+#                     roll using the mode entry's bundle_lo/bundle_hi range
 #   iron_haul       — iron_ore inventory_add + plant_fibres inventory_add
 #                     + optional small gold tip
 #   rare_loot       — small gold + a forced item drop (handled at the
@@ -218,10 +219,11 @@ static func _apply_away_custom_reward(gs: Node, mode: Dictionary, result: Dictio
 			var lo: int = int(mode.get("bundle_lo", 1))
 			var hi: int = int(mode.get("bundle_hi", 2))
 			if hi >= lo and hi > 0:
-				var bundle := ResourceBundle.new()
-				for key in ResourceBundle.KEYS:
-					bundle.set(key, RNG.randi_range(lo, hi))
-				result["reward"] = bundle
+				result["reward"] = {
+					"logs":         RNG.randi_range(lo, hi),
+					"plant_fibres": RNG.randi_range(lo, hi),
+					"copper_ore":   RNG.randi_range(lo, hi),
+				}
 		"iron_haul":
 			var iron: int = RNG.randi_range(int(mode.get("iron_min", 0)), int(mode.get("iron_max", 0)))
 			if iron > 0:
@@ -290,7 +292,7 @@ static func _resolve_home(gs: Node, result: Dictionary) -> void:
 	var player_cus: Array = _player_cus_home(party)
 	var enemy_cus: Array  = EnemyDB.roll_combat_party("home_battle", gs.week)
 	var sim: Dictionary   = CombatSim.run(player_cus, enemy_cus)
-	_fill_from_sim(result, sim)
+	_fill_from_sim(result, sim, enemy_cus)
 
 	var bracket: int = _bracket_from_sim(sim, player_cus)
 	var injuries: Array[Dictionary] = OutcomeBracket.maybe_apply_injuries(party, bracket)
@@ -380,7 +382,7 @@ static func _resolve_combat_event(gs: Node, result: Dictionary) -> void:
 	var player_cus: Array = _player_cus_home(party)
 	var enemy_cus: Array  = EnemyDB.roll_combat_party(template, gs.week)
 	var sim: Dictionary   = CombatSim.run(player_cus, enemy_cus)
-	_fill_from_sim(result, sim)
+	_fill_from_sim(result, sim, enemy_cus)
 
 	var bracket: int = _bracket_from_sim(sim, player_cus)
 	var injuries: Array[Dictionary] = OutcomeBracket.maybe_apply_injuries(party, bracket)
@@ -424,10 +426,11 @@ static func _apply_combat_event_reward(gs: Node, mode: Dictionary, result: Dicti
 			var lo: int = int(mode.get("bundle_lo", 1))
 			var hi: int = int(mode.get("bundle_hi", 2))
 			if hi >= lo and hi > 0:
-				var bundle := ResourceBundle.new()
-				for key in ResourceBundle.KEYS:
-					bundle.set(key, RNG.randi_range(lo, hi))
-				result["reward"] = bundle
+				result["reward"] = {
+					"logs":         RNG.randi_range(lo, hi),
+					"plant_fibres": RNG.randi_range(lo, hi),
+					"copper_ore":   RNG.randi_range(lo, hi),
+				}
 		"gold_only":
 			var purse2: int = RNG.randi_range(int(mode.get("gold_min", 0)), int(mode.get("gold_max", 0)))
 			if purse2 > 0:
@@ -472,7 +475,7 @@ static func _resolve_bandit_ambush(gs: Node, result: Dictionary) -> void:
 	var player_cus: Array = _player_cus_home(party)
 	var enemy_cus: Array  = EnemyDB.roll_combat_party("bandit_ambush", gs.week)
 	var sim: Dictionary   = CombatSim.run(player_cus, enemy_cus)
-	_fill_from_sim(result, sim)
+	_fill_from_sim(result, sim, enemy_cus)
 
 	var bracket: int = _bracket_from_sim(sim, player_cus)
 	var injuries: Array[Dictionary] = OutcomeBracket.maybe_apply_injuries(party, bracket)
@@ -542,7 +545,7 @@ static func _resolve_champion_duel(gs: Node, result: Dictionary) -> void:
 
 
 static func _resolve_bountiful_harvest(gs: Node, result: Dictionary) -> void:
-	var bundle: ResourceBundle = BattleEvent.roll_harvest_bundle(gs.week)
+	var bundle: Dictionary = BattleEvent.roll_harvest_bundle(gs.week)
 	result["harvest_bundle"] = bundle
 	result["reward"] = bundle
 	result["won"] = true
@@ -581,10 +584,10 @@ static func _resolve_refugee_caravan(gs: Node, result: Dictionary) -> void:
 		result["refugee_cost"] = cost
 	elif roll < 0.80:
 		# They moved on — left a small payment in thanks.
-		var bundle := ResourceBundle.new()
-		bundle.set("wood", 1 + floori(gs.week / 18.0))
-		bundle.set("fibres", 1 + floori(gs.week / 22.0))
-		result["reward"] = bundle
+		result["reward"] = {
+			"logs":         1 + floori(gs.week / 18.0),
+			"plant_fibres": 1 + floori(gs.week / 22.0),
+		}
 		result["notes"].append("Refugees passed in the night and left their thanks in cloth and kindling.")
 		result["refugee_outcome"] = "passing"
 	else:
@@ -637,7 +640,7 @@ static func _resolve_village_raid(gs: Node, result: Dictionary) -> void:
 	var player_cus: Array = _player_cus_home(party)
 	var enemy_cus: Array  = EnemyDB.roll_combat_party("home_battle", gs.week)
 	var sim: Dictionary   = CombatSim.run(player_cus, enemy_cus)
-	_fill_from_sim(result, sim)
+	_fill_from_sim(result, sim, enemy_cus)
 
 	var bracket: int = _bracket_from_sim(sim, player_cus)
 	var injuries: Array[Dictionary] = OutcomeBracket.maybe_apply_injuries(party, bracket)
@@ -650,10 +653,12 @@ static func _resolve_village_raid(gs: Node, result: Dictionary) -> void:
 		var purse: int = 14 + floori(gs.week / 6.0)
 		gs.gold += purse
 		result["notes"].append("Village saved — +%d gold pressed on the household." % purse)
-		var bundle := ResourceBundle.new()
-		for key in ResourceBundle.KEYS:
-			bundle.set(key, RNG.randi_range(1, 2 + floori(gs.week / 12.0)))
-		result["reward"] = bundle
+		var hi: int = 2 + floori(gs.week / 12.0)
+		result["reward"] = {
+			"logs":         RNG.randi_range(1, hi),
+			"plant_fibres": RNG.randi_range(1, hi),
+			"copper_ore":   RNG.randi_range(1, hi),
+		}
 		_maybe_grant_survival_epithets(party, bracket, injuries, result)
 		for u in party:
 			var old_ep: String = u.epithet
@@ -685,7 +690,7 @@ static func _resolve_tavern_riot(gs: Node, result: Dictionary) -> void:
 	var player_cus: Array = _player_cus_home(party)
 	var enemy_cus: Array  = EnemyDB.roll_combat_party("bandit_ambush", gs.week)
 	var sim: Dictionary   = CombatSim.run(player_cus, enemy_cus)
-	_fill_from_sim(result, sim)
+	_fill_from_sim(result, sim, enemy_cus)
 
 	var bracket: int = _bracket_from_sim(sim, player_cus)
 	var injuries: Array[Dictionary] = OutcomeBracket.maybe_apply_injuries(party, bracket)
@@ -867,7 +872,7 @@ static func _away_party(gs: Node) -> Array[Unit]:
 # remainders — used by weekly_summary for the "X vs Y" display line.
 # per_unit is left empty until the breakdown is migrated to the sim turn_log
 # (weekly_summary's battle breakdown section renders per_unit when populated).
-static func _fill_from_sim(result: Dictionary, sim: Dictionary) -> void:
+static func _fill_from_sim(result: Dictionary, sim: Dictionary, enemy_cus: Array = []) -> void:
 	result["fought"] = true
 	result["won"] = sim["winner"] == "player"
 	result["player_total"] = sim["player_hp_remaining"]
@@ -878,6 +883,48 @@ static func _fill_from_sim(result: Dictionary, sim: Dictionary) -> void:
 	result["sim_result"] = sim
 	for note in sim["notes"]:
 		result["notes"].append(note)
+	# Mob drops from the kill — separate from the encounter `reward` bundle.
+	# Defaults to an empty array for callers that haven't been updated, in
+	# which case no spoils are rolled (back-compat).
+	if not enemy_cus.is_empty():
+		_roll_spoils_from_enemies(result, enemy_cus)
+
+
+# Roll mob-drop spoils from every enemy CombatUnit that died this fight.
+# Spoils live on `result["spoils"]` as a Dictionary keyed by ResourceDB ids,
+# separate from `result["reward"]` (which is the *encounter* bundle from
+# RewardTableDB). Conceptually: reward = "loot from the cause," spoils =
+# "loot from the kill." Surfaces as a distinct line on the Weekly Summary.
+#
+# Only fired on wins — a loss / draw doesn't get the kill loot. Per-enemy
+# drops come from `EnemyDB.ENEMY_TYPES[type_id].drops`, so adding a new
+# enemy automatically expands the loot pool without touching any resolver.
+static func _roll_spoils_from_enemies(result: Dictionary, enemy_cus: Array) -> void:
+	if not result.get("won", false):
+		return
+	var spoils: Dictionary = {}
+	for cu: CombatUnit in enemy_cus:
+		if cu.is_alive():
+			continue
+		var type_id: String = ""
+		if cu.unit != null and "type_id" in cu.unit:
+			type_id = str(cu.unit.type_id)
+		if type_id == "":
+			continue
+		var drops: Dictionary = EnemyDB.roll_drops_for(type_id, 1.0)
+		ResourceDB.merge(spoils, drops)
+	if spoils.is_empty():
+		return
+	# Merge into any pre-existing spoils (e.g. if a future path adds extra
+	# kill-bonus drops before this call).
+	var existing: Dictionary = result.get("spoils", {})
+	if existing.is_empty():
+		result["spoils"] = spoils
+	else:
+		ResourceDB.merge(existing, spoils)
+		result["spoils"] = existing
+	# Quick chronicle note so the player feels the kill.
+	result["notes"].append("Spoils from the fallen: %s" % ResourceDB.describe(spoils))
 
 
 # Derive OutcomeBracket injury bracket from HP remaining after the sim.
@@ -928,12 +975,14 @@ static func _remove_castle(gs: Node, castle: Castle) -> void:
 		tile.castle = null
 
 
-# Reward delivery — push resources into GameState.inventory via the bundle's
-# inventory mapping. Caravan reward is delivered by the Weekly Summary picker.
+# Reward delivery — merge the result's reward Dictionary into the household
+# inventory. Caravan reward is delivered by the Weekly Summary picker (not here).
+# Spoils (per-kill mob drops, accumulated in result["spoils"]) are merged the
+# same way so the inventory sees the full take of the week.
 static func _apply_reward(gs: Node, result: Dictionary) -> void:
-	var reward: ResourceBundle = result.get("reward")
-	if reward == null:
-		return
-	var inv_delta: Dictionary = reward.to_inventory_dict()
-	for id: String in inv_delta:
-		gs.inventory[id] = gs.inventory.get(id, 0) + inv_delta[id]
+	var reward: Dictionary = result.get("reward", {})
+	if not reward.is_empty():
+		ResourceDB.merge(gs.inventory, reward)
+	var spoils: Dictionary = result.get("spoils", {})
+	if not spoils.is_empty():
+		ResourceDB.merge(gs.inventory, spoils)

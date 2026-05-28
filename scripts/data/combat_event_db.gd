@@ -23,7 +23,7 @@ extends RefCounted
 # Reward kinds the dispatcher knows:
 #   "bandit_bundle"   → Combat.roll_bandit_ambush_reward(week) → reward bundle
 #   "home_bundle"     → Combat.roll_home_win_reward(week)
-#   "gold_and_bundle" → gold_range + ResourceBundle (bundle_lo / bundle_hi)
+#   "gold_and_bundle" → gold_range + Dictionary bundle (bundle_lo / bundle_hi)
 #   "gold_only"       → gold_range, no bundle
 #
 # Item drop kinds:

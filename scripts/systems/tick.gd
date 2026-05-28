@@ -10,6 +10,12 @@ extends RefCounted
 # passed-in GameState and mutates them in place. Combat math lives in
 # scripts/systems/combat.gd; Tick is purely "what changes during the week".
 
+# Regional-gather neighbour weight (per Jack's 2026-05-28 design call). A
+# Gather expedition rolls its target tile's RewardTableDB at full weight and
+# each Chebyshev-1 neighbour with a gather table at this reduced weight, so
+# placement on the map matters but the chosen tile still dominates the yield.
+const GATHER_NEIGHBOUR_WEIGHT: float = 0.3
+
 # Result shape:
 #   {
 #     "training": [{unit_id, stat, applied, before, after}],
@@ -71,6 +77,13 @@ static func _apply_gold_maintenance(gs: Node, results: Dictionary) -> void:
 	results["gold_deducted"] = cost
 	if gs.gold >= cost:
 		gs.gold -= cost
+		# Per-week truth: cleared when funds covered upkeep so chronicle prose
+		# and any future debt-aware system only read the flag on weeks where
+		# the household actually fell short. Previously sticky — once set
+		# true on any week it stayed true for the rest of the run, so
+		# `Chronicle._event_line` kept appending "The ledger fell short this
+		# week" indefinitely after the first short week.
+		gs.maintenance_debt = false
 	else:
 		results["maintenance_debt"] = true
 		gs.maintenance_debt = true
@@ -157,18 +170,55 @@ static func _complete_one(gs: Node, exped: Expedition) -> Dictionary:
 				info["revealed_castle"] = tile.castle
 	elif exped.kind == Expedition.Kind.GATHER:
 		if tile != null:
-			var res_key: String = tile.gather_resource()
-			if res_key != "":
+			# Regional gather (Jack's 2026-05-28 call): the expedition rolls
+			# loot from the target tile's RewardTableDB at full weight, plus
+			# each Chebyshev-1 neighbour with a table at a reduced weight, so
+			# placement on the map matters. A forest tile next to two
+			# mountains pulls logs + a little ore; a remote plains tile pulls
+			# only plains. Strength still scales the final dict via
+			# Expedition.estimate_yield so a strong party brings home more.
+			var weighted: Array = []
+			var primary: String = tile.gather_table_id()
+			if primary != "":
+				weighted.append({"table": primary, "weight": 1.0})
+			for dx in [-1, 0, 1]:
+				for dy in [-1, 0, 1]:
+					if dx == 0 and dy == 0:
+						continue
+					var n: MapTile = gs.world.get_tile(exped.target_x + dx, exped.target_y + dy)
+					if n == null:
+						continue
+					var ntable: String = n.gather_table_id()
+					if ntable == "":
+						continue
+					weighted.append({"table": ntable, "weight": GATHER_NEIGHBOUR_WEIGHT})
+			if not weighted.is_empty():
+				var bundle: Dictionary = RewardTableDB.roll_blended(weighted, gs.week, 1.0)
+				# Apply Strength scaling. estimate_yield(party_strength) returns
+				# a small integer multiplier-ish proxy; using it as a scalar so
+				# a 1-Strength party doesn't multiply through to zero, we clamp
+				# the multiplier at a minimum of 1.0.
 				var party_strength: int = 0
 				for uid in exped.unit_ids:
 					var u: Unit = gs.find_unit(uid)
 					if u != null:
 						party_strength += u.stats.strength
-				var amount: int = Expedition.estimate_yield(party_strength)
-				gs.inventory[res_key] = gs.inventory.get(res_key, 0) + amount
-				info["yield_resource"] = res_key
-				info["yield_amount"] = amount
-				info["yield_bundle"] = null
+				var strength_mult: float = maxf(1.0, 1.0 + float(party_strength) / 30.0)
+				var final_bundle: Dictionary = ResourceDB.scale(bundle, strength_mult)
+				ResourceDB.merge(gs.inventory, final_bundle)
+				info["yield_bundle"] = final_bundle
+				# Back-compat info fields — pre_battle_review / weekly_summary
+				# still surface a single-resource summary; pick the largest
+				# line for that one-glance readout.
+				var top_id: String = ""
+				var top_amount: int = 0
+				for id: String in final_bundle:
+					var v: int = int(final_bundle[id])
+					if v > top_amount:
+						top_amount = v
+						top_id = id
+				info["yield_resource"] = top_id
+				info["yield_amount"] = top_amount
 
 	gs.complete_expedition(exped)
 	EventBus.expedition_returned.emit(exped)

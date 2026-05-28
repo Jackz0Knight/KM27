@@ -532,7 +532,19 @@ func _count_filled_slots() -> int:
 func _is_home_battle() -> bool:
 	if GameState.current_event == EventKind.HOME_BATTLE:
 		return true
-	return GameState.current_event == EventKind.BATTLE_EVENT and GameState.current_battle_event == "bandit_ambush"
+	# Forecast must mirror Resolution: every formation-using Battle Event
+	# sub-type resolves through `_player_cus_home` (bandit_ambush, village_raid,
+	# tavern_riot, and every data-driven CombatEventDB entry), so non-Defend
+	# units take 0.75× HP / damage. Forecast was only honouring the penalty for
+	# bandit_ambush — the others gave an optimistic preview that didn't match
+	# the actual sim.
+	if GameState.current_event == EventKind.BATTLE_EVENT:
+		if CombatEventDB.has_mode(GameState.current_battle_event):
+			return true
+		return GameState.current_battle_event in [
+			"bandit_ambush", "village_raid", "tavern_riot",
+		]
+	return false
 
 
 # ---------- Champion's Duel ----------

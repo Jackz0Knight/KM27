@@ -52,6 +52,12 @@ var morale_pool:     int     # morale HP — future system
 var current_hp:     int
 var current_morale: int
 
+# Per-round initiative jitter, stamped by CombatSim.run() once at the top of
+# each round and read by its sort comparator. Lives on the unit so the
+# comparator is a pure key compare (deterministic for any given pair) instead
+# of calling RNG inside the lambda, which would violate sort invariants.
+var _init_jitter:   int = 0
+
 
 # power_mult: applied to HP and damage after derivation. Use 0.75 for
 # at-home units not on Defend during a Home Battle (GDD §13).

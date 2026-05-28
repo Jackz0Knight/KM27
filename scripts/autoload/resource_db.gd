@@ -68,6 +68,21 @@ const RESOURCES: Dictionary = {
 		"name": "Iron Ingot", "type": ResType.METAL, "tier": 2,
 		"recipe": {"iron_ore": 2}, "map_source": "mountain", "research": null,
 	},
+	# Mob-drop-driven T2 recipes (2026-05-28 resource overhaul). Each consumes
+	# one of the new T1 mob raws so combat drops feed back into the
+	# crafting loop. Adding more later is one dict entry.
+	"quilted_padding": {
+		"name": "Quilted Padding", "type": ResType.FABRIC, "tier": 2,
+		"recipe": {"goblin_hide": 2, "plant_fibres": 1}, "map_source": null, "research": null,
+	},
+	"feather_arrow": {
+		"name": "Feathered Arrow", "type": ResType.TIMBER, "tier": 2,
+		"recipe": {"feathers": 3, "logs": 1}, "map_source": null, "research": null,
+	},
+	"reforged_blade": {
+		"name": "Reforged Blade", "type": ResType.METAL, "tier": 2,
+		"recipe": {"scrap_iron": 3, "coal": 1}, "map_source": null, "research": null,
+	},
 	# ── TIER 3 ──────────────────────────────────────────────────────────────
 	"wyrm_hide": {
 		"name": "Wyrm Hide", "type": ResType.FABRIC, "tier": 3,
@@ -108,6 +123,18 @@ const RESOURCES: Dictionary = {
 	"duskwood":     { "name": "Duskwood",     "map_source": null },
 	"elven_wood":   { "name": "Elven Wood",   "map_source": null },
 	"mythril_ore":  { "name": "Mythril Ore",  "map_source": "mountain" },
+	# ── Mob-drop raws (no map_source — sourced from EnemyDB drops only) ────
+	# Pure T1 stockpileables. Each is tied to one or more enemy types in
+	# `EnemyDB.ENEMY_TYPES[*].drops` and lands on a combat win. The mob-drop
+	# raws are intentionally distinct from gather raws so the player feels
+	# the difference between "I scouted this tile" and "I killed this thing."
+	"goblin_hide":   { "name": "Goblin Hide",   "map_source": null },
+	"wolf_pelt":     { "name": "Wolf Pelt",     "map_source": null },
+	"bone_shard":    { "name": "Bone Shard",    "map_source": null },
+	"scrap_iron":    { "name": "Scrap Iron",    "map_source": null },
+	"feathers":      { "name": "Feathers",      "map_source": null },
+	"troll_bile":    { "name": "Troll Bile",    "map_source": null },
+	"strange_relic": { "name": "Strange Relic", "map_source": null },
 }
 
 
@@ -290,6 +317,120 @@ const RESEARCH_PROJECTS: Dictionary = {
 		"prerequisites": ["cotton_cultivation", "forester_guild"],
 	},
 }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Reward Dictionary helpers — the canonical reward shape across the codebase.
+#
+# Every reward roller (Combat, BattleEvent, StoryEventDB, WorldGenerator)
+# returns a Dictionary keyed by ResourceDB ids, valued ints. These helpers
+# do the four operations the old `ResourceBundle` class wrapped:
+#
+#   merge(target, addition)     — accumulate one bundle into another in-place
+#   scale(dict, factor)         — multiply every value (round to int)
+#   subtract_from(inv, cost)    — atomic deduct from inventory, bool result
+#   describe(dict)              — formatted string, sorted tier-ascending
+#   bundle_is_empty(dict)       — true if every value is 0 (filters keys
+#                                  that exist but hold a zero count)
+#
+# Using a plain Dictionary instead of a typed Resource class means:
+#   - no dual key namespace (ResourceBundle's wood/fibres/copper_ore vs the
+#     canonical logs/plant_fibres/copper_ore)
+#   - any reward roller can mention any resource (feathers, hides, etc.)
+#     without extending a fixed-shape class
+#   - inventory + reward + cost all share the same shape, so merging /
+#     subtracting / comparing is one operation
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Add `addition` into `target` in place, summing per key. Negative values are
+# clamped to zero in the result so callers can safely use this for both
+# adding rewards and applying penalties (penalty paths should use subtract_from
+# instead when atomicity matters).
+func merge(target: Dictionary, addition: Dictionary) -> void:
+	for id: String in addition:
+		var v: int = int(addition[id])
+		if v == 0:
+			continue
+		var new_v: int = int(target.get(id, 0)) + v
+		if new_v <= 0:
+			target.erase(id)
+		else:
+			target[id] = new_v
+
+
+# Multiply every value by `factor` (rounded to nearest int, minimum 0).
+# Returns a new Dictionary — does not mutate the input. Values rounded to
+# zero are pruned so the result is "tight" (no zero entries).
+func scale(dict: Dictionary, factor: float) -> Dictionary:
+	var out: Dictionary = {}
+	for id: String in dict:
+		var v: int = roundi(float(dict[id]) * factor)
+		if v > 0:
+			out[id] = v
+	return out
+
+
+# True if every value in `dict` is zero (or the dict is empty). Callers can
+# also use `dict.is_empty()` directly when they know zero values are pruned;
+# this helper is for paths where a roller might emit `{logs: 0}` and the
+# caller wants to treat that as "no reward."
+func bundle_is_empty(dict: Dictionary) -> bool:
+	if dict.is_empty():
+		return true
+	for id: String in dict:
+		if int(dict[id]) != 0:
+			return false
+	return true
+
+
+# Deduct `cost` from `inventory` in place. Returns false (and leaves inventory
+# untouched) if any line item would go negative. Atomic — used by crafting,
+# upkeep checks, and any "you can afford this exact bundle" path.
+func subtract_from(inventory: Dictionary, cost: Dictionary) -> bool:
+	# Affordability pass first so partial deductions don't leak.
+	for id: String in cost:
+		var need: int = int(cost[id])
+		if need <= 0:
+			continue
+		if int(inventory.get(id, 0)) < need:
+			return false
+	for id: String in cost:
+		var need2: int = int(cost[id])
+		if need2 <= 0:
+			continue
+		var left: int = int(inventory.get(id, 0)) - need2
+		if left <= 0:
+			inventory.erase(id)
+		else:
+			inventory[id] = left
+	return true
+
+
+# Format a reward / inventory dict for display. Sorted tier-ascending then
+# alphabetical so the output is stable across rolls and easy to scan. Raw
+# materials (no `tier` field in RESOURCES) sort as tier 0 — they're the
+# entry-level stuff and read first.
+func describe(dict: Dictionary) -> String:
+	if dict.is_empty():
+		return "—"
+	var rows: Array = []
+	for id: String in dict:
+		var v: int = int(dict[id])
+		if v == 0:
+			continue
+		var entry: Dictionary = RESOURCES.get(id, {})
+		var label: String = entry.get("name", id.capitalize())
+		var tier: int = int(entry.get("tier", 0))
+		rows.append({"label": label, "tier": tier, "amount": v})
+	rows.sort_custom(func(a, b):
+		if a["tier"] != b["tier"]:
+			return a["tier"] < b["tier"]
+		return a["label"] < b["label"]
+	)
+	var bits: PackedStringArray = PackedStringArray()
+	for row: Dictionary in rows:
+		bits.append("%s:%d" % [row["label"], row["amount"]])
+	return " ".join(bits)
 
 
 # True if the player's inventory covers all recipe inputs for this resource.

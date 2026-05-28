@@ -31,10 +31,13 @@ const CASTLE_DIFFICULTY_ANCHORS: Array[int] = [
 const CASTLE_DIFFICULTY_MIN: int = 30
 const CASTLE_DIFFICULTY_MAX: int = 200
 const CASTLE_DIFFICULTY_JITTER: int = 10
-const CASTLE_REWARD_DIVISOR: int = 15
-const CASTLE_REWARD_JITTER: int = 1
 const CASTLE_MIN_TOWN_DISTANCE: int = 3   # Chebyshev > 2 ⇒ ≥ 3
 const CASTLE_PLACEMENT_ATTEMPTS: int = 200
+# Week to feed to RewardTableDB when pre-rolling a castle's loot at world gen.
+# The world is built at week 1, but castles are end-game assault targets — so
+# we pre-roll using a mid-game baseline so the rewards aren't punishingly thin.
+# `difficulty / 100.0` is the per-castle scalar applied on top.
+const CASTLE_REWARD_BASELINE_WEEK: int = 20
 
 
 static func generate(seed_value: int) -> World:
@@ -85,7 +88,6 @@ static func _try_place_castle(world: World, anchor: int) -> Castle:
 		CASTLE_DIFFICULTY_MIN,
 		CASTLE_DIFFICULTY_MAX,
 	)
-	var reward: ResourceBundle = _roll_castle_reward(difficulty)
 
 	for _attempt in range(CASTLE_PLACEMENT_ATTEMPTS):
 		var x: int = RNG.randi_range(0, World.SIZE - 1)
@@ -97,7 +99,15 @@ static func _try_place_castle(world: World, anchor: int) -> Castle:
 			continue
 		if tile.terrain == MapTile.Terrain.TOWN:
 			continue
-		var castle := Castle.new(x, y, difficulty, reward)
+		# Position is decided; now derive the loot context from the surrounding
+		# terrain and pre-roll the reward bundle. Mountain-country castles drop
+		# ore, hill castles drop iron + cloth, everything else uses wilderness.
+		var table_id: String = _castle_reward_table_for(world, x, y)
+		var diff_mult: float = float(difficulty) / 100.0
+		var reward: Dictionary = RewardTableDB.roll(
+			table_id, CASTLE_REWARD_BASELINE_WEEK, diff_mult
+		)
+		var castle := Castle.new(x, y, difficulty, reward, table_id)
 		tile.castle = castle
 		return castle
 
@@ -106,9 +116,28 @@ static func _try_place_castle(world: World, anchor: int) -> Castle:
 	return null
 
 
-static func _roll_castle_reward(difficulty: int) -> ResourceBundle:
-	var base: int = roundi(float(difficulty) / float(CASTLE_REWARD_DIVISOR))
-	var wood: int = maxi(0, base + RNG.randi_range(-CASTLE_REWARD_JITTER, CASTLE_REWARD_JITTER))
-	var fibres: int = maxi(0, base + RNG.randi_range(-CASTLE_REWARD_JITTER, CASTLE_REWARD_JITTER))
-	var copper: int = maxi(0, base + RNG.randi_range(-CASTLE_REWARD_JITTER, CASTLE_REWARD_JITTER))
-	return ResourceBundle.new(wood, fibres, copper)
+# Terrain context heuristic: count mountain / hill neighbours within Chebyshev 1
+# of the castle. Mountain-dominant → mountain_loot; hill-dominant → hill_loot;
+# everything else → wilderness_loot. The threshold of 2 means a single stray
+# mountain tile doesn't shift the loot — it's the region, not the tile.
+static func _castle_reward_table_for(world: World, x: int, y: int) -> String:
+	var mountain_neighbours: int = 0
+	var hill_neighbours: int = 0
+	for dx in range(-1, 2):
+		for dy in range(-1, 2):
+			if dx == 0 and dy == 0:
+				continue
+			var nx: int = x + dx
+			var ny: int = y + dy
+			if not world.in_bounds(nx, ny):
+				continue
+			var t: int = world.tiles[nx][ny].terrain
+			if t == MapTile.Terrain.MOUNTAIN:
+				mountain_neighbours += 1
+			elif t == MapTile.Terrain.HILLS:
+				hill_neighbours += 1
+	if mountain_neighbours >= 2:
+		return "mountain_loot"
+	if hill_neighbours >= 2:
+		return "hill_loot"
+	return "wilderness_loot"

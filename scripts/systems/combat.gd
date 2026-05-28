@@ -226,44 +226,37 @@ static func resolve_tournament(participants: Array, enemy_power: int) -> Diction
 
 
 # ---------- reward bundles (GDD §6 / §13) ----------
+#
+# Every roller now returns a Dictionary keyed by ResourceDB ids. The size,
+# distribution, and week-scaling all live on the corresponding RewardTableDB
+# entry — these functions are thin wrappers that name the table + the
+# per-event difficulty multiplier, so retuning is one number on one entry.
 
-# Pillage reward roll. Per resource: int in [1 + floor(week/10), 3 + floor(week/5)].
-static func roll_pillage_reward(week: int) -> ResourceBundle:
-	var lo: int = 1 + floori(week / 10.0)
-	var hi: int = 3 + floori(week / 5.0)
-	var b := ResourceBundle.new()
-	for key in ResourceBundle.KEYS:
-		b.set(key, RNG.randi_range(lo, hi))
-	return b
-
-
-# Home Battle reward — week-scaled small bundle (GDD §6).
-# Slightly smaller than pillage since home defence is guaranteed participation.
-static func roll_home_win_reward(week: int) -> ResourceBundle:
-	var lo: int = 1 + floori(week / 16.0)
-	var hi: int = 2 + floori(week / 10.0)
-	var b := ResourceBundle.new()
-	for key in ResourceBundle.KEYS:
-		b.set(key, RNG.randi_range(lo, hi))
-	return b
+# Pillage reward roll — wilderness loot, baseline difficulty.
+static func roll_pillage_reward(week: int) -> Dictionary:
+	return RewardTableDB.roll("wilderness_loot", week, 1.0)
 
 
-# Bandit Ambush loot — small consolation bundle (GDD §6). Scales gently.
-static func roll_bandit_ambush_reward(week: int) -> ResourceBundle:
-	var lo: int = 1
-	var hi: int = 1 + floori(week / 20.0)
-	var b := ResourceBundle.new()
-	for key in ResourceBundle.KEYS:
-		b.set(key, RNG.randi_range(lo, hi))
-	return b
+# Home Battle reward — smaller homestead-flavoured bundle.
+static func roll_home_win_reward(week: int) -> Dictionary:
+	return RewardTableDB.roll("homestead_defence", week, 1.0)
+
+
+# Bandit Ambush loot — small consolation bundle.
+static func roll_bandit_ambush_reward(week: int) -> Dictionary:
+	return RewardTableDB.roll("bandit_pouch", week, 1.0)
 
 
 # Tournament reward modified by the highest Etiquette among participants
-# (GDD §10 / §13). `reward × (1 + highest_Etiquette / 40)`.
-static func roll_tournament_reward(_week: int, participants: Array) -> ResourceBundle:
-	var base := ResourceBundle.new(3, 3, 2)
+# (GDD §10 / §13). Difficulty multiplier folds the Etiquette factor
+# (`1 + highest_Etq / 40`) and the tournament-number scalar (so a Grand
+# Tournament prize scales above a regular).
+static func roll_tournament_reward(week: int, participants: Array) -> Dictionary:
 	var highest_etq: int = 0
 	for u in participants:
 		highest_etq = maxi(highest_etq, u.stats.etiquette)
-	var factor: float = 1.0 + float(highest_etq) / 40.0
-	return base.scaled(factor)
+	var etq_factor: float = 1.0 + float(highest_etq) / 40.0
+	# Tournament number adds a modest progression on top of the table's
+	# internal week scaling (1.0 at the first tournament, ~1.5 by Grand).
+	var tour_factor: float = 1.0 + float(Calendar.tournament_number(week)) * 0.15
+	return RewardTableDB.roll("tournament_prize", week, etq_factor * tour_factor)

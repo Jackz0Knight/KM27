@@ -340,12 +340,22 @@ func _render_rewards(r: Dictionary) -> void:
 	for c in rewards_list.get_children():
 		c.queue_free()
 
-	var reward: ResourceBundle = r.get("reward")
-	if reward != null and not reward.is_empty():
+	# Encounter reward — pre-rolled bundle from RewardTableDB.
+	var reward: Dictionary = r.get("reward", {})
+	if not reward.is_empty():
 		var lbl := Label.new()
-		lbl.text = "+ %s" % reward.describe()
+		lbl.text = "+ Reward: %s" % ResourceDB.describe(reward)
 		lbl.modulate = Color(0.7, 0.95, 0.7)
 		rewards_list.add_child(lbl)
+
+	# Mob drops — per-kill spoils from each dead enemy's EnemyDB.drops table.
+	# Surfaced as a distinct line so the player feels the kill itself paid out.
+	var spoils: Dictionary = r.get("spoils", {})
+	if not spoils.is_empty():
+		var slbl := Label.new()
+		slbl.text = "+ Spoils: %s" % ResourceDB.describe(spoils)
+		slbl.modulate = Color(0.95, 0.78, 0.55)
+		rewards_list.add_child(slbl)
 
 	var tournament_gold: int = int(r.get("tournament_gold", 0))
 	if tournament_gold > 0:
@@ -423,9 +433,9 @@ func _render_caravan(r: Dictionary) -> void:
 	caravan_pane.visible = true
 
 	if GameState.merchant_pick >= 0:
-		var taken: ResourceBundle = GameState.merchant_offers[GameState.merchant_pick]
+		var taken: Dictionary = GameState.merchant_offers[GameState.merchant_pick]
 		var taken_lbl := Label.new()
-		taken_lbl.text = "Took: %s" % taken.describe()
+		taken_lbl.text = "Took: %s" % ResourceDB.describe(taken)
 		taken_lbl.modulate = Color(0.7, 0.95, 0.7)
 		caravan_pane.add_child(taken_lbl)
 		return
@@ -435,9 +445,9 @@ func _render_caravan(r: Dictionary) -> void:
 	caravan_pane.add_child(prompt)
 
 	for i in range(GameState.merchant_offers.size()):
-		var offer: ResourceBundle = GameState.merchant_offers[i]
+		var offer: Dictionary = GameState.merchant_offers[i]
 		var btn := Button.new()
-		btn.text = "Take: %s" % offer.describe()
+		btn.text = "Take: %s" % ResourceDB.describe(offer)
 		btn.pressed.connect(_on_caravan_pick.bind(i))
 		caravan_pane.add_child(btn)
 

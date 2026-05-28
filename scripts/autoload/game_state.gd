@@ -47,7 +47,9 @@ var last_battle_result: Dictionary = {}
 #   "bountiful_harvest" — automatic resource gift
 #   "merchant_caravan"  — player picks 1 of 3 small bundles
 var current_battle_event: String = ""
-# Merchant Caravan offers, populated during Resolution. Array of ResourceBundle.
+# Merchant Caravan offers, populated during Resolution. Array of Dictionary
+# (each entry keyed by ResourceDB ids, same shape as inventory + every other
+# reward bundle in the codebase).
 var merchant_offers: Array = []
 # Merchant Caravan choice — index into `merchant_offers`, -1 = not yet picked.
 var merchant_pick: int = -1
@@ -92,6 +94,14 @@ var gold: int = 100
 var inventory: Dictionary = {}
 var researched: Array[String] = []
 var maintenance_debt: bool = false
+
+# Planning screen's pending per-unit task assignments for the current week.
+# Lives on GameState (not the screen) so the assignments survive scene
+# changes within the same week — clicking a knight's name to open Knight
+# Overview and coming back used to wipe everyone's plan because Planning's
+# local `_pending_tasks` dict re-initialised on scene reload. Cleared by
+# `_clear_week_buffers()` so a fresh week starts from a clean slate.
+var pending_tasks: Dictionary = {}   # unit_id (int) -> task string
 
 # Reputation — a single signed integer accumulated across the run. Story
 # events and a handful of mission outcomes nudge it; the HUD chip surfaces
@@ -345,17 +355,27 @@ func _clear_week_buffers() -> void:
 	champion_unit_id = -1
 	champion_target_stat = ""
 	tournament_participants = []
+	pending_tasks = {}
 
 
 # Phase 5/6 — true if this week's event will resolve combat with a formation.
 # Tournament + Grand Tournament don't use formations (GDD §12 / §13).
+# Covers every formation-using Battle Event sub-type: the legacy hard-coded
+# trio (bandit_ambush / village_raid / tavern_riot) plus any data-driven
+# CombatEventDB entry. Used by the Pre-Battle Review's default-formation
+# seeder so Tactics-tab defaults flow into these sub-types too, not just
+# bandit_ambush.
 func current_event_uses_formation() -> bool:
 	if current_event == EventKind.AWAY_BATTLE:
 		return true
 	if current_event == EventKind.HOME_BATTLE:
 		return true
 	if current_event == EventKind.BATTLE_EVENT:
-		return current_battle_event == "bandit_ambush"
+		if CombatEventDB.has_mode(current_battle_event):
+			return true
+		return current_battle_event in [
+			"bandit_ambush", "village_raid", "tavern_riot",
+		]
 	return false
 
 
@@ -375,9 +395,13 @@ func append_history_entry() -> void:
 		outcome = "Resolved"
 
 	var reward_str: String = ""
-	var reward: ResourceBundle = r.get("reward")
-	if reward != null and not reward.is_empty():
-		reward_str = reward.describe()
+	var reward: Dictionary = r.get("reward", {})
+	if not reward.is_empty():
+		reward_str = ResourceDB.describe(reward)
+	var spoils: Dictionary = r.get("spoils", {})
+	if not spoils.is_empty():
+		var spoils_str: String = ResourceDB.describe(spoils)
+		reward_str = ("%s · spoils: %s" % [reward_str, spoils_str]) if reward_str != "" else "spoils: %s" % spoils_str
 
 	var label: String = EventKind.label(r.get("event_kind", current_event))
 	if r.get("sub_event", "") != "":

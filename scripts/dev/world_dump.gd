@@ -141,10 +141,13 @@ func _worlds_match(a: World, b: World) -> bool:
 		var cb: Castle = b.castles[i]
 		if ca.x != cb.x or ca.y != cb.y or ca.difficulty != cb.difficulty:
 			return false
-		if ca.reward.wood != cb.reward.wood \
-			or ca.reward.fibres != cb.reward.fibres \
-			or ca.reward.copper_ore != cb.reward.copper_ore:
+		# Castle reward is now a Dictionary keyed by ResourceDB ids. Same-seed
+		# determinism requires the same set of keys with the same values.
+		if ca.reward.size() != cb.reward.size():
 			return false
+		for id in ca.reward:
+			if int(cb.reward.get(id, -1)) != int(ca.reward[id]):
+				return false
 	for x in range(World.SIZE):
 		for y in range(World.SIZE):
 			if a.tiles[x][y].terrain != b.tiles[x][y].terrain:

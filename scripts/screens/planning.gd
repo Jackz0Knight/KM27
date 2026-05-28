@@ -76,7 +76,11 @@ var _tactics_mode: int = TACTICS_DEFENSE
 var _map_panzoom: Node = null
 var _selected: Vector2i = Vector2i(-1, -1)
 
-var _pending_tasks: Dictionary = {}
+# Per-unit task assignments for the current week now live on GameState
+# (`GameState.pending_tasks`) so they survive any scene change inside the
+# week — opening Knight Overview and coming back used to wipe them because
+# the local dict re-initialised on scene reload. Cleared by GameState's
+# `_clear_week_buffers()` so each new week starts from a clean slate.
 var _expedition_party: Array[int] = []
 
 var _calendar_active: bool = false
@@ -162,8 +166,8 @@ func _default_pending_tasks() -> void:
 	for u in GameState.roster:
 		if u.is_on_expedition():
 			continue
-		if not _pending_tasks.has(u.id):
-			_pending_tasks[u.id] = Unit.TASK_DEFEND
+		if not GameState.pending_tasks.has(u.id):
+			GameState.pending_tasks[u.id] = Unit.TASK_DEFEND
 
 
 func _show_intro_if_first_week() -> void:
@@ -462,7 +466,7 @@ func _build_unit_row(u: Unit) -> Control:
 	# OptionButton arrow eating real estate on every unit row.
 	var task_btn := Button.new()
 	task_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var saved_task: String = _pending_tasks.get(u.id, Unit.TASK_DEFEND)
+	var saved_task: String = GameState.pending_tasks.get(u.id, Unit.TASK_DEFEND)
 	_style_task_btn(task_btn, u, saved_task)
 	task_btn.pressed.connect(_open_task_popup.bind(u.id, task_btn))
 	vbox.add_child(task_btn)
@@ -532,14 +536,14 @@ func _open_task_popup(unit_id: int, anchor: Button) -> void:
 
 func _on_task_popup_picked(id: int, unit_id: int, anchor: Button, popup: PopupMenu) -> void:
 	if id == 0:
-		_pending_tasks[unit_id] = Unit.TASK_DEFEND
+		GameState.pending_tasks[unit_id] = Unit.TASK_DEFEND
 	else:
 		var stat_idx: int = id - 1
 		if stat_idx >= 0 and stat_idx < Stats.STAT_KEYS.size():
-			_pending_tasks[unit_id] = Unit.TASK_TRAIN_PREFIX + Stats.STAT_KEYS[stat_idx]
+			GameState.pending_tasks[unit_id] = Unit.TASK_TRAIN_PREFIX + Stats.STAT_KEYS[stat_idx]
 	var u: Unit = GameState.find_unit(unit_id)
 	if u != null:
-		_style_task_btn(anchor, u, _pending_tasks[unit_id])
+		_style_task_btn(anchor, u, GameState.pending_tasks[unit_id])
 	popup.queue_free()
 
 
@@ -747,9 +751,9 @@ func _build_castle_card(castle: Castle) -> Control:
 	diff_lbl.add_theme_color_override("font_color", diff_color)
 	left.add_child(diff_lbl)
 
-	# Right column — reward bundle.
+	# Right column — reward bundle (Dictionary keyed by ResourceDB ids).
 	var reward_lbl := Label.new()
-	reward_lbl.text = castle.reward.describe()
+	reward_lbl.text = ResourceDB.describe(castle.reward)
 	reward_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	reward_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	reward_lbl.add_theme_font_size_override("font_size", 13)
@@ -823,7 +827,7 @@ func _refresh_selection() -> void:
 			bits.append("Yield: —")
 		if tile.castle != null:
 			bits.append("Castle: difficulty %d, reward %s" % [
-				tile.castle.difficulty, tile.castle.reward.describe(),
+				tile.castle.difficulty, ResourceDB.describe(tile.castle.reward),
 			])
 	else:
 		if MapTile.is_fogged_in(GameState.world, tile.x, tile.y):
@@ -943,7 +947,7 @@ func _launch(kind: Expedition.Kind) -> void:
 	status_lbl.text = "Launched: %s" % exp.describe()
 	_expedition_party.clear()
 	for uid in party:
-		_pending_tasks.erase(uid)
+		GameState.pending_tasks.erase(uid)
 		GameState.pending_away_party.erase(uid)
 	_refresh_overview_tab()
 	_refresh_tactics_tab()
@@ -1751,8 +1755,8 @@ func _do_advance() -> void:
 	for u in GameState.roster:
 		if u.is_on_expedition():
 			continue
-		if _pending_tasks.has(u.id):
-			u.current_task = _pending_tasks[u.id]
+		if GameState.pending_tasks.has(u.id):
+			u.current_task = GameState.pending_tasks[u.id]
 		else:
 			u.current_task = Unit.TASK_DEFEND
 

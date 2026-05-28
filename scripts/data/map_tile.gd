@@ -42,7 +42,10 @@ func _init(p_x: int = 0, p_y: int = 0, p_terrain: Terrain = Terrain.PLAINS) -> v
 	terrain = p_terrain
 
 
-# "" when the tile has no gather yield (Town, Village, Hills, Ocean).
+# Legacy single-resource gather. Kept for back-compat with anything that
+# still does the "what's this tile worth?" check on a single key; the
+# new path is `gather_table_id()` → RewardTableDB.roll(...).
+# "" when the tile has no gather yield (Town, Village, Ocean).
 func gather_resource() -> String:
 	match terrain:
 		Terrain.FOREST: return "logs"
@@ -52,11 +55,26 @@ func gather_resource() -> String:
 		_: return ""
 
 
-# "Passable" per GDD §4: affects whether an expedition can target this tile
-# directly. Mountain & Ocean are non-passable; Mountain's Copper Ore is gathered
-# from an adjacent passable tile (Phase 5 will enforce that rule).
+# RewardTableDB id for this terrain — drives the regional gather. The target
+# tile's table rolls at full weight; each Chebyshev-1 neighbour's table rolls
+# at a reduced weight (set by Tick._complete_one). Town / Village / Ocean
+# return "" so they contribute nothing.
+func gather_table_id() -> String:
+	match terrain:
+		Terrain.FOREST:   return "gather_forest"
+		Terrain.MOUNTAIN: return "gather_mountain"
+		Terrain.HILLS:    return "gather_hills"
+		Terrain.PLAINS:   return "gather_plains"
+		Terrain.BEACH:    return "gather_beach"
+		_: return ""
+
+
+# "Passable" — whether an expedition (Explore or Gather) can target this tile.
+# Per Jack's 2026-05-28 call, Mountain is now passable (the tile itself holds
+# the resources — the old "gather from adjacent mountain" rule is scrapped in
+# favour of regional gather). Ocean stays non-passable.
 func is_passable() -> bool:
-	return terrain != Terrain.MOUNTAIN and terrain != Terrain.OCEAN
+	return terrain != Terrain.OCEAN
 
 
 # Single-char label for ASCII debug dumps. Castle overlay is applied by the

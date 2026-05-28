@@ -9,9 +9,12 @@ extends Node
 # default_weapon_id / default_armour_id map to Weapon.CATALOGUE and
 # Armour.CATALOGUE entries used when building CombatUnits.
 #
-# loot_tags: reserved for a future loot-variety system — no code reads them yet.
-# TIER2_TYPES: defined but not yet active — activation deferred to Phase 8
-#   balance pass (week >= 20 threshold).
+# `drops`: per-enemy mob-drop table. Each entry is {id, chance, amount: [lo, hi]}.
+#   On a combat win, Resolution rolls each living-then-dead enemy's drops and
+#   accumulates them into result["spoils"]. The kill itself produces the loot;
+#   the encounter's `reward` (bundle from RewardTableDB) is separate.
+# `loot_tags`: kept for compatibility / future tagging — no code reads them.
+# TIER2_TYPES: defined but lightly used — activation curve a Phase 8 knob.
 
 const ENEMY_TYPES: Dictionary = {
 	"goblin": {
@@ -35,6 +38,10 @@ const ENEMY_TYPES: Dictionary = {
 		"default_armour_id": "unarmoured",
 		"tier": 1,
 		"loot_tags": ["basic"],
+		"drops": [
+			{"id": "goblin_hide", "chance": 0.55, "amount": [1, 1]},
+			{"id": "bone_shard",  "chance": 0.35, "amount": [1, 2]},
+		],
 	},
 	"goblin_warrior": {
 		"name": "Goblin Warrior",
@@ -57,6 +64,11 @@ const ENEMY_TYPES: Dictionary = {
 		"default_armour_id": "padded",
 		"tier": 1,
 		"loot_tags": ["basic"],
+		"drops": [
+			{"id": "goblin_hide", "chance": 0.65, "amount": [1, 2]},
+			{"id": "bone_shard",  "chance": 0.30, "amount": [1, 2]},
+			{"id": "scrap_iron",  "chance": 0.20, "amount": [1, 1]},
+		],
 	},
 	"bandit": {
 		"name": "Bandit",
@@ -79,6 +91,11 @@ const ENEMY_TYPES: Dictionary = {
 		"default_armour_id": "unarmoured",
 		"tier": 1,
 		"loot_tags": ["basic", "coin"],
+		"drops": [
+			{"id": "plant_fibres", "chance": 0.50, "amount": [1, 2]},
+			{"id": "scrap_iron",   "chance": 0.30, "amount": [1, 2]},
+			{"id": "copper_ore",   "chance": 0.20, "amount": [1, 1]},
+		],
 	},
 	"bandit_leader": {
 		"name": "Bandit Leader",
@@ -101,6 +118,11 @@ const ENEMY_TYPES: Dictionary = {
 		"default_armour_id": "leather",
 		"tier": 1,
 		"loot_tags": ["basic", "coin"],
+		"drops": [
+			{"id": "scrap_iron",  "chance": 0.70, "amount": [1, 2]},
+			{"id": "plant_fibres","chance": 0.40, "amount": [1, 2]},
+			{"id": "iron_ore",    "chance": 0.25, "amount": [1, 1]},
+		],
 	},
 	"dire_wolf": {
 		"name": "Dire Wolf",
@@ -123,6 +145,10 @@ const ENEMY_TYPES: Dictionary = {
 		"default_armour_id": "unarmoured",
 		"tier": 1,
 		"loot_tags": ["pelt"],
+		"drops": [
+			{"id": "wolf_pelt",  "chance": 0.85, "amount": [1, 1]},
+			{"id": "bone_shard", "chance": 0.45, "amount": [1, 2]},
+		],
 	},
 	"orc": {
 		"name": "Orc",
@@ -145,6 +171,11 @@ const ENEMY_TYPES: Dictionary = {
 		"default_armour_id": "unarmoured",
 		"tier": 2,
 		"loot_tags": ["scrap", "basic"],
+		"drops": [
+			{"id": "scrap_iron",  "chance": 0.75, "amount": [1, 3]},
+			{"id": "goblin_hide", "chance": 0.40, "amount": [1, 2]},
+			{"id": "iron_ore",    "chance": 0.30, "amount": [1, 2]},
+		],
 	},
 	"orc_berserker": {
 		"name": "Orc Berserker",
@@ -167,6 +198,11 @@ const ENEMY_TYPES: Dictionary = {
 		"default_armour_id": "unarmoured",
 		"tier": 2,
 		"loot_tags": ["scrap"],
+		"drops": [
+			{"id": "scrap_iron",  "chance": 0.65, "amount": [2, 3]},
+			{"id": "bone_shard",  "chance": 0.50, "amount": [1, 3]},
+			{"id": "troll_bile",  "chance": 0.10, "amount": [1, 1]},
+		],
 	},
 	"giant_spider": {
 		"name": "Giant Spider",
@@ -189,6 +225,10 @@ const ENEMY_TYPES: Dictionary = {
 		"default_armour_id": "unarmoured",
 		"tier": 2,
 		"loot_tags": ["web"],
+		"drops": [
+			{"id": "spider_web", "chance": 0.85, "amount": [1, 2]},
+			{"id": "bone_shard", "chance": 0.30, "amount": [1, 1]},
+		],
 	},
 	"troll": {
 		"name": "Troll",
@@ -211,6 +251,11 @@ const ENEMY_TYPES: Dictionary = {
 		"default_armour_id": "unarmoured",
 		"tier": 2,
 		"loot_tags": ["basic"],
+		"drops": [
+			{"id": "troll_bile", "chance": 0.65, "amount": [1, 2]},
+			{"id": "bone_shard", "chance": 0.60, "amount": [2, 4]},
+			{"id": "hardwood",   "chance": 0.25, "amount": [1, 2]},
+		],
 	},
 }
 
@@ -277,6 +322,36 @@ func _types_for_event(event_key: String, week: int) -> Array[String]:
 		"tournament":    return ["bandit_leader", "orc", "bandit"]
 		"duel":          return ["bandit_leader"]
 	return ["goblin"]
+
+
+# Roll mob drops from a single enemy of `type_id`. Each entry in the enemy's
+# `drops` array is an independent Bernoulli — if it fires, the amount is rolled
+# in its [lo, hi] range. `kill_mult` (default 1.0) lets the caller scale the
+# whole table — Resolution passes 1.0 per dead enemy and accumulates across
+# the party. Returns a Dictionary keyed by ResourceDB ids.
+func roll_drops_for(type_id: String, kill_mult: float = 1.0) -> Dictionary:
+	var entry: Dictionary = ENEMY_TYPES.get(type_id, {})
+	if entry.is_empty():
+		return {}
+	var table: Array = entry.get("drops", [])
+	if table.is_empty():
+		return {}
+	var out: Dictionary = {}
+	for line: Dictionary in table:
+		var chance: float = float(line.get("chance", 0.0)) * kill_mult
+		if chance <= 0.0:
+			continue
+		if RNG.randf_range(0.0, 1.0) >= chance:
+			continue
+		var amt_range: Array = line.get("amount", [1, 1])
+		var amount: int = RNG.randi_range(int(amt_range[0]), int(amt_range[1]))
+		if amount <= 0:
+			continue
+		var id: String = str(line.get("id", ""))
+		if id == "":
+			continue
+		out[id] = int(out.get(id, 0)) + amount
+	return out
 
 
 func _roll_actor(p_id: int, type_id: String, week_bonus: int) -> EnemyActor:

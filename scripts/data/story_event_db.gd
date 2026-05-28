@@ -32,7 +32,8 @@ extends RefCounted
 #   {kind: "all_units_stat", stat, delta}            — every at-home unit
 #   {kind: "random_unit_injury"}                     — random at-home unit
 #                                                       suffers a 1–2w injury
-#   {kind: "reward_resources", min: int, max: int}   — rolls a ResourceBundle
+#   {kind: "reward_resources", min: int, max: int}   — rolls a Dictionary
+#                                                       {logs, plant_fibres, copper_ore}
 #                                                       (legacy MVP triple) and
 #                                                       sets result["reward"]
 #   {kind: "inventory_add", id, min, max}            — adds N of a resource id
@@ -2773,18 +2774,24 @@ static func _apply_random_unit_injury(gs: Node, result: Dictionary) -> void:
 
 
 static func _apply_reward_resources(lo: int, hi: int, result: Dictionary) -> void:
-	var bundle := ResourceBundle.new()
-	for key in ResourceBundle.KEYS:
-		bundle.set(key, RNG.randi_range(lo, hi))
+	# Reward bundles are now plain Dictionaries keyed by ResourceDB ids.
+	# Story-event `reward_resources` keeps the simple lo/hi shape for back-compat
+	# with existing event data — three lines of the same legacy triple of raws.
+	# Future story events should prefer the more flexible `inventory_add`
+	# primitive (which can name any resource id directly).
+	var bundle: Dictionary = {
+		"logs":         RNG.randi_range(lo, hi),
+		"plant_fibres": RNG.randi_range(lo, hi),
+		"copper_ore":   RNG.randi_range(lo, hi),
+	}
 	# Don't clobber an existing reward — some outcomes pair a story bundle
-	# with a separate effect that already set one. ResourceBundle.add() mutates
-	# in place, so we duplicate the existing one to avoid surprising callers.
-	var existing: ResourceBundle = result.get("reward")
-	if existing == null:
+	# with a separate effect that already set one. Merge through ResourceDB.
+	var existing: Dictionary = result.get("reward", {})
+	if existing.is_empty():
 		result["reward"] = bundle
 	else:
-		var merged: ResourceBundle = existing.duplicate_bundle()
-		merged.add(bundle)
+		var merged: Dictionary = existing.duplicate(true)
+		ResourceDB.merge(merged, bundle)
 		result["reward"] = merged
 
 

@@ -16,7 +16,7 @@ extends RefCounted
 # item drop + rep) but reads its parameters from the entry.
 #
 # Reward kinds (each entry's "reward_kind" field):
-#   "gold_and_bundle"   — gold_range + ResourceBundle roll
+#   "gold_and_bundle"   — gold_range + Dictionary bundle (ResourceDB ids)
 #   "iron_haul"         — iron_ore inventory_add + optional plant_fibres
 #   "rare_loot"         — gold_range + item_drop forced (bypasses chance roll)
 #

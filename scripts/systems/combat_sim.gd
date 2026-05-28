@@ -73,11 +73,17 @@ static func run(
 
 		# Build round order: all living combatants sorted by initiative,
 		# with a small random tiebreaker so identical values don't always go
-		# in the same order.
+		# in the same order. The jitter is rolled ONCE per combatant before
+		# the sort, then stored in `_init_jitter` so the comparator is
+		# deterministic for a given pair — calling RNG inside the lambda
+		# would mean the same (a, b) could compare both ways across calls,
+		# violating sort invariants.
 		var order: Array = living_player + living_enemy
+		for cu: CombatUnit in order:
+			cu._init_jitter = cu.initiative + RNG.randi_range(0, 2)
 		order.sort_custom(
 			func(a: CombatUnit, b: CombatUnit) -> bool:
-				return (a.initiative + RNG.randi_range(0, 2)) > (b.initiative + RNG.randi_range(0, 2))
+				return a._init_jitter > b._init_jitter
 		)
 
 		for cu: CombatUnit in order:
