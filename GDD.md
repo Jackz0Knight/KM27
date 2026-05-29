@@ -473,24 +473,21 @@ No animations, no sound, no art beyond tile icons and stat bars.
 
 ## 17. What MVP Deliberately Excludes
 
+> Some items below have since shipped or moved into a post-MVP design pass — see §18 (item & crafting design pass) and the Changelog. The list is kept here as the original MVP boundary.
+
 - **Morale, leave-checks, retention** (whole system → future)
 - **Rest task** (was a morale recovery; no longer needed)
 - **Squire promotion**
 - **Recruitment**
 - **Death / injuries / disease / limb system**
 - Magic
-- Crafting & item modifiers
-- Resource tiers T2–T5
 - Tile depletion
 - Resource placement formulas *(random in MVP)*
 - Scoundrel / Engineer classes
 - Staff (Scout, Coach)
 - Builds (Tall/Short/Average)
-- Traits
-- Research / Squad Hub buildings
 - Custom or larger formations
 - Aging / Youth stage
-- Economy (gold income/expenses)
 - 40-game season structure
 - Hidden resource spawns
 - Mounted combat
@@ -503,7 +500,223 @@ All in `FutureFeatures.md`.
 
 ---
 
+## 18. Item & Crafting Systems — Design Pass
+
+This section is the **design pass** before implementation. It locks the conceptual model across **Resources & Economy**, **Damage ↔ Stat integration**, **Crafting & Research**, and **Item Modifiers & Quality Brackets**. Open questions are flagged inline with `> **Open Q…**` blocks — Jack answers; once locked, the spec migrates into §13 / §14 and implementation follows bottom-up.
+
+### 18.1 Layering
+
+These four layers are intentionally bottom-up dependent — each pins the constraints for the next:
+
+1. **Resources & Economy** — what materials exist, how they're gathered, how gold flows. Sets the inputs.
+2. **Damage ↔ Stat integration** — how weapons and armours fold into the §13 power formula. Sets what modifiers *mean*.
+3. **Crafting & Research** — how materials become items, and what gates unlock what. Sets scarcity.
+4. **Item Modifiers & Quality Brackets** — the 7-bracket quality system, with material-driven roll ranges. The flavour layer on top.
+
+Designing modifiers before the damage model is set means re-tuning twice.
+
+### 18.2 Resources & Economy
+
+**Resource catalogue** lives in `ResourceDB.RESOURCES` — currently 18 processed + 14 raw across three families (Fabric, Timber, Metal) and tiers T1–T5. Each entry carries `name`, `type`, `tier`, an optional `recipe` (resource-to-resource processing — *not* item crafting; see §18.4), and an optional `research` gate.
+
+**Resource sources.** Today raw materials come mostly from castle assault loot — gather expeditions exist but the raw-material drop pipeline is incomplete. The design pass commits to **three** named channels:
+
+- **Gather expeditions** are the primary **T1 raw** source. Yield = `base × Strength × tile_richness × weeks`, where:
+  - `tile_richness ∈ {Poor, Average, Rich}` — set at world-gen per tile, biased by terrain (Forest leans Timber, Mountain leans Metal, Plains/Beach lean Fabric).
+  - Tile yield-rate is **T1 only**; higher tiers do not drop from Gather.
+- **Castle assault loot** is the primary **T2–T3** source — rich but rare bags, weighted to the assaulted castle's difficulty band.
+- **Story-event rewards** are the trickle for **T3+** specialty mats (e.g. an "old armoury" event delivers a Steel Ingot, an "abandoned forge" delivers Mythril traces). Curated, not RNG-spammed.
+
+Mob drops are explicitly **out of scope** for this pass — keeping the channels above clean for tuning matters more than variety right now.
+
+**Scarcity bands** — every resource gets a *design-target* weekly supply estimate based on its source channel. Used as a balance yardstick, not a runtime mechanic:
+
+| Band | Per week (target) | Examples |
+|---|---|---|
+| Plentiful | 4–8 | Logs, Plant Fibres, Copper Ore |
+| Common | 1–3 | Cloth, Tin |
+| Uncommon | 0–1 | Bronze Ingot, Leather |
+| Rare | every few weeks | Iron Ingot, Spidersilk |
+| Epic | once per run | Mythril, Wyrm Hide |
+| Legendary | Grand-Tournament tier | T5 mats |
+
+**Gold** flows on these named edges. Each beat is visible — fixed formulas, no abstract "income/expense" buckets. Numbers are *proposed* targets; current ones in parens:
+
+| Source | Proposed formula | Current |
+|---|---|---|
+| Weekly stipend | `8 + (year × 2)` | flat 10 |
+| Holdings income | `castles_held × 6` per week | not wired |
+| Tournament purse | `40 + (tournament_number × 25) + rep_bonus` | shipped (rep cap +25) |
+| Pillage purse | `8–18 × bandit_strength` | shipped (rough) |
+| Assault loot | `40 + castle_difficulty × 0.4` | shipped (rough) |
+| Story events | per-event ranges | shipped |
+
+| Sink | Proposed formula | Current |
+|---|---|---|
+| Weekly upkeep | `4 + (knights × 3) + (squires × 2)` | flat `roster.size() × 5` (= 20/week at 4 units) |
+| Research project | `proj.cost_gold` (paid up front) | shipped |
+| Crafting cost | `recipe.base_gold` + material values | not wired (resource recipes use mats only today) |
+
+> **Open Q (resources):**
+> 1. Lock the **gather formula** (Strength × tile_richness × weeks) as the canonical T1 source? Or do you want **mob drops** as a parallel channel later?
+> 2. Promote the **scarcity bands** to a `band` field on each `ResourceDB.RESOURCES` entry so balance work has a yardstick in code, not just docs?
+> 3. **Holdings income** — keep it flat (boring but predictable), or scale with castles held (rewards expansion, makes losing a castle bite)?
+> 4. **Upkeep formula** — flat-per-unit (current), or differentiate by class (Knight costs more than Squire)?
+
+### 18.3 Damage ↔ Stat Integration
+
+Today, §13's `unit_power` formula does **not** include weapon damage — weapons add a flat `power_rating` (0–5) separate from the stat math. That's two parallel axes, so modifiers like "+2 Strength" and "+1 power_rating" don't compose cleanly, and the weapon card's `damage 5–9` line has no strategy-layer meaning.
+
+The design pass folds weapon damage and armour resistance **into** the §13 formula:
+
+```
+unit_power = 5                                  # base
+           + Strength                           # body
+           + Bravery                            # mind
+           + relevant_skill                     # Swd or Arc per slot
+           + slot_bonus                         # +2 matched slot
+           + leadership_buff                    # +1 if Blue occupied
+           + weapon_damage                      # NEW — replaces power_rating
+                                                #   weapon_damage = floor(avg(damage_min, damage_max))
+                                                #   modifiers shift damage_min/max in the catalogue,
+                                                #   the formula re-derives. One source of truth.
+```
+
+Enemy power is reduced by armour (scaled like Intimidation so it doesn't dwarf the formula):
+
+```
+enemy_power -= sum(armour_resistance / 4)       # NEW — armour absorbs
+            -= sum(Intimidation / 4)            # existing
+```
+
+Result: a `5–9 damage` weapon means avg 7 contribution to `unit_power`; a +2 quality modifier on `damage_max` bumps the formula by +1 (avg shift). Same for armour — `armour_resistance 8` shaves 2 off enemy power per defender.
+
+> **Open Q (damage):**
+> 1. **`weapon_damage = avg(min,max)`** is the simplest derivation. Want to add **stat scaling** (e.g. `+ Strength × 0.25` for melee, `+ Technique × 0.25` for ranged)? More growth feel, more tuning surface.
+> 2. Should **Swordsmanship / Archery** keep contributing as flat stats in `unit_power` (current §13), or only via weapon `hit_bonus`/`crit_bonus`? I'd lean **keep both** — the stat is the *skill*, the weapon is the *tool*.
+> 3. **Deprecate `power_rating`?** Cleanest is yes — fold it into derived `weapon_damage`. Alternative: keep it as a `+0` legacy field for old saves.
+
+### 18.4 Crafting & Research
+
+**Today.** `ResourceDB.RECIPES` (embedded in each `RESOURCES` entry) describes **resource-to-resource processing** (Cloth ← Plant Fibres ×2), not item crafting. Items today only enter the stockpile via loot drops. The design pass introduces a **separate `ITEM_RECIPES` catalogue** that consumes resources and gold and produces a crafted item:
+
+```
+"iron_longsword": {
+    "output_item":   "iron_longsword",    # id in Weapon.CATALOGUE
+    "inputs":        {"iron_ingot": 3, "hardwood_planks": 2},
+    "base_gold":     12,
+    "bracket_bias":  3,                   # centre of the quality roll (Good)
+    "research_gate": "blacksmithing",
+}
+```
+
+- **Bracket bias** = the centre of the quality roll (§18.5). Derived from the highest-tier input by default (T1 → Ok, T3 → Good, T5 → Excellent), overridable per recipe for hand-tuned showpieces.
+- **Craft action** is **instant** at the Planning Crafting tab — one click consumes the inputs, rolls a quality bracket, and adds a crafted item instance to the stockpile. Matches the manager pacing (no in-week production timer).
+- **One craft per recipe per Planning week** — cap. Stops the player from chain-crafting away their week. Multiple *different* recipes can craft in the same week.
+
+**Research** gates which item recipes appear. Tech tree already exists in `ResourceDB.RESEARCH_PROJECTS`. The design pass extends it minimally:
+
+- A project's `cost_gold` is paid up front (already shipped).
+- A project **completes instantly** — no weeks-long timer. Rationale: research is *a decision* (which branch?), not *a wait*. Pacing comes from gold scarcity and recipe gates downstream.
+- A project unlocks one or more item recipes (and may unlock higher-tier resource recipes too — same gate field).
+
+**Item scarcity** is bounded by:
+- Recipe **research gates** (which exist).
+- Material **cost** (T3 recipes need T2 ingots, which need T1 ore — multi-step pipeline).
+- Quality **bracket roll** (Masterwork+ are tail events; see §18.5 weights).
+
+> **Open Q (crafting):**
+> 1. **One craft per recipe per week** — or unlimited per week (only material-gated)? Affects scarcity sharply.
+> 2. **Research = instant on payment** — or does it take N weeks? Instant keeps decision/cost clean; timed adds opportunity cost.
+> 3. Show **material lineage** on the crafted item's tooltip ("Iron Longsword — forged from Iron Ingot ×3, Hardwood Planks ×2")? Show-not-tell of why the modifiers rolled where they did.
+> 4. **Resource recipes vs item recipes** — keep them as two distinct dicts (proposed: `RESOURCES[id].recipe` for processing, `ITEM_RECIPES[id]` for items), or unify under a single recipe table with a `kind` field?
+
+### 18.5 Item Modifiers & Quality Brackets
+
+A crafted item rolls a **quality bracket** at craft time — a single roll on this 7-step scale (low → high):
+
+| Bracket | Label | Effect on modifier ranges | Roll weight (centred on Ok) |
+|---|---|---|---|
+| 0 | Terrible | `-30%` of base mod values | tail |
+| 1 | Poor | `-15%` | common |
+| 2 | Ok | `±0%` | common |
+| 3 | Good | `+15%` | common |
+| 4 | Excellent | `+30%` | uncommon |
+| 5 | Masterwork | `+50%`, +1 rolled modifier slot | rare |
+| 6 | Legendary | `+75%`, +2 rolled modifier slots, named | tail |
+
+**Bracket roll** is biased by the recipe:
+- **Centre** = `recipe.bracket_bias` (default = highest-input-tier mapping).
+- **Spread** = ±2 brackets via weighted RNG (peak at centre, dropping off).
+- **"The forge sang" crit** = 2% chance to bump the rolled bracket up one step — flavour for the rare big day.
+
+**Modifiers** are integer/percentage offsets layered on the catalogue baseline. Each item type has **1–3 primary** modifier slots (rolled within ranges) and an **optional bonus** slot unlocked at Excellent+.
+
+**Weapon primary modifiers** (range *at Ok bracket* — other brackets scale by the % above):
+
+| Modifier | Range at Ok | Note |
+|---|---|---|
+| `+damage_max` | +0 to +2 | Top-end power; rolls into the `unit_power` formula via §18.3. |
+| `+hit_bonus` | -1 to +3 | Accuracy in the combat sim layer. |
+| `+crit_bonus` | +0.00 to +0.04 | Crit chance. |
+
+**Armour primary modifiers**:
+
+| Modifier | Range at Ok | Note |
+|---|---|---|
+| `+armour_resistance` | +0 to +2 | Subtracted from enemy power via §18.3. |
+| `+dmg_absorb` | +0 to +2 | Combat-sim layer per-hit absorb. |
+
+**Material-driven bias** — the **highest-tier material** in the recipe biases *which* primary modifier rolls high. The bias is `+1 to the rolled value` within the modifier's range, not a flat replacement — so material matters but the bracket dominates the headline number:
+
+| Material (highest tier) | Bias toward | Flavour |
+|---|---|---|
+| Hardwood Planks (T2) | `+hit_bonus` | lighter, balanced |
+| Iron Ingot (T2) | `+damage_max` | heavy, hits hard |
+| Steel Ingot (T3) | `+damage_max` and `+armour_resistance` | best of both |
+| Mythril Ingot (T3) | `+crit_bonus` | ethereal edge |
+| Wyrm Hide (T3) | `+armour_resistance` | drake scales |
+| Shadow Weave (T3) | `+hit_bonus` and `+crit_bonus` | hard to see coming |
+
+**Quality vs. Rarity — independent axes.** This is the headline of the system:
+
+- **Rarity** (Common / Uncommon / Rare / Heirloom) → *where the item came from* (loot pool). Already shipped on weapons + armours.
+- **Quality bracket** (Terrible … Legendary) → *how well it was crafted*. New.
+
+A Common Iron Longsword can roll **Legendary** quality and outclass a Rare loot drop. A Heirloom loot drop comes in at a fixed quality (proposal: Heirloom drops = Excellent; Grand-Tournament Heirlooms = Masterwork; hand-authored uniques can specify).
+
+**Surface** — bracket label + colour on every item line, plus a small **▲** marker above Ok and **▼** below (same show-not-tell motif as the stat arrows in §10):
+
+```
+⚔ Iron Longsword · Excellent ▲▲     # green tint
+⚔ Iron Longsword · Ok               # no marker
+⚔ Iron Longsword · Poor ▼           # orange tint
+```
+
+The exact numeric modifiers stay visible on the tooltip — bracket on the chip, numbers on hover.
+
+> **Open Q (modifiers):**
+> 1. **7 brackets** as listed, or fold Terrible/Legendary into Poor/Masterwork (**5 brackets** — tamer tails, simpler curve)?
+> 2. Material bias as **+1 to the rolled value** (subtle), or **shift the centre of the modifier range** (loud)?
+> 3. Brackets **visible on the card** (label + ▲/▼) as proposed, or **hidden behind a descriptor only** (just the word, like stats)?
+> 4. **Legendary names** — auto-generated from a pool (`Wyrmsbane`, `The Tournament's Edge`), or only for hand-authored Heirlooms?
+> 5. Should the **"forge sang" crit** be visible on the Weekly Summary as a small chronicle line ("The forge sang at midnight — Aldric drew Wyrmsbane from the embers")? Big show-not-tell moment if so.
+
+### 18.6 Implementation order (once design locks)
+
+Each item is its own commit / PR. Bottom-up by intent — every layer pins the next layer's tuning surface:
+
+1. **Resources & economy pass** — add `band` to `ResourceDB.RESOURCES`, wire the three source channels (gather / assault / story-event), surface gold formulas as named constants in a single tuning file.
+2. **Damage formula** — fold `weapon_damage` and `armour_resistance` into `Combat.unit_power`, deprecate `power_rating`. Update §13.
+3. **Crafting pipeline** — add `ITEM_RECIPES` table; `CraftingTab` gains an "Items" sub-tab; `Craft()` rolls a bracket and stamps it on a new instance.
+4. **Item modifiers** — extend `Weapon` / `Armour` with a per-instance `modifiers: Dictionary` (rolled at craft); combat reads modifiers; tooltips display them; saves persist them.
+5. **Quality brackets surface** — bracket label + colour + ▲/▼ marker on UnitCard and Knight Overview's Equipment block.
+
+---
+
 ## Changelog
+
+- 2026-05-27 — Added §18 *Item & Crafting Systems — Design Pass* covering Resources & Economy, Damage ↔ Stat integration, Crafting & Research, and Item Modifiers & Quality Brackets (7-bracket Terrible→Legendary scale, material-driven bias, quality as a separate axis from rarity). Each subsection ships with `> **Open Q…**` blocks for Jack to resolve before the spec migrates into §13/§14 and implementation begins. Also pruned §17 *Excludes* of items now shipped (resource T2–T5, traits, research, economy) or moved to §18 (crafting & item modifiers); kept the original list framed as the MVP boundary for posterity.
 
 - 2026-05-17 — Added §9 *Households & Body Types* (4 archetypal houses with implicit stat leans + 4 independent body silhouettes). Drives the visual banner system; not in original MVP scope but additive — doesn't change any existing rule, just biases starting stat rolls.
 - 2026-05-14 — MVP GDD imported from external draft (Core Loop, Win/Loss, Map & Tile Knowledge, Weekly Flow, Events, At-Home Tasks, Expeditions, Stats, Formations, Battle Resolution, Resources, UI, Calendar, MVP Exclusions).
