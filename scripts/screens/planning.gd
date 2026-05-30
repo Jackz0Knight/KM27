@@ -1270,14 +1270,29 @@ func _refresh_research_tab() -> void:
 		c.queue_free()
 
 	# Two-column body: swimlane grid on the left, detail card on the right.
+	# Wrap the whole split in a ScrollContainer so a growing tier count can't
+	# push the tab container past the viewport width — otherwise the Research
+	# tab "locks" the screen, hiding the tab bar and surrounding chrome.
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	research_body.add_child(scroll)
+
 	var split := HBoxContainer.new()
 	split.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	split.add_theme_constant_override("separation", 18)
-	research_body.add_child(split)
+	scroll.add_child(split)
 
 	split.add_child(_build_research_grid())
-	split.add_child(_build_research_detail())
+	# Detail panel gets a fixed width on the right so the swimlane grid takes
+	# whatever's left — keeps the layout predictable as the tree grows.
+	var detail: Control = _build_research_detail()
+	detail.custom_minimum_size = Vector2(300, 0)
+	detail.size_flags_horizontal = 0  # do not expand — fixed width
+	split.add_child(detail)
 
 
 func _build_research_grid() -> Control:

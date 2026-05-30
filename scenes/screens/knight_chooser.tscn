@@ -50,16 +50,6 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 14
 
-[node name="SquiresLabel" type="Label" parent="Margin/VBox/Scroll/ScrollBody"]
-layout_mode = 2
-text = "Your Squires"
-theme_override_font_sizes/font_size = 18
-modulate = Color(0.85, 0.78, 0.55, 1)
-
-[node name="SquiresRow" type="HBoxContainer" parent="Margin/VBox/Scroll/ScrollBody"]
-layout_mode = 2
-theme_override_constants/separation = 12
-
 [node name="KnightsLabel" type="Label" parent="Margin/VBox/Scroll/ScrollBody"]
 layout_mode = 2
 text = "Knight Candidates"
@@ -70,3 +60,13 @@ modulate = Color(0.85, 0.78, 0.55, 1)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 16
+
+[node name="SquiresLabel" type="Label" parent="Margin/VBox/Scroll/ScrollBody"]
+layout_mode = 2
+text = "Your Squires"
+theme_override_font_sizes/font_size = 18
+modulate = Color(0.85, 0.78, 0.55, 1)
+
+[node name="SquiresRow" type="HBoxContainer" parent="Margin/VBox/Scroll/ScrollBody"]
+layout_mode = 2
+theme_override_constants/separation = 12

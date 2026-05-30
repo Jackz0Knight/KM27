@@ -149,6 +149,10 @@ func _build_stat_group(unit: Unit, group_label: String, stat_keys: Array) -> Con
 		var name_lbl := Label.new()
 		name_lbl.text = String(key).capitalize()
 		name_lbl.custom_minimum_size = Vector2(120, 0)
+		# Blurb (used to be its own column eating ~third of the screen) is now
+		# the row's tooltip — hover the stat name/value to read what it does.
+		var tip: String = STAT_BLURBS.get(key, "")
+		name_lbl.tooltip_text = tip
 		row.add_child(name_lbl)
 
 		var value: int = unit.stats.get_value(key)
@@ -157,6 +161,7 @@ func _build_stat_group(unit: Unit, group_label: String, stat_keys: Array) -> Con
 		value_lbl.custom_minimum_size = Vector2(30, 0)
 		value_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		value_lbl.modulate = Color(0.78, 0.74, 0.60)
+		value_lbl.tooltip_text = tip
 		row.add_child(value_lbl)
 
 		# Coloured descriptor — same band system as the cards.
@@ -164,11 +169,11 @@ func _build_stat_group(unit: Unit, group_label: String, stat_keys: Array) -> Con
 		desc_lbl.text = Stats.descriptor(value)
 		desc_lbl.add_theme_color_override("font_color", Stats.descriptor_color(value))
 		desc_lbl.custom_minimum_size = Vector2(80, 0)
+		desc_lbl.tooltip_text = tip
 		row.add_child(desc_lbl)
 
 		# FM-style development arrow (show-not-tell): ▲ developing, bright ▲
-		# recently improved, ▼ injury-suppressed. Fixed-width cell so the blurb
-		# column stays aligned whether or not an arrow is present.
+		# recently improved, ▼ injury-suppressed.
 		var dev_state: int = unit.stats.development_state(key, unit.potential_ability, unit.injured_stats().has(key))
 		var arrow := Label.new()
 		arrow.custom_minimum_size = Vector2(18, 0)
@@ -180,12 +185,12 @@ func _build_stat_group(unit: Unit, group_label: String, stat_keys: Array) -> Con
 			arrow.tooltip_text = Stats.development_tooltip(dev_state)
 		row.add_child(arrow)
 
-		var blurb := Label.new()
-		blurb.text = STAT_BLURBS.get(key, "")
-		blurb.modulate = Color(0.6, 0.58, 0.46)
-		blurb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		blurb.autowrap_mode = TextServer.AUTOWRAP_WORD
-		row.add_child(blurb)
+		# A flexible spacer so the four stat columns hug the left and the row
+		# still fills the panel width — keeps grouping tight without the wide
+		# blurb column that used to live here.
+		var spacer := Control.new()
+		spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(spacer)
 
 		vbox.add_child(row)
 
