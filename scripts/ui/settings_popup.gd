@@ -15,6 +15,8 @@ extends PopupPanel
 # Esc closes the popup so the player doesn't have to fish for the Back button.
 
 @onready var fullscreen_btn: Button = $Margin/VBox/FullscreenBtn
+@onready var ui_scale_slider: HSlider = $Margin/VBox/UiScaleRow/UiScaleSlider
+@onready var ui_scale_value: Label    = $Margin/VBox/UiScaleRow/UiScaleValue
 @onready var master_slider: HSlider = $Margin/VBox/MasterRow/MasterSlider
 @onready var master_value: Label    = $Margin/VBox/MasterRow/MasterValue
 @onready var music_slider: HSlider  = $Margin/VBox/MusicRow/MusicSlider
@@ -33,6 +35,13 @@ func _ready() -> void:
 	main_menu_btn.pressed.connect(_on_main_menu)
 	quit_btn.pressed.connect(_on_quit)
 	save_btn.pressed.connect(_on_save)
+
+	# Seed UI scale slider from the persisted preference (UserPrefs autoload
+	# reads `user://prefs.cfg` at startup; this just mirrors that value back to
+	# the slider so it reflects what's actually applied).
+	ui_scale_slider.value = UserPrefs.ui_scale
+	_refresh_ui_scale_value()
+	ui_scale_slider.value_changed.connect(_on_ui_scale_changed)
 
 	# Seed sliders from MasterAudio's current volumes so the popup reflects
 	# whatever the player set last. Sliders persist via MasterAudio across
@@ -59,6 +68,15 @@ func _ready() -> void:
 	main_menu_btn.disabled = not GameState.has_active_run()
 	if main_menu_btn.disabled:
 		main_menu_btn.tooltip_text = "You're already on the main menu."
+
+
+func _on_ui_scale_changed(v: float) -> void:
+	UserPrefs.set_ui_scale(v)
+	_refresh_ui_scale_value()
+
+
+func _refresh_ui_scale_value() -> void:
+	ui_scale_value.text = "%d%%" % roundi(ui_scale_slider.value * 100.0)
 
 
 func _on_master_changed(v: float) -> void:

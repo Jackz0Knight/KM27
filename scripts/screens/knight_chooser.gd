@@ -20,22 +20,25 @@ func _ready() -> void:
 		GameState.knight_candidates = RosterGenerator.roll_knight_candidates()
 		GameState.starting_squires = RosterGenerator.roll_starting_squires()
 
-	for squire in GameState.starting_squires:
-		var card: Control = UnitCard.build(squire)
-		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		squires_row.add_child(card)
-
+	# Knight candidates are the actual decision — render compact cards
+	# (show_chronicle = false) so all three fit on screen at once. The full
+	# chronicle / origin paragraph is still available on Knight Overview after
+	# the pick, and from the Weekly Summary every week thereafter.
 	for i in range(GameState.knight_candidates.size()):
 		var u: Unit = GameState.knight_candidates[i]
-		# show_chronicle = true: origin paragraph and oath shown on the chooser
-		# so the player recruits a person, not just a stat block.
 		var card: Control = UnitCard.build(
 			u, _on_choose.bind(i), "Take %s into service" % u.unit_name,
-			Callable(), true,
 		)
 		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		card.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		cards.add_child(card)
+
+	# Squires shown below as reference — they're locked in, the player is just
+	# seeing who the Knight will lead. Compact cards keep them tidy.
+	for squire in GameState.starting_squires:
+		var card: Control = UnitCard.build(squire)
+		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		squires_row.add_child(card)
 
 	ScreenFade.fade_in(self)
 
