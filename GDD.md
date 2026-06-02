@@ -381,7 +381,10 @@ unit_power = 5
            + relevant_skill            # Swordsmanship or Archery, slot-dependent (see below)
            + slot_bonus                # +2 if unit is in their matched slot color
            + leadership_buff           # +1, but ONLY if Blue slot is occupied by ANOTHER unit
+           + weapon_damage             # floor(avg(damage_min, damage_max)) — see §18.3
 ```
+
+**Armour is resistance, not power.** Each defender's armour value subtracts from enemy power before the comparison (sum across the party, mirroring the Intimidation reduction below). Net mathematical effect on the win check is identical to the old "+armour to player_total" model, so balance on the armour axis is preserved — only the weapon axis shifted when this landed. See §18.3 for the full kit integration design.
 
 **Intimidation reduces enemy power separately:** before comparing totals, subtract `sum of (Intimidation / 4, rounded down)` across all participating player units from the enemy power.
 
@@ -582,14 +585,16 @@ unit_power = 5                                  # base
                                                 #   the formula re-derives. One source of truth.
 ```
 
-Enemy power is reduced by armour (scaled like Intimidation so it doesn't dwarf the formula):
+Enemy power is reduced by armour, paired with Intimidation:
 
 ```
-enemy_power -= sum(armour_resistance / 4)       # NEW — armour absorbs
-            -= sum(Intimidation / 4)            # existing
+enemy_power -= sum(Intimidation / 4)            # existing, GDD §13
+            -= sum(armour_resistance)           # NEW — armour absorbs
 ```
 
-Result: a `5–9 damage` weapon means avg 7 contribution to `unit_power`; a +2 quality modifier on `damage_max` bumps the formula by +1 (avg shift). Same for armour — `armour_resistance 8` shaves 2 off enemy power per defender.
+**Note (implementation correction).** The original design pass wrote `armour_resistance / 4` to mirror Intimidation's scale. But Armour's `power_rating` is already 0–4, so `/4` floors to zero on most kit. Direct subtraction (no `/4`) is mathematically equivalent to the old `+armour` on player_total, so the change preserves balance on the armour axis with zero rebalancing required. When dedicated `armour_resistance` modifier rolls land in §18.5, the field can grow without re-deriving this scale.
+
+Result: a `5–9 damage` weapon means avg 7 contribution to `unit_power`; a +2 quality modifier on `damage_max` bumps the formula by +1 (avg shift). Armour at `power_rating 3` shaves 3 off enemy power per defender.
 
 > **Open Q (damage):**
 > 1. **`weapon_damage = avg(min,max)`** is the simplest derivation. Want to add **stat scaling** (e.g. `+ Strength × 0.25` for melee, `+ Technique × 0.25` for ranged)? More growth feel, more tuning surface.
