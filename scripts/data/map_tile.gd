@@ -7,6 +7,11 @@ extends Resource
 
 enum Terrain { TOWN, VILLAGE, PLAINS, FOREST, HILLS, MOUNTAIN, BEACH, OCEAN }
 enum Knowledge { UNKNOWN, EXPLORED, EXPEDITION_ACTIVE }
+# Gather-yield band per GDD §18.2. Rolled deterministically at world-gen (so
+# it round-trips through the seed without an extra save field), surfaced on
+# the tile tooltip only after the tile is EXPLORED — gives scout expeditions
+# a real prize beyond "knowledge of existence".
+enum Richness { POOR, AVERAGE, RICH }
 
 
 # Derived fog state — true when the tile is still UNKNOWN but borders at least
@@ -32,6 +37,7 @@ var x: int = 0
 var y: int = 0
 var terrain: Terrain = Terrain.PLAINS
 var knowledge: Knowledge = Knowledge.UNKNOWN
+var richness: Richness = Richness.AVERAGE   # default Average; world-gen rolls it
 var castle: Castle = null
 var active_expedition: Expedition = null   # null when no expedition is targeting this tile
 
@@ -40,6 +46,19 @@ func _init(p_x: int = 0, p_y: int = 0, p_terrain: Terrain = Terrain.PLAINS) -> v
 	x = p_x
 	y = p_y
 	terrain = p_terrain
+
+
+# Display label for the richness band — feeds the tile tooltip on EXPLORED
+# tiles. Returns "" for tiles that don't yield anything to gather (Town,
+# Village, Ocean), so the tooltip omits the line entirely.
+func richness_label() -> String:
+	if gather_resource() == "":
+		return ""
+	match richness:
+		Richness.POOR: return "Poor"
+		Richness.AVERAGE: return "Average"
+		Richness.RICH: return "Rich"
+	return ""
 
 
 # "" when the tile has no gather yield (Town, Village, Hills, Ocean).

@@ -129,7 +129,11 @@ func _tooltip_for(tile: MapTile) -> String:
 		bits.append("Castle diff=%d" % tile.castle.difficulty)
 	var res: String = tile.gather_resource()
 	if res != "":
-		bits.append("Yields %s" % res)
+		var richness: String = tile.richness_label()
+		if richness != "":
+			bits.append("Yields %s (%s)" % [res, richness])
+		else:
+			bits.append("Yields %s" % res)
 	if tile.active_expedition != null:
 		bits.append("Active: %s (%dw)" % [
 			tile.active_expedition.kind_label(),

@@ -14,8 +14,27 @@ const DURATION: Dictionary = {
 	Kind.GATHER: 3,
 }
 
-# Phase 5 yield formula: yield = base × (1 + Σstrength / 30). Base values are
-# placeholders per GDD §8 ("MVP baseline, tune from play").
+# Per-resource weekly base yield per GDD §18.2. The total yield over a gather
+# expedition is `base × richness_mult × (1 + Σstrength / STRENGTH_DIVISOR) ×
+# DURATION[GATHER]` — see `estimate_yield()`. Resources not in this dict yield
+# nothing from gather (T2+ comes from assault / story-event rewards).
+const BASE_YIELDS_PER_WEEK: Dictionary = {
+	"logs":         3,
+	"plant_fibres": 4,
+	"copper_ore":   2,
+	"iron_ore":     2,
+}
+
+const RICHNESS_MULT: Dictionary = {
+	MapTile.Richness.POOR:    0.5,
+	MapTile.Richness.AVERAGE: 1.0,
+	MapTile.Richness.RICH:    1.5,
+}
+
+const STRENGTH_DIVISOR: float = 20.0   # each Strength point = +5% weekly yield
+
+# Legacy constant kept so older save / dev paths that reference it don't
+# break; the new formula in `estimate_yield()` doesn't read it.
 const GATHER_BASE_YIELD: int = 4
 
 var id: int = 0
@@ -41,8 +60,23 @@ func _init(
 	unit_ids = p_units.duplicate()
 
 
-static func estimate_yield(party_strength: int) -> int:
-	return roundi(float(GATHER_BASE_YIELD) * (1.0 + float(party_strength) / 30.0))
+# GDD §18.2 gather formula. Per-week yield scales with the resource's base
+# value, the tile's richness band, and the party's combined Strength, then
+# multiplies by the gather duration. Returns 0 for tiles that don't yield
+# anything (or unknown resources).
+static func estimate_yield(tile: MapTile, party_strength: int) -> int:
+	if tile == null:
+		return 0
+	var res_key: String = tile.gather_resource()
+	if res_key == "":
+		return 0
+	var base: int = int(BASE_YIELDS_PER_WEEK.get(res_key, 0))
+	if base <= 0:
+		return 0
+	var richness_mult: float = float(RICHNESS_MULT.get(tile.richness, 1.0))
+	var strength_mult: float = 1.0 + float(party_strength) / STRENGTH_DIVISOR
+	var weekly: float = float(base) * richness_mult * strength_mult
+	return roundi(weekly * float(DURATION[Kind.GATHER]))
 
 
 func kind_label() -> String:

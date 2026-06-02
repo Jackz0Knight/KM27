@@ -59,7 +59,20 @@ static func _build_grid(world: World) -> void:
 				terrain = MapTile.Terrain.TOWN
 			else:
 				terrain = WILDERNESS_TERRAINS[RNG.randi_range(0, WILDERNESS_TERRAINS.size() - 1)]
-			col.append(MapTile.new(x, y, terrain))
+			var tile := MapTile.new(x, y, terrain)
+			# Roll gather richness per GDD §18.2. 30 / 50 / 20 (Poor / Avg / Rich)
+			# for every tile, regardless of whether it yields anything — rolling
+			# unconditionally keeps the seeded RNG stream deterministic across
+			# code paths that later check `gather_resource()`. Terrain-aligned
+			# bias is left for a Phase 8 tuning pass.
+			var r: int = RNG.randi_range(0, 99)
+			if r < 30:
+				tile.richness = MapTile.Richness.POOR
+			elif r < 80:
+				tile.richness = MapTile.Richness.AVERAGE
+			else:
+				tile.richness = MapTile.Richness.RICH
+			col.append(tile)
 		world.tiles.append(col)
 
 

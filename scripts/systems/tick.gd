@@ -164,7 +164,7 @@ static func _complete_one(gs: Node, exped: Expedition) -> Dictionary:
 					var u: Unit = gs.find_unit(uid)
 					if u != null:
 						party_strength += u.stats.strength
-				var amount: int = Expedition.estimate_yield(party_strength)
+				var amount: int = Expedition.estimate_yield(tile, party_strength)
 				gs.inventory[res_key] = gs.inventory.get(res_key, 0) + amount
 				info["yield_resource"] = res_key
 				info["yield_amount"] = amount

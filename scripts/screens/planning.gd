@@ -992,7 +992,7 @@ func _refresh_expeditions() -> void:
 						var u: Unit = GameState.find_unit(uid)
 						if u != null:
 							party_strength += u.stats.strength
-					var est_amount: int = Expedition.estimate_yield(party_strength)
+					var est_amount: int = Expedition.estimate_yield(tile, party_strength)
 					var entry: Dictionary = ResourceDB.RESOURCES.get(res_key, {})
 					var res_name: String = entry.get("name", res_key)
 					var yield_lbl := Label.new()
