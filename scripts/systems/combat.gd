@@ -61,6 +61,30 @@ static func enemy_power_grand_tournament(week: int) -> int:
 
 # ---------- per-unit math ----------
 
+# Strategy-layer weapon contribution to unit_power. Folds the catalogue
+# damage range into a single number so modifiers shift damage_min/max in the
+# catalogue and the formula re-derives — one source of truth. Replaces the
+# old flat `weapon_power_rating` axis per GDD §18.3. Combat-sim layer (the
+# per-hit roll, when it lands) still uses damage_min/max directly.
+static func weapon_damage_contrib(weapon_id: String) -> int:
+	var entry: Dictionary = Weapon.CATALOGUE.get(weapon_id, {})
+	if entry.is_empty():
+		return 0
+	var dmin: int = int(entry.get("damage_min", 0))
+	var dmax: int = int(entry.get("damage_max", 0))
+	return floori(float(dmin + dmax) / 2.0)
+
+
+# Strategy-layer armour contribution. Subtracted from enemy power per defender
+# (sum across the party), mirroring Intimidation. Net mathematical effect on
+# the win comparison is identical to the old `+armour_power_rating` on
+# player_total, so balance on the armour axis is preserved when this PR
+# lands — only the weapon axis shifts. Re-uses Armour.power_rating (0–4)
+# as the resistance value rather than introducing a parallel field today.
+static func armour_resistance(armour_id: String) -> int:
+	return Armour.power_rating(armour_id)
+
+
 # Skill stat the unit uses in `slot`. "" means unit is unassigned — fall back
 # to max(Sword, Archery) per GDD §13.
 static func _slot_skill(unit: Unit, slot: String) -> int:
@@ -122,6 +146,7 @@ static func resolve_formation(
 	var per_unit: Array = []
 	var player_total: int = 0
 	var intimidation_total: int = 0
+	var armour_total: int = 0
 
 	for u in participants:
 		var slot: String = slot_for_unit.get(u.id, "")
@@ -134,15 +159,16 @@ static func resolve_formation(
 		if blue_filled and u.id != blue_unit_id:
 			leadership = LEADERSHIP_BUFF
 
-		# Equipment contribution — weapon + armour each declare a power_rating
-		# in their catalog entry (0–4). Held flat to avoid combat-modifier
-		# creep; the strategy layer treats kit as one more knob alongside
-		# slot and leadership rather than a multiplier on stats.
-		var weapon_power: int = Weapon.power_rating(u.weapon_id)
-		var armour_power: int = Armour.power_rating(u.armour_id)
-		var equipment_power: int = weapon_power + armour_power
+		# Equipment contribution — per GDD §18.3 the strategy layer folds weapon
+		# damage into unit_power (replacing the old flat `power_rating` axis) and
+		# treats armour as resistance that subtracts from enemy power, mirroring
+		# Intimidation. Mathematically equivalent net effect to the old `+armour`
+		# on player_total, so balance is preserved on the armour axis; weapon
+		# contribution shifts heavier — Phase 8 retunes enemy multipliers.
+		var weapon_dmg: int = weapon_damage_contrib(u.weapon_id)
+		var armour_res: int = armour_resistance(u.armour_id)
 
-		var raw: int = BASE_POWER + u.stats.strength + u.stats.bravery + skill + slot_bonus + leadership + equipment_power
+		var raw: int = BASE_POWER + u.stats.strength + u.stats.bravery + skill + slot_bonus + leadership + weapon_dmg
 
 		var mult: float = 1.0
 		if home_battle and u.current_task != Unit.TASK_DEFEND:
@@ -150,6 +176,7 @@ static func resolve_formation(
 		var total: int = floori(float(raw) * mult)
 
 		intimidation_total += floori(u.stats.intimidation / 4.0)   # GDD §13 — rounded down
+		armour_total += armour_res
 
 		per_unit.append({
 			"unit_id": u.id,
@@ -160,8 +187,8 @@ static func resolve_formation(
 			"skill": skill,
 			"slot_bonus": slot_bonus,
 			"leadership_buff": leadership,
-			"weapon_power": weapon_power,
-			"armour_power": armour_power,
+			"weapon_damage": weapon_dmg,
+			"armour_resistance": armour_res,
 			"raw": raw,
 			"mult": mult,
 			"total": total,
@@ -169,13 +196,16 @@ static func resolve_formation(
 		player_total += total
 
 	var enemy_after_intim: int = maxi(0, enemy_power - intimidation_total)
+	var enemy_after_armour: int = maxi(0, enemy_after_intim - armour_total)
 	return {
 		"per_unit": per_unit,
 		"player_total": player_total,
 		"intimidation_reduction": intimidation_total,
+		"armour_reduction": armour_total,
 		"enemy_power": enemy_power,
 		"enemy_after_intimidation": enemy_after_intim,
-		"won": player_total >= enemy_after_intim,        # ties to the player
+		"enemy_after_armour": enemy_after_armour,
+		"won": player_total >= enemy_after_armour,       # ties to the player
 	}
 
 
