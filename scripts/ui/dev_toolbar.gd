@@ -194,6 +194,99 @@ func _build_panel() -> void:
 
 	root.add_child(HSeparator.new())
 
+	# ── Items — spawn a weapon or armour straight into the stockpile.
+	# Saves grinding a tournament when you just want to test equip / kit math.
+	_add_section_header(root, "Items")
+	var item_hbox := HBoxContainer.new()
+	item_hbox.add_theme_constant_override("separation", 6)
+	root.add_child(item_hbox)
+
+	var item_dropdown := OptionButton.new()
+	item_dropdown.custom_minimum_size = Vector2(260, 0)
+	for wid in Weapon.CATALOGUE:
+		item_dropdown.add_item("⚔ %s" % str(Weapon.CATALOGUE[wid].get("name", wid)))
+		item_dropdown.set_item_metadata(item_dropdown.item_count - 1, {"slot": "weapon", "id": String(wid)})
+	for aid in Armour.CATALOGUE:
+		item_dropdown.add_item("🛡 %s" % str(Armour.CATALOGUE[aid].get("name", aid)))
+		item_dropdown.set_item_metadata(item_dropdown.item_count - 1, {"slot": "armour", "id": String(aid)})
+	item_hbox.add_child(item_dropdown)
+
+	var item_add_btn := Button.new()
+	item_add_btn.text = "Add to Stockpile"
+	item_add_btn.pressed.connect(func() -> void:
+		if not GameState.has_active_run():
+			return
+		var meta: Dictionary = item_dropdown.get_item_metadata(item_dropdown.selected)
+		GameState.item_stockpile.append({"slot": str(meta["slot"]), "id": str(meta["id"])})
+	)
+	item_hbox.add_child(item_add_btn)
+
+	root.add_child(HSeparator.new())
+
+	# ── Jump to event — fast-forward weeks until a specific event lands.
+	# Mirrors the existing "Run Ticks" loop but stops when the target hits.
+	_add_section_header(root, "Jump to Event")
+	var jump_hbox := HBoxContainer.new()
+	jump_hbox.add_theme_constant_override("separation", 6)
+	root.add_child(jump_hbox)
+
+	var jump_t_btn := Button.new()
+	jump_t_btn.text = "Next Tournament"
+	jump_t_btn.pressed.connect(func() -> void:
+		if not GameState.has_active_run():
+			return
+		var safety: int = 0
+		while not Calendar.is_tournament_week(GameState.week) and safety < 60:
+			Tick.apply(GameState)
+			GameState.wrap_week()
+			GameState.roll_current_event()
+			safety += 1
+	)
+	jump_hbox.add_child(jump_t_btn)
+
+	var jump_gt_btn := Button.new()
+	jump_gt_btn.text = "Next Grand Tournament"
+	jump_gt_btn.pressed.connect(func() -> void:
+		if not GameState.has_active_run():
+			return
+		# GT fires on a tournament week when tournament_streak >= 2 (event_roller).
+		# Force the streak then advance to the next tournament week.
+		GameState.tournament_streak = maxi(GameState.tournament_streak, 2)
+		var safety: int = 0
+		while not Calendar.is_tournament_week(GameState.week) and safety < 60:
+			Tick.apply(GameState)
+			GameState.wrap_week()
+			GameState.roll_current_event()
+			safety += 1
+	)
+	jump_hbox.add_child(jump_gt_btn)
+
+	root.add_child(HSeparator.new())
+
+	# ── Reputation — slam the chip to a specific value to test band crossings.
+	_add_section_header(root, "Reputation")
+	var rep_hbox := HBoxContainer.new()
+	rep_hbox.add_theme_constant_override("separation", 6)
+	root.add_child(rep_hbox)
+
+	var rep_spin := SpinBox.new()
+	rep_spin.min_value = 0
+	rep_spin.max_value = 100
+	rep_spin.value = 0
+	rep_spin.custom_minimum_size = Vector2(90, 0)
+	rep_hbox.add_child(rep_spin)
+
+	var rep_set_btn := Button.new()
+	rep_set_btn.text = "Set Reputation"
+	rep_set_btn.pressed.connect(func() -> void:
+		if not GameState.has_active_run():
+			return
+		GameState.reputation = int(rep_spin.value)
+	)
+	rep_hbox.add_child(rep_set_btn)
+
+	root.add_child(HSeparator.new())
+
 	# Unit attribute editor
 	_add_section_header(root, "Unit Attribute Editor")
 
