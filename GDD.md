@@ -530,7 +530,7 @@ Designing modifiers before the damage model is set means re-tuning twice.
 - **Castle assault loot** is the primary **T2–T3** source — rich but rare bags, weighted to the assaulted castle's difficulty band.
 - **Story-event rewards** are the trickle for **T3+** specialty mats (e.g. an "old armoury" event delivers a Steel Ingot, an "abandoned forge" delivers Mythril traces). Curated, not RNG-spammed.
 
-Mob drops are explicitly **out of scope** for this pass — keeping the channels above clean for tuning matters more than variety right now.
+Mob drops were originally scoped out of this pass. **Correction (2026-06-03):** the resource-system overhaul shipped enemy mob drops ahead of this design pass — `EnemyDB` entries carry a `drops` array and `Resolution._roll_spoils_from_enemies` aggregates kill-spoils on a win, surfaced as a separate "Spoils:" line. So mob drops are now a **fourth live channel** (kill loot, distinct from the encounter reward). Treat the three named channels above as the *bulk/tunable* sources and mob drops as the *variety/flavour* trickle. The Phase-8 scarcity-band tuning should account for all four.
 
 **Scarcity bands** — every resource gets a *design-target* weekly supply estimate based on its source channel. Used as a balance yardstick, not a runtime mechanic:
 
@@ -721,6 +721,7 @@ Each item is its own commit / PR. Bottom-up by intent — every layer pins the n
 
 ## Changelog
 
+- 2026-06-03 — §18.2 correction: mob drops, originally scoped out of the §18 pass, had already shipped in the 2026-05-28 resource overhaul; reframed them as a fourth live loot channel (kill-spoils) so the design doc matches the code. No other design change.
 - 2026-05-27 — Added §18 *Item & Crafting Systems — Design Pass* covering Resources & Economy, Damage ↔ Stat integration, Crafting & Research, and Item Modifiers & Quality Brackets (7-bracket Terrible→Legendary scale, material-driven bias, quality as a separate axis from rarity). Each subsection ships with `> **Open Q…**` blocks for Jack to resolve before the spec migrates into §13/§14 and implementation begins. Also pruned §17 *Excludes* of items now shipped (resource T2–T5, traits, research, economy) or moved to §18 (crafting & item modifiers); kept the original list framed as the MVP boundary for posterity.
 
 - 2026-05-17 — Added §9 *Households & Body Types* (4 archetypal houses with implicit stat leans + 4 independent body silhouettes). Drives the visual banner system; not in original MVP scope but additive — doesn't change any existing rule, just biases starting stat rolls.
