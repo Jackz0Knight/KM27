@@ -120,12 +120,12 @@ var reputation: int = 0
 # that case).
 var house_leans: Dictionary = {}
 
-# Gold income sources. `weekly_stipend` is always active; others are set
-# temporarily when an event grants a recurring bonus then reset to 0.
+# Gold income sources. `weekly_stipend` is always active; events may add their
+# own recurring keys temporarily then reset them to 0. The base stipend is
+# sourced from the Economy tuning surface (§18.2). (The old placeholder keys
+# `tournament_prize` / `expedition_trade` were never written — removed.)
 var gold_income_sources: Dictionary = {
-	"tournament_prize": 0,
-	"expedition_trade": 0,
-	"weekly_stipend": 10,
+	"weekly_stipend": Economy.WEEKLY_STIPEND,
 }
 
 # Stub for future building/research upgrade costs.
@@ -146,7 +146,7 @@ var item_stockpile: Array[Dictionary] = []
 
 
 func gold_maintenance_cost() -> int:
-	return roster.size() * 5
+	return Economy.upkeep_cost(self)
 
 
 # Reputation adjust + band-crossing detector. Returns the new band label
@@ -248,7 +248,7 @@ func start_run(seed_value: int) -> void:
 	# by HousePool.roll_per_run_leans() flows through the seeded RNG, so
 	# the same seed produces the same slants every run.
 	house_leans = HousePool.roll_per_run_leans()
-	gold_income_sources = {"tournament_prize": 0, "expedition_trade": 0, "weekly_stipend": 10}
+	gold_income_sources = {"weekly_stipend": Economy.WEEKLY_STIPEND}
 	upgrade_costs = {}
 	suppressed_confirms.clear()
 	crafted_ids.clear()
