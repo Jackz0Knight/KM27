@@ -1079,7 +1079,21 @@ func _refresh_crafting_tab() -> void:
 		for row in rows_for_type:
 			crafting_vbox.add_child(row)
 
-	if not any_recipe_anywhere:
+	# --- Smithing: crafted items (§18.4) — weapons + armour forged from
+	# resources + gold. Research-gated like resource recipes; capped at one
+	# forge per recipe per week.
+	var item_rows: Array[Control] = []
+	for out_id: String in ItemRecipeDB.all_ids():
+		if not ItemRecipeDB.is_unlocked(out_id, GameState.researched):
+			continue
+		item_rows.append(_build_item_recipe_row(out_id))
+	if not item_rows.is_empty():
+		crafting_vbox.add_child(HSeparator.new())
+		crafting_vbox.add_child(_styled_section_header("Smithing — Weapons & Armour"))
+		for row in item_rows:
+			crafting_vbox.add_child(row)
+
+	if not any_recipe_anywhere and item_rows.is_empty():
 		var none_lbl := Label.new()
 		none_lbl.text = "The workshop stands idle — no recipes are unlocked. Visit the Research tab to learn your first craft."
 		none_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
@@ -1242,6 +1256,93 @@ func _do_craft(resource_id: String) -> void:
 	var entry: Dictionary = ResourceDB.RESOURCES.get(resource_id, {})
 	Crafting.craft(GameState, resource_id)
 	status_lbl.text = "Crafted: %s" % entry["name"]
+	_refresh_crafting_tab()
+	_refresh_header()
+
+
+# ---------- Smithing (item recipes, §18.4) ----------
+
+# One row per unlocked item recipe: slot glyph + name (stats on hover) + the
+# input materials & gold cost (shortfalls in red) + a Forge button. The button
+# disables when short on materials/gold or when this recipe was already forged
+# this week (one per recipe per week).
+func _build_item_recipe_row(out_id: String) -> Control:
+	var recipe: Dictionary = ItemRecipeDB.get_recipe(out_id)
+	var slot: String = ItemRecipeDB.slot_for(out_id)
+	var desc: String = ItemRecipeDB.describe(out_id)
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+
+	# Slot swatch — reuse the "■" glyph the metal recipes already render, tinted
+	# steel for weapons / bronze for armour so the eye sorts the two at a glance.
+	var glyph := Label.new()
+	glyph.text = "■"
+	glyph.custom_minimum_size = Vector2(20, 0)
+	glyph.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	glyph.add_theme_color_override(
+		"font_color",
+		Color(0.62, 0.72, 0.88) if slot == "weapon" else Color(0.82, 0.66, 0.42),
+	)
+	row.add_child(glyph)
+
+	var name_btn := LinkButton.new()
+	name_btn.text = ItemRecipeDB.display_name(out_id)
+	name_btn.custom_minimum_size = Vector2(140, 0)
+	name_btn.tooltip_text = desc
+	row.add_child(name_btn)
+
+	var parts: PackedStringArray = PackedStringArray()
+	for input_id: String in recipe.get("inputs", {}):
+		var ie: Dictionary = ResourceDB.RESOURCES.get(input_id, {})
+		var nm: String = ie.get("name", input_id)
+		var have: int = GameState.inventory.get(input_id, 0)
+		var need: int = int(recipe["inputs"][input_id])
+		if have < need:
+			parts.append("[color=#E07050]%s ×%d (have %d)[/color]" % [nm, need, have])
+		else:
+			parts.append("%s ×%d (have %d)" % [nm, need, have])
+	var gcost: int = int(recipe.get("base_gold", 0))
+	if GameState.gold < gcost:
+		parts.append("[color=#E07050]%d gold[/color]" % gcost)
+	else:
+		parts.append("%d gold" % gcost)
+
+	var rtl := RichTextLabel.new()
+	rtl.bbcode_enabled = true
+	rtl.fit_content = true
+	rtl.scroll_active = false
+	rtl.parse_bbcode(" + ".join(parts))
+	rtl.modulate = Color(0.82, 0.78, 0.62)
+	rtl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rtl.tooltip_text = desc
+	row.add_child(rtl)
+
+	var btn := Button.new()
+	btn.text = "Forge"
+	var already: bool = GameState.items_crafted_this_week.has(out_id)
+	var affordable: bool = ItemRecipeDB.can_afford(out_id, GameState.inventory, GameState.gold)
+	btn.disabled = already or not affordable
+	if already:
+		btn.tooltip_text = "Already forged this week — one craft per recipe per week."
+	elif not affordable:
+		btn.tooltip_text = "Short on materials or gold."
+	else:
+		btn.tooltip_text = "Forge 1 × %s into the armoury (costs %d gold)." % [
+			ItemRecipeDB.display_name(out_id), gcost,
+		]
+		btn.pressed.connect(_on_craft_item.bind(out_id))
+	row.add_child(btn)
+
+	return row
+
+
+func _on_craft_item(out_id: String) -> void:
+	var res: Dictionary = Crafting.craft_item(GameState, out_id)
+	if res.get("ok", false):
+		status_lbl.text = "Forged: %s — added to the armoury." % res.get("label", out_id)
+	else:
+		status_lbl.text = "Could not forge that."
 	_refresh_crafting_tab()
 	_refresh_header()
 

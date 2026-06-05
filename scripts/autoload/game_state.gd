@@ -144,6 +144,10 @@ var crafted_ids: Array[String] = []
 # SaveManager.
 var item_stockpile: Array[Dictionary] = []
 
+# §18.4 — item recipes forged this Planning week. Enforces the "one craft per
+# recipe per week" cap; cleared by `_clear_week_buffers()` each week.
+var items_crafted_this_week: Array[String] = []
+
 
 func gold_maintenance_cost() -> int:
 	return Economy.upkeep_cost(self)
@@ -356,6 +360,7 @@ func _clear_week_buffers() -> void:
 	champion_target_stat = ""
 	tournament_participants = []
 	pending_tasks = {}
+	items_crafted_this_week = []
 
 
 # Phase 5/6 — true if this week's event will resolve combat with a formation.
