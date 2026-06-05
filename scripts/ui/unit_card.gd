@@ -298,10 +298,12 @@ static func _equipment_bbcode(unit: Unit) -> String:
 	var parts: Array[String] = []
 	if unit.weapon_id != "":
 		var wc: Color = Weapon.rarity_color(unit.weapon_id)
-		parts.append("[color=#%s]⚔ %s[/color]" % [wc.to_html(false), Weapon.display_name(unit.weapon_id)])
+		parts.append("[color=#%s]⚔ %s%s[/color]" % [
+			wc.to_html(false), Weapon.display_name(unit.weapon_id), Quality.suffix(unit.weapon_bracket)])
 	if unit.armour_id != "":
 		var ac: Color = Armour.rarity_color(unit.armour_id)
-		parts.append("[color=#%s]🛡 %s[/color]" % [ac.to_html(false), Armour.display_name(unit.armour_id)])
+		parts.append("[color=#%s]🛡 %s%s[/color]" % [
+			ac.to_html(false), Armour.display_name(unit.armour_id), Quality.suffix(unit.armour_bracket)])
 	return "  ·  ".join(parts)
 
 

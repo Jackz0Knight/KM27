@@ -66,13 +66,9 @@ static func enemy_power_grand_tournament(week: int) -> int:
 # catalogue and the formula re-derives — one source of truth. Replaces the
 # old flat `weapon_power_rating` axis per GDD §18.3. Combat-sim layer (the
 # per-hit roll, when it lands) still uses damage_min/max directly.
-static func weapon_damage_contrib(weapon_id: String) -> int:
-	var entry: Dictionary = Weapon.CATALOGUE.get(weapon_id, {})
-	if entry.is_empty():
-		return 0
-	var dmin: int = int(entry.get("damage_min", 0))
-	var dmax: int = int(entry.get("damage_max", 0))
-	return floori(float(dmin + dmax) / 2.0)
+static func weapon_damage_contrib(weapon_id: String, bracket: int = Quality.DEFAULT) -> int:
+	# §18.5 — quality bracket scales the contribution (neutral OK = ×1.0).
+	return Quality.weapon_damage(weapon_id, bracket)
 
 
 # Strategy-layer armour contribution. Subtracted from enemy power per defender
@@ -81,8 +77,9 @@ static func weapon_damage_contrib(weapon_id: String) -> int:
 # player_total, so balance on the armour axis is preserved when this PR
 # lands — only the weapon axis shifts. Re-uses Armour.power_rating (0–4)
 # as the resistance value rather than introducing a parallel field today.
-static func armour_resistance(armour_id: String) -> int:
-	return Armour.power_rating(armour_id)
+static func armour_resistance(armour_id: String, bracket: int = Quality.DEFAULT) -> int:
+	# §18.5 — quality bracket scales resistance (neutral OK = ×1.0).
+	return Quality.armour_resistance(armour_id, bracket)
 
 
 # Skill stat the unit uses in `slot`. "" means unit is unassigned — fall back
@@ -165,8 +162,8 @@ static func resolve_formation(
 		# Intimidation. Mathematically equivalent net effect to the old `+armour`
 		# on player_total, so balance is preserved on the armour axis; weapon
 		# contribution shifts heavier — Phase 8 retunes enemy multipliers.
-		var weapon_dmg: int = weapon_damage_contrib(u.weapon_id)
-		var armour_res: int = armour_resistance(u.armour_id)
+		var weapon_dmg: int = weapon_damage_contrib(u.weapon_id, u.weapon_bracket)
+		var armour_res: int = armour_resistance(u.armour_id, u.armour_bracket)
 
 		var raw: int = BASE_POWER + u.stats.strength + u.stats.bravery + skill + slot_bonus + leadership + weapon_dmg
 

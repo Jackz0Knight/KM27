@@ -35,12 +35,17 @@ static func craft_item(gs: Node, output_id: String) -> Dictionary:
 		gs.inventory[input_id] = gs.inventory.get(input_id, 0) - int(recipe["inputs"][input_id])
 	gs.gold -= int(recipe.get("base_gold", 0))
 
+	# §18.5 — roll a quality bracket biased by the recipe's `bracket_bias`.
+	var qroll: Dictionary = Quality.roll(int(recipe.get("bracket_bias", Quality.DEFAULT)))
+	var bracket: int = int(qroll["bracket"])
+
 	var slot: String = ItemRecipeDB.slot_for(output_id)
-	gs.item_stockpile.append({"slot": slot, "id": output_id})
+	gs.item_stockpile.append({"slot": slot, "id": output_id, "bracket": bracket, "mods": {}})
 	gs.items_crafted_this_week.append(output_id)
 	return {
 		"ok": true, "slot": slot, "id": output_id,
 		"label": ItemRecipeDB.display_name(output_id),
+		"bracket": bracket, "forge_sang": bool(qroll.get("forge_sang", false)),
 	}
 
 

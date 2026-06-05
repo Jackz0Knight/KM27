@@ -401,7 +401,8 @@ func _render_equipment_row(unit: Unit, slot: String, item_id: String) -> void:
 	var rarity_col: Color = (
 		Weapon.rarity_color(item_id) if slot == "weapon" else Armour.rarity_color(item_id)
 	)
-	name_lbl.text = "%s (%s)" % [display, rarity_lbl]
+	var bracket: int = (unit.weapon_bracket if slot == "weapon" else unit.armour_bracket)
+	name_lbl.text = "%s (%s)%s" % [display, rarity_lbl, Quality.suffix(bracket)]
 	name_lbl.add_theme_color_override("font_color", rarity_col)
 	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_row.add_child(name_lbl)
@@ -460,10 +461,11 @@ func _open_equip_popup(unit: Unit, slot: String, anchor: Button) -> void:
 		if str(entry.get("slot", "")) != slot:
 			continue
 		var id: String = str(entry.get("id", ""))
+		var q: String = Quality.suffix(int(entry.get("bracket", Quality.DEFAULT)))
 		var label: String = (
-			"%s — %s" % [Weapon.display_name(id), Weapon.rarity_label(id)]
+			"%s — %s%s" % [Weapon.display_name(id), Weapon.rarity_label(id), q]
 			if slot == "weapon"
-			else "%s — %s" % [Armour.display_name(id), Armour.rarity_label(id)]
+			else "%s — %s%s" % [Armour.display_name(id), Armour.rarity_label(id), q]
 		)
 		pairs.append([i, label])
 	for j in range(pairs.size()):

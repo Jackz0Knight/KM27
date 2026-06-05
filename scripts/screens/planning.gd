@@ -1340,7 +1340,13 @@ func _build_item_recipe_row(out_id: String) -> Control:
 func _on_craft_item(out_id: String) -> void:
 	var res: Dictionary = Crafting.craft_item(GameState, out_id)
 	if res.get("ok", false):
-		status_lbl.text = "Forged: %s — added to the armoury." % res.get("label", out_id)
+		var q: int = int(res.get("bracket", Quality.DEFAULT))
+		var quality_note: String = " — %s%s quality" % [Quality.label(q), Quality.marker(q)]
+		if bool(res.get("forge_sang", false)):
+			status_lbl.text = "The forge sang — %s drawn from the embers at %s%s!" % [
+				res.get("label", out_id), Quality.label(q), Quality.marker(q)]
+		else:
+			status_lbl.text = "Forged: %s%s — added to the armoury." % [res.get("label", out_id), quality_note]
 	else:
 		status_lbl.text = "Could not forge that."
 	_refresh_crafting_tab()

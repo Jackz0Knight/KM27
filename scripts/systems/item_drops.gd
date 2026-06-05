@@ -66,7 +66,7 @@ static func roll_tournament_drop(gs: Node) -> Dictionary:
 
 # Grand Tournament — guaranteed Heirloom. Win the realm, take the heirloom.
 static func roll_grand_tournament_drop(gs: Node) -> Dictionary:
-	return _drop_at_rarity(gs, Weapon.Rarity.HEIRLOOM)
+	return _drop_at_rarity(gs, Weapon.Rarity.HEIRLOOM, true)
 
 
 # ---------- internals ----------
@@ -91,7 +91,7 @@ static func drop_at_rarity(gs: Node, target_rarity: int) -> Dictionary:
 
 # Drop a specific rarity. Picks weapon vs armour 50/50, then a random id of
 # that rarity from the respective catalog. Returns the drop entry.
-static func _drop_at_rarity(gs: Node, target_rarity: int) -> Dictionary:
+static func _drop_at_rarity(gs: Node, target_rarity: int, grand: bool = false) -> Dictionary:
 	var slot: String = "weapon" if RNG.randf_range(0.0, 1.0) < 0.5 else "armour"
 	var candidates: Array[String] = (
 		Weapon.ids_of_rarity(target_rarity)
@@ -110,7 +110,11 @@ static func _drop_at_rarity(gs: Node, target_rarity: int) -> Dictionary:
 	if candidates.is_empty():
 		return {}
 	var picked_id: String = candidates[RNG.randi_range(0, candidates.size() - 1)]
-	var entry: Dictionary = {"slot": slot, "id": picked_id}
+	# §18.5 — loot comes in at a fixed quality by rarity (Heirlooms shine).
+	var entry: Dictionary = {
+		"slot": slot, "id": picked_id,
+		"bracket": Quality.drop_bracket(target_rarity, grand), "mods": {},
+	}
 	gs.item_stockpile.append(entry)
 	return entry
 
@@ -157,14 +161,23 @@ static func equip_from_stockpile(gs: Node, unit: Unit, stockpile_index: int) -> 
 	var new_id: String = str(entry.get("id", ""))
 	if new_id == "":
 		return false
-	# Swap with whatever the unit is currently wearing — old item goes to the
-	# stockpile so nothing is lost.
-	var old_id: String = unit.weapon_id if slot == "weapon" else unit.armour_id
+	# §18.5 — quality travels with the item instance, both onto the unit and
+	# back into the armoury on a swap, so nothing's lost or silently reset.
+	var new_bracket: int = int(entry.get("bracket", Quality.DEFAULT))
+	var new_mods: Dictionary = entry.get("mods", {})
+	var is_weapon: bool = slot == "weapon"
+	var old_id: String = unit.weapon_id if is_weapon else unit.armour_id
+	var old_bracket: int = unit.weapon_bracket if is_weapon else unit.armour_bracket
+	var old_mods: Dictionary = unit.weapon_mods if is_weapon else unit.armour_mods
 	gs.item_stockpile.remove_at(stockpile_index)
 	if old_id != "":
-		gs.item_stockpile.append({"slot": slot, "id": old_id})
-	if slot == "weapon":
+		gs.item_stockpile.append({"slot": slot, "id": old_id, "bracket": old_bracket, "mods": old_mods})
+	if is_weapon:
 		unit.weapon_id = new_id
+		unit.weapon_bracket = new_bracket
+		unit.weapon_mods = new_mods
 	else:
 		unit.armour_id = new_id
+		unit.armour_bracket = new_bracket
+		unit.armour_mods = new_mods
 	return true

@@ -711,16 +711,19 @@ The exact numeric modifiers stay visible on the tooltip — bracket on the chip,
 
 Each item is its own commit / PR. Bottom-up by intent — every layer pins the next layer's tuning surface:
 
-1. **Resources & economy pass** — add `band` to `ResourceDB.RESOURCES`, wire the three source channels (gather / assault / story-event), surface gold formulas as named constants in a single tuning file.
-2. **Damage formula** — fold `weapon_damage` and `armour_resistance` into `Combat.unit_power`, deprecate `power_rating`. Update §13.
-3. **Crafting pipeline** — add `ITEM_RECIPES` table; `CraftingTab` gains an "Items" sub-tab; `Craft()` rolls a bracket and stamps it on a new instance.
-4. **Item modifiers** — extend `Weapon` / `Armour` with a per-instance `modifiers: Dictionary` (rolled at craft); combat reads modifiers; tooltips display them; saves persist them.
-5. **Quality brackets surface** — bracket label + colour + ▲/▼ marker on UnitCard and Knight Overview's Equipment block.
+**Status (2026-06-03):** steps 1, 2, 3, 5 shipped; step 4 partial. Open Qs were adopted at their proposal defaults (one-craft-per-week cap; instant research; 7 brackets; bracket visible on the card; material bias deferred to the modifier-roll pass). See the ROADMAP Progress Log for per-step detail.
+
+1. **Resources & economy pass** — ✅ `Economy` tuning surface (gold formulas as named constants), scarcity bands as a derived `ResourceDB.scarcity_band` helper. (Channels were already wired in the 2026-05-28 overhaul.)
+2. **Damage formula** — ✅ `weapon_damage` / `armour_resistance` folded into `Combat.unit_power` (2026-06-02).
+3. **Crafting pipeline** — ✅ `ItemRecipeDB` + `Crafting.craft_item`; Crafting tab "Smithing" section; the forge rolls a quality bracket and stamps it on the new instance.
+4. **Item modifiers** — ⏳ *partial.* Per-instance `bracket` + `mods` now live on item instances (stockpile entries + equipped `Unit` fields), persist in saves, and the bracket scales weapon damage / armour in both combat layers via `Quality`. The **rolled modifier tables** (§18.5 primary mods + material bias) are not generated yet — `mods` is reserved and lightly applied. *Next.*
+5. **Quality brackets surface** — ✅ bracket label + ▲/▼ marker on the UnitCard equipment line, Knight Overview's Equipment block, the equip popup, and the forge result (incl. the "forge sang" moment). `Quality.color` exists for a future colour-tint pass.
 
 ---
 
 ## Changelog
 
+- 2026-06-03 — §18 implementation kickoff: shipped §18.6 steps 1 (economy tuning surface + scarcity bands), 3 (item crafting via `ItemRecipeDB`/`Crafting.craft_item`), and 5 (quality surface), plus the bracket half of step 4 (per-instance `Quality` brackets scaling combat in both layers; rolled modifier tables still pending). Adopted the Open Qs at proposal defaults (one-craft-per-week, instant research, 7 brackets, brackets visible on the card). Updated §18.6 with a status block.
 - 2026-06-03 — §18.2 correction: mob drops, originally scoped out of the §18 pass, had already shipped in the 2026-05-28 resource overhaul; reframed them as a fourth live loot channel (kill-spoils) so the design doc matches the code. No other design change.
 - 2026-05-27 — Added §18 *Item & Crafting Systems — Design Pass* covering Resources & Economy, Damage ↔ Stat integration, Crafting & Research, and Item Modifiers & Quality Brackets (7-bracket Terrible→Legendary scale, material-driven bias, quality as a separate axis from rarity). Each subsection ships with `> **Open Q…**` blocks for Jack to resolve before the spec migrates into §13/§14 and implementation begins. Also pruned §17 *Excludes* of items now shipped (resource T2–T5, traits, research, economy) or moved to §18 (crafting & item modifiers); kept the original list framed as the MVP boundary for posterity.
 

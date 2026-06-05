@@ -60,6 +60,13 @@ var body_type: String = ""
 var weapon_id: String = ""
 var armour_id: String = ""
 
+# §18.5 per-instance item quality. Bracket defaults to OK (neutral ×1.0) so
+# un-stamped gear is unchanged; `mods` is the reserved additive modifier layer.
+var weapon_bracket: int = Quality.DEFAULT
+var armour_bracket: int = Quality.DEFAULT
+var weapon_mods: Dictionary = {}
+var armour_mods: Dictionary = {}
+
 
 func _init(
 	p_id: int = 0,
