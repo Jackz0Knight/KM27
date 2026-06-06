@@ -31,6 +31,9 @@ const LEADERSHIP_BUFF: int = 1
 const HOME_NON_DEFEND_MULT: float = 0.75
 const BASE_POWER: int = 5
 const TOURNAMENT_BASE_POWER: int = 10
+# GDD §18.3 (locked 2026-06-03): a fighter's attack stat scales their weapon's
+# bite — melee off Strength, ranged off Technique. Phase-8 tuning knob.
+const WEAPON_STAT_SCALE: float = 0.25
 
 
 # ---------- enemy power (GDD §13) ----------
@@ -163,6 +166,12 @@ static func resolve_formation(
 		# on player_total, so balance is preserved on the armour axis; weapon
 		# contribution shifts heavier — Phase 8 retunes enemy multipliers.
 		var weapon_dmg: int = weapon_damage_contrib(u.weapon_id, u.weapon_bracket)
+		# GDD §18.3 (locked 2026-06-03): the attack stat scales the weapon's bite
+		# — ranged off Technique, melee off Strength — so leveling a fighter makes
+		# their steel hit harder, not just their stats. Phase-8 tunes the rate.
+		var atk_stat: int = u.stats.technique if Weapon.is_ranged(u.weapon_id) else u.stats.strength
+		var weapon_stat_bonus: int = floori(float(atk_stat) * WEAPON_STAT_SCALE)
+		weapon_dmg += weapon_stat_bonus
 		var armour_res: int = armour_resistance(u.armour_id, u.armour_bracket)
 
 		var raw: int = BASE_POWER + u.stats.strength + u.stats.bravery + skill + slot_bonus + leadership + weapon_dmg
@@ -185,6 +194,7 @@ static func resolve_formation(
 			"slot_bonus": slot_bonus,
 			"leadership_buff": leadership,
 			"weapon_damage": weapon_dmg,
+			"weapon_stat_bonus": weapon_stat_bonus,
 			"armour_resistance": armour_res,
 			"raw": raw,
 			"mult": mult,
