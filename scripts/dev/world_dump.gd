@@ -35,7 +35,7 @@ func _build_report() -> String:
 		var cheb: int = World.chebyshev(c.x, c.y, World.TOWN_X, World.TOWN_Y)
 		var tile_terrain: String = MapTile.Terrain.keys()[world.tiles[c.x][c.y].terrain]
 		lines.append("  (%2d,%2d) diff=%3d cheb=%d on=%s reward=%s" % [
-			c.x, c.y, c.difficulty, cheb, tile_terrain, c.reward.describe(),
+			c.x, c.y, c.difficulty, cheb, tile_terrain, ResourceDB.describe(c.reward),
 		])
 	lines.append("")
 

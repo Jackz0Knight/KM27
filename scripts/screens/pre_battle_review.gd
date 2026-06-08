@@ -27,6 +27,7 @@ func _ready() -> void:
 		return
 
 	GameState.phase_machine.transition(PhaseMachine.Phase.PRE_BATTLE)
+	Music.play_battle()
 	_seed_formation_from_default()
 	confirm_btn.pressed.connect(_on_confirm)
 	settings_btn.pressed.connect(_on_settings)
@@ -710,6 +711,7 @@ func _refresh_confirm_button() -> void:
 
 
 func _on_confirm() -> void:
+	MasterAudio.play("sword")
 	GameState.phase_machine.transition(PhaseMachine.Phase.RESOLUTION)
 	Resolution.run(GameState)
 	# Always route to the Weekly Summary now — the per-unit breakdown that

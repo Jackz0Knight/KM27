@@ -98,6 +98,10 @@ func _serialise_state() -> Dictionary:
 			"oath": u.oath,
 			"weapon_id": u.weapon_id,
 			"armour_id": u.armour_id,
+			"weapon_bracket": u.weapon_bracket,
+			"armour_bracket": u.armour_bracket,
+			"weapon_mods": u.weapon_mods.duplicate(true),
+			"armour_mods": u.armour_mods.duplicate(true),
 			"trait_id": u.trait_id,
 			"oath_kind": u.oath_kind,
 		})
@@ -144,6 +148,7 @@ func _serialise_state() -> Dictionary:
 		"suppressed_confirms": GameState.suppressed_confirms.duplicate(),
 		"crafted_ids": GameState.crafted_ids.duplicate(),
 		"item_stockpile": GameState.item_stockpile.duplicate(true),
+		"items_crafted_this_week": GameState.items_crafted_this_week.duplicate(),
 		"world_seed": _world_seed(),
 		"explored_tiles": explored_tiles,
 		"castles_remaining": castles_data,
@@ -235,7 +240,16 @@ func _restore_state(data: Dictionary) -> void:
 		var id: String = str(entry.get("id", ""))
 		if slot == "" or id == "":
 			continue
-		GameState.item_stockpile.append({"slot": slot, "id": id})
+		# §18.5 quality — default neutral OK for pre-quality saves.
+		GameState.item_stockpile.append({
+			"slot": slot, "id": id,
+			"bracket": int(entry.get("bracket", Quality.DEFAULT)),
+			"mods": entry.get("mods", {}),
+		})
+
+	GameState.items_crafted_this_week.clear()
+	for k in data.get("items_crafted_this_week", []):
+		GameState.items_crafted_this_week.append(str(k))
 
 	var def_d = data.get("default_defense_formation", {})
 	for k in def_d:
@@ -321,6 +335,11 @@ func _restore_state(data: Dictionary) -> void:
 			u.oath_kind = Chronicle.derive_oath_kind(u)
 		u.weapon_id = str(rd.get("weapon_id", ""))
 		u.armour_id = str(rd.get("armour_id", ""))
+		# §18.5 quality — default to neutral OK for pre-quality saves.
+		u.weapon_bracket = int(rd.get("weapon_bracket", Quality.DEFAULT))
+		u.armour_bracket = int(rd.get("armour_bracket", Quality.DEFAULT))
+		u.weapon_mods = rd.get("weapon_mods", {})
+		u.armour_mods = rd.get("armour_mods", {})
 		# Trait — only restore valid ids so a renamed/removed trait in a
 		# newer build doesn't leave a broken descriptor on a loaded knight.
 		var saved_trait: String = str(rd.get("trait_id", ""))

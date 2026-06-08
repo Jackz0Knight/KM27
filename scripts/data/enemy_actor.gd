@@ -2,9 +2,9 @@ class_name EnemyActor
 extends RefCounted
 
 # A combat-layer enemy unit, duck-typed to satisfy CombatUnit's interface.
-# CombatUnit reads .id, .unit_name, .stats, .weapon_id, .armour_id — this
-# class provides exactly those fields so enemies and player Units are
-# interchangeable inside the simulation.
+# CombatUnit reads .id, .unit_name, .stats, .weapon_id, .armour_id plus the
+# §18.5 quality fields — this class provides exactly those so enemies and
+# player Units are interchangeable inside the simulation.
 
 var id: int = 0
 var unit_name: String = ""
@@ -12,6 +12,12 @@ var stats: Stats = null
 var weapon_id: String = "unarmed"
 var armour_id: String = "unarmoured"
 var type_id: String = ""
+
+# §18.5 — enemies always carry neutral-quality kit (OK / no mods).
+var weapon_bracket: int = Quality.DEFAULT
+var armour_bracket: int = Quality.DEFAULT
+var weapon_mods: Dictionary = {}
+var armour_mods: Dictionary = {}
 
 
 func _init(

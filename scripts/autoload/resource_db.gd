@@ -5,6 +5,30 @@ extends Node
 
 enum ResType { FABRIC, TIMBER, METAL }
 
+# §18.2 scarcity bands — a design-target yardstick for the Phase-8 balance pass,
+# not a runtime gate. Derived from tier (see `scarcity_band`) so balance work can
+# read "how rare should a week's supply of this be?" straight from code. Raw
+# materials (no tier) read as Plentiful (the bulk gather/drop trickle); processed
+# tiers climb T1→Common … T5→Legendary.
+enum Band { PLENTIFUL, COMMON, UNCOMMON, RARE, EPIC, LEGENDARY }
+
+const BAND_LABELS: Dictionary = {
+	Band.PLENTIFUL: "Plentiful",
+	Band.COMMON:    "Common",
+	Band.UNCOMMON:  "Uncommon",
+	Band.RARE:      "Rare",
+	Band.EPIC:      "Epic",
+	Band.LEGENDARY: "Legendary",
+}
+
+const TIER_TO_BAND: Dictionary = {
+	1: Band.COMMON,
+	2: Band.UNCOMMON,
+	3: Band.RARE,
+	4: Band.EPIC,
+	5: Band.LEGENDARY,
+}
+
 const TIER_COLORS: Dictionary = {
 	1: Color(0.72, 0.72, 0.72),   # Grey   T1
 	2: Color(0.20, 0.80, 0.20),   # Green  T2
@@ -214,6 +238,21 @@ func resource_hud_bbcode(gold: int, inventory: Dictionary, reputation: int = 0) 
 
 func color_for_tier(tier: int) -> Color:
 	return TIER_COLORS.get(tier, Color.WHITE)
+
+
+# §18.2 scarcity band for a resource id, as a Band enum value. Raw materials
+# (entries with no "tier") read Plentiful; processed resources map by tier.
+func scarcity_band(id: String) -> int:
+	var entry: Dictionary = RESOURCES.get(id, {})
+	if entry.is_empty():
+		return Band.COMMON
+	if not entry.has("tier"):
+		return Band.PLENTIFUL
+	return TIER_TO_BAND.get(int(entry["tier"]), Band.COMMON)
+
+
+func band_label(id: String) -> String:
+	return BAND_LABELS.get(scarcity_band(id), "")
 
 
 # True if this resource has a recipe and its research gate (if any) is cleared.

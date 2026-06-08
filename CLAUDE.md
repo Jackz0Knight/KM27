@@ -1,278 +1,204 @@
 # CLAUDE.md
 
-Persistent context for Claude Code sessions working on KM27.
+Orientation for Claude Code sessions on KM27. **`ROADMAP.md` is the source of truth for status** — read its Progress Log first. This file is the map of *how the code is laid out and where to edit things*; it does not track per-feature history.
 
 ## Project
 
-**KM27 — Knight Manager 1627.** A football-manager / medieval roguelike mashup. Players manage a fixed 4-unit roster (1 Knight + 3 Squires) across a single run, balancing training, expeditions, and combat events week by week. **Win:** the Grand Tournament. **Loss:** a Home Battle defeat.
+**KM27 — Knight Manager 1627.** A football-manager / medieval roguelike mashup. Manage a fixed 4-unit roster (1 Knight + 3 Squires) across one run, balancing training, expeditions, and combat week by week. **Win:** the Grand Tournament. **Loss:** a Home Battle defeat.
 
-## Current Phase
+## Where the project is
 
-**Phases 0–7 are done — the full week loop is end-to-end playable.** Title → Knight chooser → Roster → Planning → Tick → Pre-Battle Review → Battle Log → Weekly Summary → next week, with Tournaments, Grand Tournament, and Game Over / Run Win endings all wired.
+Phases 0–7 are done — the full week loop is end-to-end playable (Title → Knight chooser → Roster → Planning → Tick → Week Processor → Pre-Battle → Battle → Weekly Summary → next week, with Tournaments, Grand Tournament, and both endings wired). Since Phase 7 the project has been in a long polish + systems-expansion sprint: data-driven event/away/combat catalogs, items + rarity, traits, reputation, oaths, chronicle prose, houses, staged stat development, an FM week-processor overlay, a tactical combat sim, and a unified resource/loot model.
 
-**Phase 8 (tuning + playthroughs) is the next official phase**, but the project has been in an extended **polish-and-systems-expansion sprint** ahead of formal balance work. Most recent layers:
-
-- **Resource expansion** — `ResourceDB` autoload defines a T1–T5 tier tree (18 processed + 14 raw resources); Planning has a Crafting tab with tier-coloured recipes; gold + weekly maintenance applied via `Tick`.
-- **Combat feedback** — `EnemyDB` (9 enemy types), `OutcomeBracket` (sigmoid win-probability, green/orange/red Pre-Battle forecasts), injury system on `Unit.injuries`.
-- **Persistence + run shell** — `SaveManager` autoload (auto-save + cross-run history), rebuilt main menu with run history panel, Continue, and Quick Start.
-- **UX layer** — drag-and-drop formation editor, map pan/zoom, tabbed Planning UI (Overview / Tactics / Map / Crafting / Research, with Calendar as a top-bar toggle), confirm dialogs with suppress-this-run, animated weekly summary, F1 dev toolbar, full stat tooltips, settings popup, medieval theme palette.
-- **Chronicle layer (2026-05-17)** — `Chronicle` system generates seeded prose week entries, plus per-unit origins, heraldic banners, sworn oaths, and earned epithets. Surfaces on the Knight Chooser, Knight Overview, and Weekly Summary.
-- **Houses & Body Types (2026-05-17)** — four archetypal noble houses (Brann/Aldermere/Daven/Faldur) with implicit stat leans + four independent body silhouettes. Procedural heraldry via `BannerIcon` custom `_draw()` (no PNG assets). Leans are deliberately implicit — motto + origin hint, no stat tooltips. Later extended with **per-run house lean randomisation** (`HousePool.roll_per_run_leans`) and **body-type cap bumps**.
-- **Item system (2026-05-20)** — weapons (21) + armours (15) across 4 rarity tiers, each with `power_rating` + flavour; `Combat` reads kit; `ItemDrops` loot pipeline (assault / tournament / guaranteed-Heirloom Grand); equip/swap UI on Knight Overview; stockpile saved.
-- **Character depth (2026-05-20)** — `TraitPool` (one weighted trait per unit), `GameState.reputation` (7-band HUD chip + mechanical hooks + purse scaling), and **oath honour** (`OathLedger` — a per-week hidden-PA bonus when behaviour aligns with the sworn oath).
-- **Data-driven event engine (2026-05-20)** — `StoryEventDB` (~92 chronicle events on shared effect primitives + gates), `AwayModeDB` (10 away-mission variants), `CombatEventDB` (5 battle-event combat sub-types). Adding content is mostly pure data. Plus flagship flavour: Festival Week, the Bard's Ballad, house-themed events, chronicler asides, season header chips, enriched run-end "chronicler's closing" screens.
-- **FM week processor (2026-05-27)** — `WeekProcessor` overlay plays a "processing the week" sweep after the Tick (spinner + progress bar, reveals each beat, pauses on notable ones) before Pre-Battle.
-- **Staged stat development (2026-05-27, most recent)** — stats grow via a hidden fractional accumulator (`Stats.add_progress`), ~4.5 weeks/point, tapering near the hidden PA. **FM-style development arrows** (bright ▲ recent level-up, small ▲ developing, ▼ injury) on `UnitCard` + Knight Overview — show-not-tell, no numbers.
-
-**See `ROADMAP.md` for the canonical checkbox status and Progress Log; that's the source of truth, this file is just the orientation.**
+**Two active threads going forward:**
+- **Phase 8 — balance.** Almost every number is a placeholder. Needs real playthroughs (only runnable on Jack's machine). This is the most-flagged next push.
+- **GDD §18 — Item & Crafting arc.** A design pass that locks Resources/Economy → Damage↔Stat → Crafting → Item Modifiers. §18.6 step 2 (fold weapon damage into `unit_power`) has shipped; steps 1, 3, 4, 5 (band field + gold tuning constants, `ITEM_RECIPES`, per-instance item modifiers, quality brackets) are pending.
 
 ## Tech Stack
 
-- **Engine:** Godot 4.6 (GL Compatibility renderer; launches in fullscreen, F11 to toggle).
-- **Language:** GDScript. No C# in the project.
-- **Resolution:** 1280×720 viewport, 1920×1080 window override, `canvas_items` stretch.
+- **Engine:** Godot 4.6, GL Compatibility renderer. Launches fullscreen, F11 toggles.
+- **Language:** GDScript only. No C#.
+- **Resolution:** 1280×720 viewport, 1920×1080 window override, `canvas_items` stretch. UI scale is user-adjustable via `UserPrefs`.
 
-## Repository Layout
+## Architecture in one screen
 
 ```
-README.md            Public landing page
-GDD.md               Single-source Game Design Document (~475 lines)
-ROADMAP.md           Phased implementation plan + Progress Log (living)
-CLAUDE.md            This file
-LICENSE              Proprietary, all rights reserved
-.gitignore, .editorconfig
-project.godot        Godot config; autoload list lives here
-icon.svg             Placeholder "KM" mark
-theme/               main_theme.tres — medieval palette, applied via gui/theme/custom
-
-scenes/
-  Main.tscn                       Title / main menu (built in code by main.gd)
-  screens/
-    knight_chooser.tscn           Pick 1 of 3 Knights (shows full chronicle card)
-    roster_view.tscn              Roster overview, Continue → Planning
-    planning.tscn                 Weekly Planning (5 tabs + Calendar toggle)
-    knight_overview.tscn          Per-unit detail screen (click a name on any card)
-    pre_battle_review.tscn        Post-Tick roster + event-aware setup pane
-    weekly_summary.tscn           Chronicle + per-unit battle breakdown + deltas + returns + rewards + caravan picker
-    game_over.tscn                Home Battle loss
-    run_win.tscn                  Grand Tournament victory
-  ui/settings_popup.tscn          Shared in-game settings modal
-  debug/dev_toolbar.tscn          F1 dev overlay (autoloaded)
-  dev/
-    world_dump.tscn               Phase 1 world-gen verifier (F6)
-    event_roll_test.tscn          Phase 2 50-week event roller (F6)
-
 scripts/
-  main.gd                         Title-screen controller (builds menu in code)
-  autoload/                       Registered in project.godot
-    game_state.gd                 Run state — see header for owned fields
-    event_bus.gd                  Cross-scene signal hub
-    rng.gd                        Seedable RandomNumberGenerator wrapper
-    resource_db.gd                T1–T5 resource tree + tier→colour + reputation helpers
-    enemy_db.gd                   9 enemy types, stat ranges, group-power helper
-    palette.gd                    Centralised semantic colour constants
-    master_audio.gd               3 audio buses + procedural UI click SFX
-  data/                           class_name resources:
-                                  Unit, Stats, ResourceBundle, MapTile, Castle,
-                                  World, WorldGenerator, EventKind, NamePool,
-                                  Expedition, HousePool, BodyType, TraitPool,
-                                  Weapon, Armour, StoryEventDB, AwayModeDB,
-                                  CombatEventDB
-  systems/                        Stateless rules (each is a single static helper
-                                  unless noted):
-                                  Calendar, EventRoller, PhaseMachine,
-                                  RosterGenerator, Determination, Tick, Combat,
-                                  BattleEvent, Resolution, OutcomeBracket,
-                                  Chronicle, OathLedger, ItemDrops,
-                                  SaveManager (autoload Node)
-  ui/                             Shared widgets / utils:
-                                  UnitCard, WorldMapView, FormationEditor,
-                                  KnightIcon, MapPanZoom, PoolDropZone,
-                                  SlotDropZone, ConfirmDialogUtil,
-                                  SettingsPopup, DevToolbar, BannerIcon,
-                                  UiStyle, ScreenFade, WeekProcessor
-  screens/                        Scene controllers (one per .tscn under screens/)
-  dev/                            Dev-only tooling (F6 in editor)
-
-assets/textures/, assets/audio/   Currently empty / placeholder
-data/                             Reserved for static CSV/JSON (future)
+  autoload/      Singletons (extends Node, NO class_name — see Pitfalls).
+                 Registered in project.godot [autoload].
+    game_state   Run state + lifecycle (start_run / advance_to_next_week / roll_current_event)
+    event_bus    Cross-scene signal hub (see EventBus Signals below)
+    rng          Seedable RNG — ALL gameplay randomness routes through this
+    resource_db  T1–T5 resource tree + loot helpers (merge/scale/subtract_from/describe) + reputation labels
+    enemy_db     9 enemy types, stat ranges, group power, per-enemy mob drops
+    palette      Semantic colour constants
+    master_audio 3 buses + procedural SFX library — play(id): click/hover/page/coin/forge/sword/levelup/success/denied
+    music        Procedural medieval music (Karplus-Strong lute + open-fifth drone): menu / gameplay / battle loops + victory/defeat stings (run_ended-driven)
+    user_prefs   Per-machine prefs (UI scale, volumes) → user://prefs.cfg, outside the run save
+  data/          Pure data classes (DO use class_name):
+                 Unit, Stats, MapTile, Castle, World, WorldGenerator, EventKind,
+                 NamePool, Expedition, HousePool, BodyType, TraitPool, Weapon, Armour,
+                 EnemyActor, RewardTableDB, StoryEventDB, AwayModeDB, CombatEventDB
+  systems/       Stateless rules (static helpers; classes where noted):
+                 Calendar, EventRoller, PhaseMachine, RosterGenerator, Determination,
+                 Tick, Combat, CombatSim, CombatUnit, BattleEvent, Resolution,
+                 OutcomeBracket, Chronicle, OathLedger, ItemDrops, Crafting,
+                 SaveManager (autoload Node)
+  screens/       One controller per scenes/screens/*.tscn
+  ui/            Shared widgets: UnitCard, WorldMapView, FormationEditor, KnightIcon,
+                 MapPanZoom, PoolDropZone, SlotDropZone, ConfirmDialogUtil, SettingsPopup,
+                 DevToolbar, BannerIcon, UiStyle, ScreenFade, WeekProcessor
+  dev/           F6-in-editor validators (world_dump, event_roll_test)
+scenes/          Title (Main, built in code) + screens/ + ui/ + debug/ + dev/
+theme/           main_theme.tres — medieval palette
+GDD.md ROADMAP.md README.md   Design / status / landing
 ```
 
-## What's Actually Wired vs. Stubbed
+### How a week resolves
+
+`Planning` commits tasks → `Tick.apply` (training, expedition returns, gold upkeep, stat development decay) → `WeekProcessor` overlay narrates the beats → `Pre-Battle Review` (event-aware setup + forecast) → `Resolution.run` orchestrates the battle and is **the only system that mutates GameState during combat** → `Weekly Summary`.
+
+**Combat is two layers, on purpose:**
+- `Combat` (combat.gd) — pure power *estimates* and enemy-power constants. Drives Pre-Battle forecasts and `OutcomeBracket` win-probability bands. `unit_power = 5 + Str + Bra + skill + slot_bonus + leadership_buff + weapon_damage`.
+- `CombatSim` + `CombatUnit` + `EnemyActor` — the actual **HP-based, turn-based blow-by-blow simulation** that decides wins/losses and injuries. `CombatUnit._derive()` maps every strategy stat to a combat role (Str→HP/damage/armour, Speed→initiative/dodge, Technique→hit/crit, Bravery→HP/morale, Swd→melee hit/parry, Arc→ranged hit, Det→morale, Lea→…). Pure — no GameState access. Deterministic given a seed (initiative jitter is rolled once per combatant, not inside the sort comparator).
+
+`Combat`, `CombatSim`, `BattleEvent`, and `OutcomeBracket` take inputs and return Dictionaries. `Resolution` reads those and mutates. Keep it that way.
+
+### Resources & loot (post-migration — `ResourceBundle` is GONE)
+
+One representation everywhere: a plain `Dictionary` keyed by `ResourceDB.RESOURCES` ids, same keys as `GameState.inventory`. No more legacy `wood/fibres` triple, no `to_inventory_dict()` translator.
+
+- **Reward rollers** (`Combat`, `BattleEvent`, `StoryEventDB`, castle pre-roll, Resolution combat-event kinds) return Dictionaries.
+- **`RewardTableDB`** holds the data-driven loot pools (`roll(table_id, week, difficulty_mult)` / `roll_blended(...)`). Each pool entry's `amount: [w1_lo, w1_hi, w40_lo, w40_hi]` interpolates by week, so retuning loot is one number on one entry.
+- **`ResourceDB.merge / scale / subtract_from / bundle_is_empty / describe`** do what the old class wrapped; `describe()` sorts tier-ascending for stable display.
+- **Mob drops:** `EnemyDB` entries carry a `drops` array; `EnemyDB.roll_drops_for(type_id)` + `Resolution._roll_spoils_from_enemies` aggregate spoils across dead enemies on a win and surface them as a separate "Spoils:" line. (Note: GDD §18.2 says mob drops are "out of scope for this pass" — that line is stale; mob drops shipped in the resource overhaul. Reconcile §18 before doing more §18 work.)
+- **Regional gather:** `Tick._complete_one` for GATHER blends the target tile's table at full weight + each Chebyshev-1 neighbour at `GATHER_NEIGHBOUR_WEIGHT`. Mountain is passable for gather; the old adjacency special-case was scrapped.
+
+## What's wired vs. stubbed
 
 | Area | State |
 |---|---|
-| Core week loop | **Done** — Planning → Tick → (Week Processor sweep) → Pre-Battle → Resolution end-to-end. |
-| All 4 event types + Tournament + Grand Tournament | **Done.** Plus data-driven story events, away-mission variants, and combat-event sub-types. |
-| Crafting tab + recipes | **Manual craft works.** Most raw material *sources* (mobs, specific tile types) are still placeholders — MVP raw materials still come mostly from pillage/assault loot. |
-| Research tab | **Done** — swimlane tech tree (`ResourceDB.RESEARCH_PROJECTS`), unlocks gate higher-tier recipes via `GameState.researched`. |
-| Item system (weapons / armour / drops) | **Done** — catalog + rarity + `power_rating` into combat, `ItemDrops` loot pipeline, equip/swap UI, saved stockpile. |
-| Traits + Reputation | **Done** — `TraitPool` per unit; `GameState.reputation` with HUD chip, combat hooks, purse scaling, band-crossing prose. |
-| Staged stat development + dev arrows | **Done** — `Stats.add_progress` accumulator + ▲/▼ arrows. Pace constants (`DEV_PACE` etc.) are Phase-8 tuning knobs. |
-| Oath consequences | **Honour wired** (`OathLedger` — per-week PA bonus on aligned action). The *break* side (penalties on violation) is still not wired. |
-| Chronicle epithet grants | System exists; most trigger points fired (duel, home-battle-survived, etc.), but not every event yet. |
-| Save / Load / Run History | **Done** (`user://savegame.json`, `user://run_history.json`); now also persists items, reputation, traits, house leans, staged dev progress. |
-| Phase 8 balance tuning | **Not started.** Enemy multipliers, gather yields, injury rates, and the new `DEV_PACE`/loot-rate constants all per-GDD placeholder. |
+| Core week loop, all event types, Tournaments, Grand Tournament, endings | **Done.** |
+| Tactical combat sim (HP/initiative/dodge/crit/morale) | **Done** — `CombatSim`/`CombatUnit`/`EnemyActor`. |
+| Resource model + loot tables + mob drops + regional gather | **Done** — unified Dictionary, `RewardTableDB`. |
+| Items (weapons/armour/drops/equip) | **Done** — catalog + rarity + `power_rating` (now folded into `unit_power` as `weapon_damage`), `ItemDrops`, equip/swap UI, saved stockpile. |
+| Crafting tab | **Resource→resource processing works** (`Crafting.craft`). **Item crafting (`ITEM_RECIPES`) NOT built** — §18.4. |
+| Research tab | **Done** — gates higher-tier recipes via `GameState.researched`. |
+| Traits, Reputation | **Done** — `TraitPool`, `GameState.reputation` (HUD chip, combat hooks, purse scaling). |
+| Staged stat development + dev arrows | **Done.** `DEV_PACE` etc. are Phase-8 tuning knobs. |
+| Oaths | **Honour side wired** (`OathLedger`, hidden +PA on aligned action). **Break/penalty side NOT wired.** |
+| Epithets | Most trigger points fire; not every event grants one — sweep pending. |
+| Save / Load / Run History | **Done**, back-compatible (items, rep, traits, leans, staged dev, oath_kind, spoils). |
+| Item modifiers / quality brackets | **NOT built** — §18.5. |
+| Dead income keys (`tournament_prize`, `expedition_trade`) | Declared + saved but never written — wire or delete. |
+| Phase 8 balance | **Not started.** All multipliers/yields/rates/`DEV_PACE`/loot amounts placeholder. |
 
 ## Touch-Point Cheat Sheet
 
-When the task is "tune X" or "add a new Y", these are the canonical files to open first. Resolution / Combat / BattleEvent never read `GameState` directly — they take inputs, return Dictionary breakdowns; `Resolution` is the only mutator.
+"Tune X / add a Y" → open this first.
 
 | To change… | Edit… |
 |---|---|
-| Enemy power scaling | `scripts/systems/combat.gd` — all formulas live as named static helpers (`enemy_power_pillage`, `enemy_power_home`, etc.) |
-| Per-unit combat math | `scripts/systems/combat.gd` (`BASE_POWER`, `SLOT_BONUS`, `LEADERSHIP_BUFF`, slot-skill rules) |
-| Reward formulas | `scripts/systems/resolution.gd` + `scripts/systems/battle_event.gd` |
-| Gather yield + training application | `scripts/systems/tick.gd` |
-| Event probabilities + Tournament override | `scripts/systems/event_roller.gd` |
-| Calendar / Tournament-week math | `scripts/systems/calendar.gd` |
-| Stat caps + PA-aware increment | `scripts/data/stats.gd` (`try_increment`) |
-| Staged stat development + dev-arrow pace | `scripts/data/stats.gd` (`add_progress` / `add_progress_random_excluding`; `DEV_PACE` / `DEV_HEADROOM_RANGE` / `MOMENTUM_WEEKS` / `DEV_ACTIVE_WEEKS` knobs; `development_state` + `development_glyph/color/tooltip`). Decay runs once per week via `Stats.decay_development()` (called at the top of `Tick.apply`). All **in-run** gains (training, Determination, duel/event rewards) feed `add_progress`, **not** `try_increment` — start-of-run roster gen still sets integers directly. Arrows render on `UnitCard` + `knight_overview`. |
-| FM-style "processing the week" overlay | `scripts/ui/week_processor.gd` (`WeekProcessor`); beats built by `planning.gd::_build_week_steps`, launched from `_do_advance` |
-| Crafting recipes / tier tree | `scripts/autoload/resource_db.gd` (`RESOURCES` dict) |
-| Enemy stat ranges + group power | `scripts/autoload/enemy_db.gd` |
+| Enemy power scaling (forecast layer) | `scripts/systems/combat.gd` — named static helpers (`enemy_power_pillage`, `enemy_power_home`, …) |
+| Per-unit power estimate | `scripts/systems/combat.gd` (`BASE_POWER`, `SLOT_BONUS`, `LEADERSHIP_BUFF`, slot-skill rules, `weapon_damage` fold) |
+| Blow-by-blow combat (HP, hit/dodge/block/crit, initiative) | `scripts/systems/combat_sim.gd` (the loop) + `scripts/systems/combat_unit.gd` (`_derive()` stat→combat mapping) |
+| Enemy stat ranges, group power, mob drops | `scripts/autoload/enemy_db.gd` (`ENEMY_TYPES`, `drops`, `roll_drops_for`) |
 | Win-probability colour bands + injury rolls | `scripts/systems/outcome_bracket.gd` |
-| Chronicle prose pools (seasons, origins, oaths, epithets) | `scripts/systems/chronicle.gd` |
-| Add / re-tint / re-charge a noble house | `scripts/data/house_pool.gd` (`HOUSES` dict) — palette, ordinary, charge, default stat lean live in one entry |
-| Tune per-run house lean pools (archetype slants) | `scripts/data/house_pool.gd` (`LEAN_PLUS_POOL_BY_ARCHETYPE` / `LEAN_MINUS_POOL_BY_ARCHETYPE`) — `roll_per_run_leans()` picks 3+ / 2- from each archetype's pool at `start_run`; saved on `GameState.house_leans` |
-| Body type silhouette shape | `scripts/data/body_type.gd` (`draw_silhouette`) |
-| Heraldry drawing primitives | `scripts/ui/banner_icon.gd` — pure custom `_draw()`, scales freely |
-| Knight starting bonus, stat ranges, PA ranges | `scripts/systems/roster_generator.gd` |
-| Personal trait roster + stat/PA modifiers | `scripts/data/trait_pool.gd` (`TRAITS` dict) |
-| Body type implicit stat-cap bumps | `scripts/data/body_type.gd` (`CAP_BUMPS` dict; `cap_bump_for` / `cap_bumps` helpers) |
-| Oath honour checks (per-week PA bonus on aligned action) | `scripts/systems/oath_ledger.gd` — wired from `Resolution.run` end |
-| Origin / oath / epithet prose pools | `scripts/systems/chronicle.gd` |
-| Battle event sub-types + non-combat resolution | `scripts/systems/battle_event.gd` + `scripts/systems/resolution.gd` |
-| Random story events (chronicle moments + effect primitives) | `scripts/data/story_event_db.gd` (`EVENTS` dict — pure data; resolver dispatches kinds: gold, gold_range, random_unit_stat, all_units_stat, random_unit_injury, reward_resources, inventory_add, inventory_remove, pa_delta, clear_injury, expedition_delay, reputation, reputation_range) |
-| Away mission variants (rescue / hunt / nest / convoy) | `scripts/data/away_mode_db.gd` (`MODES` dict — pure data; `Resolution._resolve_away_custom` reads combat_template + reward_kind + epithet_tag + rep_on_win) |
-| Combat battle-event variants (harpy raid / goblin warband / cultist) | `scripts/data/combat_event_db.gd` (`EVENTS` dict — pure data; `Resolution._resolve_combat_event` reads combat_template + reward_kind + item_drop_fn + rep deltas) |
-| Reputation HUD chip + band labels | `scripts/autoload/resource_db.gd` (`reputation_label`, `reputation_color`, chip prefix in `resource_hud_bbcode`) |
-| Weapon catalog + rarity / power_rating | `scripts/data/weapon.gd` |
-| Armour catalog + rarity / power_rating | `scripts/data/armour.gd` |
+| Loot pools / per-table amounts / scaling | `scripts/data/reward_table_db.gd` (`TABLES`; `roll` / `roll_blended`) |
+| Reward orchestration + spoils aggregation | `scripts/systems/resolution.gd` (`_fill_from_sim`, `_roll_spoils_from_enemies`, `_apply_reward`) + `scripts/systems/battle_event.gd` |
+| Gather yield + training application + upkeep | `scripts/systems/tick.gd` (`GATHER_NEIGHBOUR_WEIGHT`, `_apply_training`, `_apply_gold_maintenance`) |
+| Resource tree / processing recipes | `scripts/autoload/resource_db.gd` (`RESOURCES`); craft action in `scripts/systems/crafting.gd` |
+| Resource dict helpers (merge/scale/subtract/describe) | `scripts/autoload/resource_db.gd` |
+| Event probabilities + Tournament override | `scripts/systems/event_roller.gd` |
+| Calendar / Tournament-week / season math | `scripts/systems/calendar.gd` |
+| Stat caps + PA-aware increment (roster gen only) | `scripts/data/stats.gd` (`try_increment`) |
+| Staged development + dev-arrow pace | `scripts/data/stats.gd` (`add_progress`; `DEV_PACE` / `DEV_HEADROOM_RANGE` / `MOMENTUM_WEEKS` / `DEV_ACTIVE_WEEKS`; `development_state/glyph/color/tooltip`; `decay_development`). All in-run gains feed `add_progress`, NOT `try_increment`. |
+| Week-processor overlay | `scripts/ui/week_processor.gd`; beats built in `planning.gd::_build_week_steps`, launched from `_do_advance` |
+| Knight starting bonus, stat/PA ranges | `scripts/systems/roster_generator.gd` |
+| Personal traits + stat/PA modifiers | `scripts/data/trait_pool.gd` (`TRAITS`) |
+| Noble houses (palette/charge/lean) | `scripts/data/house_pool.gd` (`HOUSES`); per-run slants in `LEAN_PLUS/MINUS_POOL_BY_ARCHETYPE` (`roll_per_run_leans`) |
+| Body type silhouette + cap bumps | `scripts/data/body_type.gd` (`draw_silhouette`, `CAP_BUMPS`) |
+| Heraldry drawing | `scripts/ui/banner_icon.gd` (pure `_draw()`) |
+| Oath honour checks | `scripts/systems/oath_ledger.gd` (run from `Resolution.run` end) |
+| Chronicle prose (seasons/origins/oaths/epithets/asides/ballad/epitaph) | `scripts/systems/chronicle.gd` |
+| Random story events | `scripts/data/story_event_db.gd` (`EVENTS`; effect primitives + `stat_check` + gates) |
+| Away mission variants | `scripts/data/away_mode_db.gd` (`MODES`) |
+| Combat battle-event variants | `scripts/data/combat_event_db.gd` (`EVENTS`) |
+| Weapon / Armour catalog + rarity / power_rating | `scripts/data/weapon.gd` / `scripts/data/armour.gd` |
 | Item drop probabilities / rarity pools | `scripts/systems/item_drops.gd` |
+| Reputation HUD chip + band labels | `scripts/autoload/resource_db.gd` (`reputation_label/color`, `resource_hud_bbcode`) |
 | Save format / serialisation | `scripts/systems/save_manager.gd` |
-| Shared UI palette / semantic colours | `scripts/autoload/palette.gd` — gold, parchment, success/warn/danger, slot-zone tints, tournament-chip ramp, castle / difficulty / stat band tints |
-| StyleBoxFlat builders (chip / card / slot / swatch / progress) | `scripts/ui/ui_style.gd` — reads Palette, returns styled `StyleBoxFlat`s; screens drop their inline radius/border boilerplate |
-| Audio bus volumes + UI SFX | `scripts/autoload/master_audio.gd` — three buses, `play_click()` SFX synthesised on first use |
-| Screen entry animation | `scripts/ui/screen_fade.gd` — `ScreenFade.fade_in(self)` from any screen `_ready()` |
+| UI palette / semantic colours | `scripts/autoload/palette.gd` |
+| StyleBoxFlat builders (chip/card/slot/swatch/progress) | `scripts/ui/ui_style.gd` |
+| Audio buses + SFX library (procedural — add a sound = a `_gen_*` + an `SFX_IDS`/dispatch entry) | `scripts/autoload/master_audio.gd` (`play(id)`, `_build_sfx`) |
+| Menu / gameplay / battle music + win/loss stings (procedural — tempo, mode, note lists, voice mix) | `scripts/autoload/music.gd` (`_render_menu` / `_render_gameplay` / `_render_battle` / `_render_sting`) |
+| UI scale + per-machine prefs | `scripts/autoload/user_prefs.gd` + `scripts/ui/settings_popup.gd` |
+| Screen entry animation | `scripts/ui/screen_fade.gd` |
 
 ## EventBus Signals
 
-Declared in `scripts/autoload/event_bus.gd`. Listeners attach at `_ready()`; emitters live in `GameState`, `PhaseMachine`, `Tick`, `Resolution`.
+Declared in `scripts/autoload/event_bus.gd`. Emitters: `GameState`, `PhaseMachine`, `Tick`, `Resolution`. Add new signals here, not ad-hoc across scenes.
 
-- `run_started(seed_value: int)`
-- `run_ended(outcome: String)` — `"win"` | `"loss"`
-- `week_advanced(week: int)`
-- `phase_changed(phase: int)` — `PhaseMachine.Phase` enum
-- `event_rolled(kind: int)` — `EventKind` enum
-- `battle_resolved(result: Dictionary)`
-- `expedition_returned(expedition: Resource)`
-
-Add new signals here as new phases need them — don't proliferate ad-hoc signal definitions across scenes.
+`run_started(seed)` · `run_ended(outcome)` ("win"|"loss") · `week_advanced(week)` · `phase_changed(phase)` · `event_rolled(kind)` · `battle_resolved(result)` · `expedition_returned(expedition)`
 
 ## Local Validation (headless Godot)
 
-You can validate code changes without launching the editor by running the project headless. This catches parse errors, missing class references, and autoload wiring issues in seconds.
+No Godot binary exists in the Claude-on-the-web sandbox — code changes from a web session **must be validated by Jack** on his Windows host:
 
-**Godot binary** (machine-specific, lives on Jack's Desktop):
 ```powershell
 & 'C:\Users\zoom3\Desktop\Godot_v4.6.1-stable_win64.exe' --headless --path . --quit-after 30
 ```
 
-A clean run prints `[KM27] Title ready.` and exits with no `SCRIPT ERROR` / `Parse Error` lines. If you see `Could not find type "Unit"` (or any other `class_name`'d type) errors, it usually means the **class cache is missing** — the registry that maps `class_name` declarations to script paths. Build it once by running the editor headless:
+Clean run prints `[KM27] Title ready.` with no `SCRIPT ERROR` / `Parse Error`. If you see `Could not find type "Unit"` (etc.), the class cache is missing — rebuild once with the editor:
 
 ```powershell
 & 'C:\Users\zoom3\Desktop\Godot_v4.6.1-stable_win64.exe' --headless --path . --editor --quit
 ```
 
-That populates `.godot/global_script_class_cache.cfg`. Re-run the first command and errors should clear. The `.godot/` directory is gitignored, so a fresh worktree or CI runner will need this step.
+`.godot/` is gitignored, so a fresh worktree / CI runner needs that step. Also: `--check-only` for a pure parse check; `--script res://…` to run a dev validator.
 
-**Other useful invocations:**
-- `--script res://path/to/dev_scene.gd` — run a single script headless (good for the `scripts/dev/` validators).
-- `--check-only` — pure GDScript parse check, no autoload bring-up.
+## Dev Hotkeys
 
-The binary path is whitelisted in `.claude/settings.local.json` (gitignored — machine-specific). If the binary moves, update the wildcard there.
-
-## Dev Hotkeys & Debug Entry Points
-
-| Key / button | What it does |
+| Key | Effect |
 |---|---|
-| **F1** | Toggle dev toolbar overlay. `DevToolbar` is autoloaded but `queue_free()`s itself in non-debug builds, so this is debug-only. Add resources, set gold, advance N weeks, force-queue an event, edit unit stats live. |
-| **F6** (in Godot editor) | Run the focused dev scene. `scenes/dev/world_dump.tscn` validates Phase 1 world gen + determinism; `scenes/dev/event_roll_test.tscn` runs the 50-week event roller test. |
-| **F11** | Toggle windowed/fullscreen. Handled in `GameState._input` so it works on every screen. |
+| **F1** | Toggle dev toolbar (debug builds only). Add resources, set gold/reputation, advance N weeks, force-queue an event, jump to an event, spawn an item, edit unit stats live. |
+| **F6** (editor) | Run focused dev scene (`world_dump` = Phase 1 gen + determinism; `event_roll_test` = 50-week roller). |
+| **F11** | Windowed/fullscreen (handled in `GameState._input`, works everywhere). |
 | **1–5** (Planning) | Switch main tabs (Overview / Tactics / Map / Crafting / Research). |
-| **C** (Planning) | Toggle the Calendar pane. |
-| **Enter** (Planning / Pre-Battle / Weekly Summary) | Trigger the screen's primary action (Advance Time / To Battle / Next Week). On Weekly Summary's first press, skips the staggered fade. |
-| **Esc** | Close the settings popup, dismiss the intro splash, close the resource info overlay, or return from Knight Overview. Also cancels Confirm dialogs. |
-| **Right-click on a knight icon** (formation editor) | Opens an "Assign to slot…" popup — keyboard / touchpad alternative to drag-drop. |
-| **Title → Continue** | Appears when `user://savegame.json` exists. Opens a confirm dialog showing the saved year/week/gold/streak via `SaveManager.peek_save()` before loading. |
-| **Title → Quick Start (Dev)** | Debug-only. Jumps to week 10, gold 200, all stats 8, T1 stock — bypasses the Knight chooser. |
+| **C** (Planning) | Toggle Calendar pane. |
+| **Enter** | Primary action on Planning / Pre-Battle / Weekly Summary. |
+| **Esc** | Close settings / dismiss splash / close overlays / return from Knight Overview / cancel confirms. |
+| **Right-click knight icon** | "Assign to slot…" popup (keyboard/touchpad alt to drag-drop). |
+| **Title → Continue** | Appears when a save exists; confirm dialog shows year/week/gold/streak via `SaveManager.peek_save()`. |
+| **Title → Quick Start (Dev)** | Debug-only jump to week 10 / gold 200 / stats 8 / T1 stock, bypasses chooser. |
 
 ## Codebase Pitfalls
 
-The non-obvious things that have bitten previous sessions:
+- **Autoload `class_name` conflict.** Singletons under `scripts/autoload/` must `extends Node` and **must NOT** declare `class_name` (double-registers the singleton — commit `7c823d2`). Data classes under `scripts/data/` *do* use `class_name`.
+- **Autoload methods are instance methods.** `static` on an autoload triggers "called from instance" warnings (commit `4295d9b`). Static helpers belong on non-autoload classes (`Combat`, `Calendar`, …).
+- **Resource keys are unified now.** Everything is `logs / plant_fibres / copper_ore` etc., keyed to `ResourceDB.RESOURCES`. The old `wood / fibres` triple and `ResourceBundle` are gone — don't reintroduce them. Reward rollers return Dictionaries; deliver via `ResourceDB.merge` (or `Resolution._apply_reward` / `Crafting`).
+- **Scene-node names lag tab labels.** Planning's Map tab is still node `TownMap` (`$Margin/VBox/Content/TownMap/...`). Don't rename without sweeping every `@onready` path.
+- **PA is invisible to the player by design** (GDD §10). Dev toolbar shows it; `UnitCard.build` / `knight_overview.gd` must not. Same show-not-tell rule for stat caps, house leans, body bumps, and dev arrows.
+- **Combat determinism.** `CombatSim` must keep its sort comparator pure — roll any jitter once per combatant *before* sorting (`CombatUnit._init_jitter`), never inside the comparator.
 
-- **Resource ID overlap (active migration).** `ResourceBundle` (the legacy MVP triple used by Pillage/Assault/Tournament/Gather rewards) carries fields `wood / fibres / copper_ore`. The new `ResourceDB` inventory uses keys `logs / plant_fibres / copper_ore`. `ResourceBundle.to_inventory_dict()` is the translator, and `describe()` already prints the new display names ("Logs:X Plant Fibres:X"). When you touch either side, decide which system you're on and route through the translator — don't grep-replace.
-- **Autoload `class_name` conflict.** Singletons under `scripts/autoload/` must `extends Node` and **must not** declare `class_name` — doing so causes Godot to register two singletons of the same name. Pure data classes under `scripts/data/` do use `class_name` (e.g. `Unit`, `Stats`); autoloads don't. See commit `7c823d2`.
-- **Autoload methods are instance methods.** Marking a method `static` on an autoload triggers "called from instance" warnings — see commit `4295d9b`. Helpers that need to be `static` belong on a non-autoload class (e.g. `Combat`, `Calendar`).
-- **Scene-node names lag tab labels.** Planning's Map tab is still node `TownMap` in the .tscn (`$Margin/VBox/Content/TownMap/...`). Don't rename the node without sweeping every `@onready` path.
-- **PA is invisible to the player by design** (GDD §10). The dev toolbar shows it; `UnitCard.build` and `knight_overview.gd` must not.
-- **Two duplicate-message chronicle commits** (`a3fb26d`/`64b0be3` and `dcae5a8`/`ba7a20f`) are merge artefacts, not bugs — same change, different branches.
+## Conventions & Working Agreements
 
-## Likely Future Directions (in rough priority order)
+- **GDD:** single `GDD.md`, tiered headings. Add a dated `## Changelog` entry for substantive design changes. If it exceeds ~500 lines or `###` needs `####` children, flag a `gdd/` split — don't migrate silently. (It's already at ~728 lines with §18 — a split is overdue; raise it with Jack.)
+- **ROADMAP:** the single source of truth. Append a newest-first dated Progress Log entry every session that ships code. Tick boxes as deliverables land. Follow phase order; edit the roadmap rather than tracking scope drift in commits.
+- **Branches:** Claude work `claude/<slug>-<id>`; human work `feat/`, `fix/`, `docs/`. `main` is integration — **never push to `main` directly.**
+- **Commits:** imperative mood, scoped to one logical change, conventional-ish prefixes (`feat(scope):`, `fix:`, `docs(scope):`). Reference GDD sections where relevant.
+- **Randomness:** ALL gameplay RNG routes through the `RNG` autoload — that's what makes seeds reproducible.
+- **New autoloads:** register in `project.godot [autoload]`; `extends Node`, no `class_name`.
+- **Minimal diffs, plan before multi-file edits.** Don't add CI / PR templates / contributor docs yet — premature for MVP.
 
-These aren't committed scope — they're the threads Jack tends to pull. Use as hints, not a plan.
+## How Jack likes to work
 
-1. **Phase 8 balance pass** — first real playthroughs to ground-truth enemy power curves, gather yields, injury frequency, gold cashflow, and the new staged-development pace (`DEV_PACE`) + loot rates. **This is now the most likely next push** — a lot of systems have landed without balance work behind them.
-2. **Wire raw-material sources into gather/expedition flow** — so the Crafting tab has a sensible input pipeline beyond castle loot.
-3. **Oath *break* mechanic** — honour is wired (`OathLedger`); the penalty side (consequences when behaviour violates the oath) is not.
-4. **Epithet trigger coverage** — most points fire; sweep for any remaining Resolution beats that should grant epithets.
-5. **More variety** — more `StoryEventDB` / `AwayModeDB` / `CombatEventDB` entries (mostly pure data now), more enemy types, possibly more formations beyond 4-0-0 (per GDD §17 future scope).
-6. **Squire promotion / recruitment / morale** — explicitly excluded from MVP (GDD §17) but the most likely post-MVP expansion.
-
-## How Jack Likes to Work
-
-- **Numbered feedback batches** — when Jack drops a list ("minor tweaks: 1. X, 2. Y, 3. Z…"), implement the whole batch in one go, commit + push, then give a brief 2-line summary. Don't half-ship.
-- **FM-style information density, medieval dress.** Default to more data, then dress it with the theme.
-- **Tabs always flat** — `clip_tabs=false`, `scrolling_enabled=false`. He hates overflow arrows.
-- **Map controls** — middle-mouse-drag pan + scroll-wheel zoom. There's a `MapPanZoom` widget; use it.
+- **Numbered feedback batches** — implement the whole batch in one go, commit + push, then a brief 2-line summary. Don't half-ship.
+- **FM-style information density, medieval dress.** More data, then theme it.
+- **Tabs always flat** (`clip_tabs=false`, `scrolling_enabled=false`) — no overflow arrows.
+- **Map controls:** middle-drag pan + scroll-wheel zoom (`MapPanZoom`).
 - **"Bloated" means collapse, not enlarge** — sub-tabs and toggles over taller screens.
-
-## GDD Conventions
-
-- Single `GDD.md` at the repo root, tiered headings (`#` > `##` > `###`).
-- Use existing top-level sections; add `##` sections sparingly.
-- **Always** add a dated entry to `## Changelog` when making substantive design changes.
-- **Migration trigger:** if `GDD.md` exceeds ~500 lines or `###` headings start needing `####` children, propose splitting to a `gdd/` folder. Don't migrate silently — flag and let Jack decide.
-
-## Branch Convention
-
-- Claude-driven work: `claude/<short-slug>-<id>` (this worktree is `claude/agitated-chaum-ba4385`).
-- Human work: `feat/<slug>`, `fix/<slug>`, `docs/<slug>`.
-- `main` is the integration branch. **Never push to `main` directly.**
-
-## Commit Style
-
-- Imperative mood, present tense ("add roster section", not "added").
-- Reference the GDD section when relevant ("flesh out §13 Etiquette reward modifier").
-- Conventional prefixes are used loosely: `feat(scope):`, `fix:`, `docs(scope):`, `feat(ux):`, `feat(chronicle):`. Match existing style for the area you're editing.
-- Scope each commit to one logical change.
-
-## Working Agreements
-
-- Plan before multi-file edits; prefer minimal diffs.
-- Follow phase order in `ROADMAP.md`; tick boxes as deliverables ship.
-- **Update `ROADMAP.md`'s Progress Log at the end of any session that ships code** (newest entry first, ISO date prefix).
-- Don't add CI, issue/PR templates, labels, or contributor docs yet — premature for early MVP.
-- **All gameplay randomness MUST route through the `RNG` autoload** — that's what makes seeds reproducible (world gen, roster rolls, event rolls, chronicle prose all share the same seeded stream).
-- New autoloads must be registered in `project.godot` under `[autoload]`. New singletons inside `RES://scripts/autoload/` should `extends Node` (NOT use `class_name` — that conflicts with the autoload registration, see commit `7c823d2`).
-
-## Implementation Status
-
-`ROADMAP.md` is the **single source of truth** for what's done, in progress, and queued. Read it at the start of every session. After shipping code, append a newest-first dated entry to the Progress Log.
-
-Phase ordering is deliberate — don't jump ahead without checking dependencies. If a phase needs to expand or split, edit the roadmap itself; don't track scope drift in commit messages alone.
 
 ## Security Note
 
-`export_presets.cfg` (once Godot's editor creates one) can contain signing keys, store credentials, and API tokens. Audit before the first export build; consider moving secrets to an untracked `export.cfg` overlay.
+`export_presets.cfg` (once Godot creates one) can hold signing keys / store credentials / API tokens. Audit before the first export build; consider an untracked `export.cfg` overlay for secrets.

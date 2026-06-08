@@ -120,12 +120,12 @@ var reputation: int = 0
 # that case).
 var house_leans: Dictionary = {}
 
-# Gold income sources. `weekly_stipend` is always active; others are set
-# temporarily when an event grants a recurring bonus then reset to 0.
+# Gold income sources. `weekly_stipend` is always active; events may add their
+# own recurring keys temporarily then reset them to 0. The base stipend is
+# sourced from the Economy tuning surface (§18.2). (The old placeholder keys
+# `tournament_prize` / `expedition_trade` were never written — removed.)
 var gold_income_sources: Dictionary = {
-	"tournament_prize": 0,
-	"expedition_trade": 0,
-	"weekly_stipend": 10,
+	"weekly_stipend": Economy.WEEKLY_STIPEND,
 }
 
 # Stub for future building/research upgrade costs.
@@ -144,9 +144,13 @@ var crafted_ids: Array[String] = []
 # SaveManager.
 var item_stockpile: Array[Dictionary] = []
 
+# §18.4 — item recipes forged this Planning week. Enforces the "one craft per
+# recipe per week" cap; cleared by `_clear_week_buffers()` each week.
+var items_crafted_this_week: Array[String] = []
+
 
 func gold_maintenance_cost() -> int:
-	return roster.size() * 5
+	return Economy.upkeep_cost(self)
 
 
 # Reputation adjust + band-crossing detector. Returns the new band label
@@ -248,7 +252,7 @@ func start_run(seed_value: int) -> void:
 	# by HousePool.roll_per_run_leans() flows through the seeded RNG, so
 	# the same seed produces the same slants every run.
 	house_leans = HousePool.roll_per_run_leans()
-	gold_income_sources = {"tournament_prize": 0, "expedition_trade": 0, "weekly_stipend": 10}
+	gold_income_sources = {"weekly_stipend": Economy.WEEKLY_STIPEND}
 	upgrade_costs = {}
 	suppressed_confirms.clear()
 	crafted_ids.clear()
@@ -260,6 +264,7 @@ func start_run(seed_value: int) -> void:
 	if phase_machine != null:
 		phase_machine.current = PhaseMachine.Phase.PLANNING
 	EventBus.run_started.emit(seed_value)
+	Music.play_gameplay()
 
 
 # ---------- weekly clock ----------
@@ -356,6 +361,7 @@ func _clear_week_buffers() -> void:
 	champion_target_stat = ""
 	tournament_participants = []
 	pending_tasks = {}
+	items_crafted_this_week = []
 
 
 # Phase 5/6 — true if this week's event will resolve combat with a formation.

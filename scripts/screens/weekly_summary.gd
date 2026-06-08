@@ -33,6 +33,11 @@ func _ready() -> void:
 		get_tree().change_scene_to_file("res://scenes/Main.tscn")
 		return
 
+	# Battle's over — ease back from the battle theme to the calm gameplay loop
+	# for the recap. (If the run just ended, the EventBus victory/defeat sting
+	# overrides this a moment later.)
+	Music.play_gameplay()
+
 	next_btn.pressed.connect(_on_next)
 	settings_btn.pressed.connect(_on_settings)
 

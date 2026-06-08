@@ -67,8 +67,11 @@ func _init(p_unit, weapon_id: String = "", armour_id: String = "", power_mult: f
 	unit = p_unit
 	var wid: String = weapon_id if weapon_id != "" else p_unit.weapon_id
 	var aid: String = armour_id if armour_id != "" else p_unit.armour_id
-	weapon = Weapon.get_entry(wid if wid != "" else "unarmed")
-	armour = Armour.get_entry(aid if aid != "" else "unarmoured")
+	# §18.5 — fold the unit's per-instance quality bracket (+ mods) into the
+	# effective catalogue entry so the sim's damage/armour rolls scale with
+	# quality. Neutral (OK) brackets reproduce the catalogue values exactly.
+	weapon = Quality.weapon_entry(wid if wid != "" else "unarmed", p_unit.weapon_bracket, p_unit.weapon_mods)
+	armour = Quality.armour_entry(aid if aid != "" else "unarmoured", p_unit.armour_bracket, p_unit.armour_mods)
 	_derive(power_mult)
 
 

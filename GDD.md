@@ -530,7 +530,7 @@ Designing modifiers before the damage model is set means re-tuning twice.
 - **Castle assault loot** is the primary **T2–T3** source — rich but rare bags, weighted to the assaulted castle's difficulty band.
 - **Story-event rewards** are the trickle for **T3+** specialty mats (e.g. an "old armoury" event delivers a Steel Ingot, an "abandoned forge" delivers Mythril traces). Curated, not RNG-spammed.
 
-Mob drops are explicitly **out of scope** for this pass — keeping the channels above clean for tuning matters more than variety right now.
+Mob drops were originally scoped out of this pass. **Correction (2026-06-03):** the resource-system overhaul shipped enemy mob drops ahead of this design pass — `EnemyDB` entries carry a `drops` array and `Resolution._roll_spoils_from_enemies` aggregates kill-spoils on a win, surfaced as a separate "Spoils:" line. So mob drops are now a **fourth live channel** (kill loot, distinct from the encounter reward). Treat the three named channels above as the *bulk/tunable* sources and mob drops as the *variety/flavour* trickle. The Phase-8 scarcity-band tuning should account for all four.
 
 **Scarcity bands** — every resource gets a *design-target* weekly supply estimate based on its source channel. Used as a balance yardstick, not a runtime mechanic:
 
@@ -565,6 +565,12 @@ Mob drops are explicitly **out of scope** for this pass — keeping the channels
 > 2. Promote the **scarcity bands** to a `band` field on each `ResourceDB.RESOURCES` entry so balance work has a yardstick in code, not just docs?
 > 3. **Holdings income** — keep it flat (boring but predictable), or scale with castles held (rewards expansion, makes losing a castle bite)?
 > 4. **Upkeep formula** — flat-per-unit (current), or differentiate by class (Knight costs more than Squire)?
+
+> **Decisions (2026-06-03):**
+> - **Q1** — Gather stays the canonical T1 channel; **mob drops shipped as a 4th (flavour) channel** ahead of this pass (see §18.2 correction above). Locked.
+> - **Q2** — Bands promoted, as a *derived* `ResourceDB.scarcity_band(id)` (tier-mapped) rather than a hand-set field per entry — same yardstick, no 32-entry edit. **Shipped.**
+> - **Q3** — Holdings income: **LOCKED — expansion pays.** Capturing a castle retains it as a holding that yields recurring gold (`castles_held × Economy.HOLDINGS_INCOME_PER_CASTLE` per week). This is a new subsystem: castles must be *retained* on capture (not destroyed), tracked on `GameState`, drawn on the map as held, and paid out in `Tick`. Scoped as its own follow-up batch (see ROADMAP); the income hook already exists.
+> - **Q4** — Upkeep stays **flat-per-unit** for MVP; the class-split is a Phase-8 knob (`Economy.UPKEEP_PER_UNIT`).
 
 ### 18.3 Damage ↔ Stat Integration
 
@@ -601,6 +607,11 @@ Result: a `5–9 damage` weapon means avg 7 contribution to `unit_power`; a +2 q
 > 2. Should **Swordsmanship / Archery** keep contributing as flat stats in `unit_power` (current §13), or only via weapon `hit_bonus`/`crit_bonus`? I'd lean **keep both** — the stat is the *skill*, the weapon is the *tool*.
 > 3. **Deprecate `power_rating`?** Cleanest is yes — fold it into derived `weapon_damage`. Alternative: keep it as a `+0` legacy field for old saves.
 
+> **Decisions (2026-06-03):**
+> - **Q1** — **LOCKED — stat-scaling added.** `weapon_damage` is `avg(min,max)` *plus* the attack stat ×`Combat.WEAPON_STAT_SCALE` (0.25): melee scales off Strength, ranged off Technique. Leveling a fighter makes their steel bite harder, not just their stats. **Shipped** in `combat.gd` `unit_power()`; the rate is a Phase-8 knob.
+> - **Q2** — **Keep both**: the stat is the skill, the weapon is the tool. Locked.
+> - **Q3** — `power_rating` is superseded by `weapon_damage` in formation combat; it still backs `tournament_unit_power`. **Recommend** migrating tournament power onto `weapon_damage` / `armour_resistance` too so there's one axis everywhere — small follow-up, not yet done.
+
 ### 18.4 Crafting & Research
 
 **Today.** `ResourceDB.RECIPES` (embedded in each `RESOURCES` entry) describes **resource-to-resource processing** (Cloth ← Plant Fibres ×2), not item crafting. Items today only enter the stockpile via loot drops. The design pass introduces a **separate `ITEM_RECIPES` catalogue** that consumes resources and gold and produces a crafted item:
@@ -635,6 +646,12 @@ Result: a `5–9 damage` weapon means avg 7 contribution to `unit_power`; a +2 q
 > 2. **Research = instant on payment** — or does it take N weeks? Instant keeps decision/cost clean; timed adds opportunity cost.
 > 3. Show **material lineage** on the crafted item's tooltip ("Iron Longsword — forged from Iron Ingot ×3, Hardwood Planks ×2")? Show-not-tell of why the modifiers rolled where they did.
 > 4. **Resource recipes vs item recipes** — keep them as two distinct dicts (proposed: `RESOURCES[id].recipe` for processing, `ITEM_RECIPES[id]` for items), or unify under a single recipe table with a `kind` field?
+
+> **Decisions (2026-06-03):**
+> - **Q1** — One craft per recipe per week. **Shipped.**
+> - **Q2** — Research instant on payment. **Shipped** (already the model).
+> - **Q3** — Material lineage on the crafted item's tooltip: **yes** — lands with the §18.5 modifier pass (show-not-tell of why the mods rolled where they did).
+> - **Q4** — Two distinct dicts (`RESOURCES[id].recipe` for processing vs `ItemRecipeDB` for items). **Shipped.**
 
 ### 18.5 Item Modifiers & Quality Brackets
 
@@ -707,20 +724,32 @@ The exact numeric modifiers stay visible on the tooltip — bracket on the chip,
 > 4. **Legendary names** — auto-generated from a pool (`Wyrmsbane`, `The Tournament's Edge`), or only for hand-authored Heirlooms?
 > 5. Should the **"forge sang" crit** be visible on the Weekly Summary as a small chronicle line ("The forge sang at midnight — Aldric drew Wyrmsbane from the embers")? Big show-not-tell moment if so.
 
+> **Decisions (2026-06-03):**
+> - **Q1** — 7 brackets (Terrible … Legendary). **Shipped.**
+> - **Q2** — **LOCKED — between subtle and loud.** Material does two things: it adds a tier-scaled flat bonus (`+0…+2`, by how far the material's tier sits above the recipe's base) to the rolled modifier value, *and* raises the roll's floor by 1 — so a better material reliably nudges the result up and trims the worst outcomes, without shifting the whole range's centre (which would drown out the quality bracket). Lands with the modifier-roll pass.
+> - **Q3** — Brackets visible on the card (label + ▲/▼ marker). **Shipped.**
+> - **Q4** — Legendary names: **recommend** an auto-generated pool for crafted Legendaries + explicit names for hand-authored Heirlooms. For the modifier pass.
+> - **Q5** — "The forge sang" crit is surfaced on the forge action line now; **recommend** also adding it as a Weekly-Summary chronicle beat when it fires. Small follow-up.
+
 ### 18.6 Implementation order (once design locks)
 
 Each item is its own commit / PR. Bottom-up by intent — every layer pins the next layer's tuning surface:
 
-1. **Resources & economy pass** — add `band` to `ResourceDB.RESOURCES`, wire the three source channels (gather / assault / story-event), surface gold formulas as named constants in a single tuning file.
-2. **Damage formula** — fold `weapon_damage` and `armour_resistance` into `Combat.unit_power`, deprecate `power_rating`. Update §13.
-3. **Crafting pipeline** — add `ITEM_RECIPES` table; `CraftingTab` gains an "Items" sub-tab; `Craft()` rolls a bracket and stamps it on a new instance.
-4. **Item modifiers** — extend `Weapon` / `Armour` with a per-instance `modifiers: Dictionary` (rolled at craft); combat reads modifiers; tooltips display them; saves persist them.
-5. **Quality brackets surface** — bracket label + colour + ▲/▼ marker on UnitCard and Knight Overview's Equipment block.
+**Status (2026-06-03):** steps 1, 2, 3, 5 shipped; step 4 partial. Open Qs were adopted at their proposal defaults (one-craft-per-week cap; instant research; 7 brackets; bracket visible on the card; material bias deferred to the modifier-roll pass). See the ROADMAP Progress Log for per-step detail.
+
+1. **Resources & economy pass** — ✅ `Economy` tuning surface (gold formulas as named constants), scarcity bands as a derived `ResourceDB.scarcity_band` helper. (Channels were already wired in the 2026-05-28 overhaul.)
+2. **Damage formula** — ✅ `weapon_damage` / `armour_resistance` folded into `Combat.unit_power` (2026-06-02).
+3. **Crafting pipeline** — ✅ `ItemRecipeDB` + `Crafting.craft_item`; Crafting tab "Smithing" section; the forge rolls a quality bracket and stamps it on the new instance.
+4. **Item modifiers** — ⏳ *partial.* Per-instance `bracket` + `mods` now live on item instances (stockpile entries + equipped `Unit` fields), persist in saves, and the bracket scales weapon damage / armour in both combat layers via `Quality`. The **rolled modifier tables** (§18.5 primary mods + material bias) are not generated yet — `mods` is reserved and lightly applied. *Next.*
+5. **Quality brackets surface** — ✅ bracket label + ▲/▼ marker on the UnitCard equipment line, Knight Overview's Equipment block, the equip popup, and the forge result (incl. the "forge sang" moment). `Quality.color` exists for a future colour-tint pass.
 
 ---
 
 ## Changelog
 
+- 2026-06-03 — §18 Open Q resolution pass: migrated every `> Open Q…` block (§18.2–§18.5) to a recorded `> Decisions` block — marking what shipped (one-craft-per-week, instant research, 7 brackets, card-visible quality, two recipe dicts, derived scarcity bands, keep-both stat+weapon) and recommending the rest (subtle material bias, auto Legendary names, forge-sang chronicle beat, tournament-power axis migration). The three genuine forks were then answered by Jack: holdings income → **expansion pays** (held-castle subsystem, scoped as a follow-up batch); material bias → **between subtle and loud** (tier-scaled +0…+2 plus floor-raise); weapon growth → **stat-scaling added** (shipped — attack stat ×0.25 into weapon_damage).
+- 2026-06-03 — §18 implementation kickoff: shipped §18.6 steps 1 (economy tuning surface + scarcity bands), 3 (item crafting via `ItemRecipeDB`/`Crafting.craft_item`), and 5 (quality surface), plus the bracket half of step 4 (per-instance `Quality` brackets scaling combat in both layers; rolled modifier tables still pending). Adopted the Open Qs at proposal defaults (one-craft-per-week, instant research, 7 brackets, brackets visible on the card). Updated §18.6 with a status block.
+- 2026-06-03 — §18.2 correction: mob drops, originally scoped out of the §18 pass, had already shipped in the 2026-05-28 resource overhaul; reframed them as a fourth live loot channel (kill-spoils) so the design doc matches the code. No other design change.
 - 2026-05-27 — Added §18 *Item & Crafting Systems — Design Pass* covering Resources & Economy, Damage ↔ Stat integration, Crafting & Research, and Item Modifiers & Quality Brackets (7-bracket Terrible→Legendary scale, material-driven bias, quality as a separate axis from rarity). Each subsection ships with `> **Open Q…**` blocks for Jack to resolve before the spec migrates into §13/§14 and implementation begins. Also pruned §17 *Excludes* of items now shipped (resource T2–T5, traits, research, economy) or moved to §18 (crafting & item modifiers); kept the original list framed as the MVP boundary for posterity.
 
 - 2026-05-17 — Added §9 *Households & Body Types* (4 archetypal houses with implicit stat leans + 4 independent body silhouettes). Drives the visual banner system; not in original MVP scope but additive — doesn't change any existing rule, just biases starting stat rolls.

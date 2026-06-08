@@ -699,7 +699,7 @@ static func _resolve_tavern_riot(gs: Node, result: Dictionary) -> void:
 		result["injuries"] = injuries
 
 	if result["won"]:
-		var purse: int = 6 + floori(gs.week / 8.0)
+		var purse: int = Economy.tavern_riot_gold(gs.week)
 		gs.gold += purse
 		result["notes"].append("Riot quelled — innkeeper presses %d gold on the marshal." % purse)
 		# Roster-wide loyalty development — the show of unity at a small action
@@ -758,12 +758,12 @@ static func _resolve_tournament(gs: Node, result: Dictionary, is_grand: bool) ->
 		# the purse, capped at +25 so legendary status doesn't trivialise
 		# tournament economy. Negative reputation halves the bonus to zero
 		# but never reduces the base prize.
-		var rep_bonus: int = clampi(gs.reputation / 4, 0, 25)
+		var rep_bonus: int = Economy.tournament_rep_bonus(gs.reputation)
 		if is_grand:
 			result["is_run_win"] = true
 			result["notes"].append("Grand Tournament won — the realm is yours!")
 			gs.tournament_streak = 0
-			var prize: int = 50 + (Calendar.tournament_number(gs.week) * 25) + rep_bonus
+			var prize: int = Economy.tournament_purse(gs.week, gs.reputation)
 			gs.gold += prize
 			result["tournament_gold"] = prize
 			if rep_bonus > 0:
@@ -784,7 +784,7 @@ static func _resolve_tournament(gs: Node, result: Dictionary, is_grand: bool) ->
 			gs.tournament_streak += 1
 			result["notes"].append("Tournament won — streak now %d." % gs.tournament_streak)
 			result["reward"] = Combat.roll_tournament_reward(gs.week, participants)
-			var prize: int = 50 + (Calendar.tournament_number(gs.week) * 25) + rep_bonus
+			var prize: int = Economy.tournament_purse(gs.week, gs.reputation)
 			gs.gold += prize
 			result["tournament_gold"] = prize
 			if rep_bonus > 0:
