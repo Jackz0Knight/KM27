@@ -32,8 +32,8 @@ scripts/
     resource_db  T1–T5 resource tree + loot helpers (merge/scale/subtract_from/describe) + reputation labels
     enemy_db     9 enemy types, stat ranges, group power, per-enemy mob drops
     palette      Semantic colour constants
-    master_audio 3 buses + procedural UI click SFX
-    music        Procedural medieval music (Karplus-Strong lute + open-fifth drone), looped on the Music bus; menu + gameplay tracks
+    master_audio 3 buses + procedural SFX library — play(id): click/hover/page/coin/forge/sword/levelup/success/denied
+    music        Procedural medieval music (Karplus-Strong lute + open-fifth drone): menu / gameplay / battle loops + victory/defeat stings (run_ended-driven)
     user_prefs   Per-machine prefs (UI scale, volumes) → user://prefs.cfg, outside the run save
   data/          Pure data classes (DO use class_name):
                  Unit, Stats, MapTile, Castle, World, WorldGenerator, EventKind,
@@ -130,8 +130,8 @@ One representation everywhere: a plain `Dictionary` keyed by `ResourceDB.RESOURC
 | Save format / serialisation | `scripts/systems/save_manager.gd` |
 | UI palette / semantic colours | `scripts/autoload/palette.gd` |
 | StyleBoxFlat builders (chip/card/slot/swatch/progress) | `scripts/ui/ui_style.gd` |
-| Audio buses + UI SFX | `scripts/autoload/master_audio.gd` |
-| Menu / gameplay music (procedural — tempo, mode, note lists, voice mix) | `scripts/autoload/music.gd` (`_render_menu` / `_render_gameplay`) |
+| Audio buses + SFX library (procedural — add a sound = a `_gen_*` + an `SFX_IDS`/dispatch entry) | `scripts/autoload/master_audio.gd` (`play(id)`, `_build_sfx`) |
+| Menu / gameplay / battle music + win/loss stings (procedural — tempo, mode, note lists, voice mix) | `scripts/autoload/music.gd` (`_render_menu` / `_render_gameplay` / `_render_battle` / `_render_sting`) |
 | UI scale + per-machine prefs | `scripts/autoload/user_prefs.gd` + `scripts/ui/settings_popup.gd` |
 | Screen entry animation | `scripts/ui/screen_fade.gd` |
 

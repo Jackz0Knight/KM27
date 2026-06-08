@@ -21,7 +21,8 @@ const SR: int = 22050          # mono mix rate — plenty for plucked strings
 const XFADE_S: float = 0.45    # loop-seam crossfade length
 const TAIL_S: float = 0.7      # extra render past the loop so notes ring into the fade
 
-var _player: AudioStreamPlayer = null
+var _player: AudioStreamPlayer = null     # looping background track
+var _sting: AudioStreamPlayer = null      # one-shot stings (victory / defeat)
 var _cache: Dictionary = {}    # track id -> AudioStreamWAV
 var _current: String = ""
 var _lcg: int = 1              # local PRNG state (NOT the RNG autoload)
@@ -31,6 +32,12 @@ func _ready() -> void:
 	_player = AudioStreamPlayer.new()
 	_player.bus = "Music"
 	add_child(_player)
+	_sting = AudioStreamPlayer.new()
+	_sting.bus = "Music"
+	add_child(_sting)
+	# End-of-run flourishes ride centrally off the EventBus, so no screen needs
+	# to know about audio.
+	EventBus.run_ended.connect(_on_run_ended)
 
 
 # ---------- public API ----------
@@ -43,10 +50,30 @@ func play_gameplay() -> void:
 	_play("gameplay")
 
 
+func play_battle() -> void:
+	_play("battle")
+
+
+# Stop the looping track and play a one-shot flourish (victory / defeat).
+func play_sting(id: String) -> void:
+	if _player != null:
+		_player.stop()
+	_current = ""
+	var key: String = "sting_" + id
+	if not _cache.has(key):
+		_cache[key] = _render_sting(id)
+	_sting.stream = _cache[key]
+	_sting.play()
+
+
 func stop() -> void:
 	if _player != null:
 		_player.stop()
 	_current = ""
+
+
+func _on_run_ended(outcome: String) -> void:
+	play_sting("victory" if outcome == "win" else "defeat")
 
 
 func _play(id: String) -> void:
@@ -67,6 +94,8 @@ func _render(id: String) -> AudioStreamWAV:
 	match id:
 		"gameplay":
 			return _render_gameplay()
+		"battle":
+			return _render_battle()
 		_:
 			return _render_menu()
 
@@ -130,6 +159,85 @@ func _render_gameplay() -> AudioStreamWAV:
 	_lay_voice(buf, mel, beat, 0.38, 0.996, 1.5)
 
 	return _finish(buf, loop_samples)
+
+
+# "The Clash" — driving, D Aeolian (D natural minor), 4/4 at 120 BPM. A pulsing
+# four-on-the-floor bass under an urgent eighth-note melody. Pre-Battle / combat.
+func _render_battle() -> AudioStreamWAV:
+	_lcg = 0x0BADF00D
+	var bpm: float = 120.0
+	var beat: float = 60.0 / bpm
+	var loop_beats: float = 32.0                  # 8 bars × 4
+	var loop_samples: int = int(loop_beats * beat * SR)
+	var buf: PackedFloat32Array = _new_buf(loop_samples + int(SR * (XFADE_S + TAIL_S)))
+
+	_drone_into(buf, _midi(38), 0.12)             # D2
+	_drone_into(buf, _midi(45), 0.08)             # A2
+
+	# Pulsing bass — a quarter-note on every beat, root per bar (i VI VII …).
+	var roots: Array = [50, 50, 46, 48, 50, 46, 48, 50]   # D D Bb C D Bb C D
+	var bass: Array = []
+	for r in roots:
+		for _j in range(4):
+			bass.append([int(r), 1])
+	_lay_voice(buf, bass, beat, 0.50, 0.988, 0.9)
+
+	# Melody (D Aeolian): D E F G A Bb C.
+	var mel: Array = [
+		[62, 0.5], [69, 0.5], [65, 0.5], [69, 0.5], [67, 1], [65, 1],
+		[64, 0.5], [65, 0.5], [64, 0.5], [62, 0.5], [64, 2],
+		[70, 0.5], [69, 0.5], [67, 0.5], [65, 0.5], [67, 1], [69, 1],
+		[62, 2], [69, 2],
+		[74, 0.5], [72, 0.5], [70, 0.5], [69, 0.5], [70, 1], [69, 1],
+		[67, 0.5], [69, 0.5], [67, 0.5], [65, 0.5], [64, 2],
+		[65, 0.5], [67, 0.5], [69, 0.5], [70, 0.5], [72, 1], [69, 1],
+		[62, 2], [62, 2],
+	]
+	_lay_voice(buf, mel, beat, 0.36, 0.995, 1.2)
+
+	return _finish(buf, loop_samples)
+
+
+# ---------- one-shot stings (non-looping) ----------
+
+func _render_sting(id: String) -> AudioStreamWAV:
+	if id == "victory":
+		return _render_victory()
+	return _render_defeat()
+
+
+# Victory — a rising D-major arpeggio fanfare over a held major bed.
+func _render_victory() -> AudioStreamWAV:
+	_lcg = 0x00C0FFEE
+	var beat: float = 0.26
+	var notes: Array = [[62, 0.5], [66, 0.5], [69, 0.5], [74, 0.5], [78, 0.5], [81, 0.5], [86, 2.0]]
+	var total_beats: float = 0.0
+	for n in notes:
+		total_beats += float(n[1])
+	var length: int = int((total_beats * beat + 0.9) * SR)
+	var buf: PackedFloat32Array = _new_buf(length)
+	_drone_into(buf, _midi(50), 0.10)             # D3
+	_drone_into(buf, _midi(54), 0.07)             # F#3
+	_drone_into(buf, _midi(57), 0.07)             # A3 — D major bed
+	_lay_voice(buf, notes, beat, 0.50, 0.996, 1.6)
+	return _finish_oneshot(buf, length)
+
+
+# Defeat — a slow descending D-minor figure over a low tolling drone.
+func _render_defeat() -> AudioStreamWAV:
+	_lcg = 0x0D34D000
+	var beat: float = 0.5
+	var notes: Array = [[69, 1], [65, 1], [62, 1], [60, 1], [57, 3]]   # A F D C A
+	var total_beats: float = 0.0
+	for n in notes:
+		total_beats += float(n[1])
+	var length: int = int((total_beats * beat + 0.9) * SR)
+	var buf: PackedFloat32Array = _new_buf(length)
+	_drone_into(buf, _midi(38), 0.13)             # D2
+	_drone_into(buf, _midi(45), 0.09)             # A2
+	_lay_voice(buf, [[50, 2], [48, 2], [45, 4]], beat, 0.42, 0.990, 1.0)   # tolling bass
+	_lay_voice(buf, notes, beat, 0.42, 0.995, 1.5)
+	return _finish_oneshot(buf, length)
 
 
 # ---------- synthesis primitives ----------
@@ -250,5 +358,32 @@ func _finish(buf: PackedFloat32Array, loop_samples: int) -> AudioStreamWAV:
 	st.loop_mode = AudioStreamWAV.LOOP_FORWARD
 	st.loop_begin = 0
 	st.loop_end = loop_samples
+	st.data = data
+	return st
+
+
+# Pack a non-looping sting: a tail fade-out (so it doesn't click off),
+# normalise to a safe peak, 16-bit mono.
+func _finish_oneshot(buf: PackedFloat32Array, length: int) -> AudioStreamWAV:
+	var fade: int = int(SR * 0.4)
+	var peak: float = 0.0001
+	for i in range(length):
+		peak = maxf(peak, absf(buf[i]))
+	var norm: float = 0.85 / peak
+	var data: PackedByteArray = PackedByteArray()
+	data.resize(length * 2)
+	for i in range(length):
+		var amp: float = norm
+		var from_end: int = length - 1 - i
+		if from_end < fade:
+			amp *= float(from_end) / float(fade)
+		var s16: int = clampi(int(buf[i] * amp * 32767.0), -32768, 32767)
+		data[i * 2] = s16 & 0xFF
+		data[i * 2 + 1] = (s16 >> 8) & 0xFF
+	var st: AudioStreamWAV = AudioStreamWAV.new()
+	st.format = AudioStreamWAV.FORMAT_16_BITS
+	st.mix_rate = SR
+	st.stereo = false
+	st.loop_mode = AudioStreamWAV.LOOP_DISABLED
 	st.data = data
 	return st

@@ -112,6 +112,10 @@ func _ready() -> void:
 	_show_intro_if_first_week()
 	_refresh_all()
 	advance_btn.tooltip_text = "Lock in this week's plans and resolve the Tick. (Enter)"
+	# Restore the calm gameplay theme on every Planning entry — covers a fresh
+	# run, a loaded save, and the return from a battle (which switched to the
+	# battle theme). Idempotent: a no-op if it's already playing.
+	Music.play_gameplay()
 	ScreenFade.fade_in(self)
 
 
@@ -142,6 +146,7 @@ func _select_main_tab(idx: int) -> void:
 	# Always clears the Calendar overlay and re-syncs the TabBar highlight, so
 	# selecting a main tab works whether or not Calendar is currently showing
 	# and even when the clicked tab was already the highlighted one.
+	MasterAudio.play("page")
 	_calendar_active = false
 	_last_main_tab = idx
 	calendar_btn.modulate = Color.WHITE
@@ -1340,6 +1345,7 @@ func _build_item_recipe_row(out_id: String) -> Control:
 func _on_craft_item(out_id: String) -> void:
 	var res: Dictionary = Crafting.craft_item(GameState, out_id)
 	if res.get("ok", false):
+		MasterAudio.play("forge")
 		var q: int = int(res.get("bracket", Quality.DEFAULT))
 		var quality_note: String = " — %s%s quality" % [Quality.label(q), Quality.marker(q)]
 		if bool(res.get("forge_sang", false)):
@@ -1348,6 +1354,7 @@ func _on_craft_item(out_id: String) -> void:
 		else:
 			status_lbl.text = "Forged: %s%s — added to the armoury." % [res.get("label", out_id), quality_note]
 	else:
+		MasterAudio.play("denied")
 		status_lbl.text = "Could not forge that."
 	_refresh_crafting_tab()
 	_refresh_header()
@@ -1659,6 +1666,7 @@ func _on_research(project_id: String) -> void:
 		return
 	var cost: int = proj["cost_gold"]
 	if GameState.gold < cost:
+		MasterAudio.play("denied")
 		status_lbl.text = "Not enough gold for %s." % proj["name"]
 		return
 	ConfirmDialogUtil.ask(
@@ -1666,6 +1674,7 @@ func _on_research(project_id: String) -> void:
 		"Research %s for %d gold?\n\n%s" % [proj["name"], cost, proj["description"]],
 		func():
 			GameState.purchase_research(project_id)
+			MasterAudio.play("coin")
 			status_lbl.text = "Researched: %s" % proj["name"]
 			_refresh_research_tab()
 			_refresh_crafting_tab()
