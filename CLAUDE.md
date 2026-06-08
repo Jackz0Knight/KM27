@@ -33,6 +33,7 @@ scripts/
     enemy_db     9 enemy types, stat ranges, group power, per-enemy mob drops
     palette      Semantic colour constants
     master_audio 3 buses + procedural UI click SFX
+    music        Procedural medieval music (Karplus-Strong lute + open-fifth drone), looped on the Music bus; menu + gameplay tracks
     user_prefs   Per-machine prefs (UI scale, volumes) → user://prefs.cfg, outside the run save
   data/          Pure data classes (DO use class_name):
                  Unit, Stats, MapTile, Castle, World, WorldGenerator, EventKind,
@@ -130,6 +131,7 @@ One representation everywhere: a plain `Dictionary` keyed by `ResourceDB.RESOURC
 | UI palette / semantic colours | `scripts/autoload/palette.gd` |
 | StyleBoxFlat builders (chip/card/slot/swatch/progress) | `scripts/ui/ui_style.gd` |
 | Audio buses + UI SFX | `scripts/autoload/master_audio.gd` |
+| Menu / gameplay music (procedural — tempo, mode, note lists, voice mix) | `scripts/autoload/music.gd` (`_render_menu` / `_render_gameplay`) |
 | UI scale + per-machine prefs | `scripts/autoload/user_prefs.gd` + `scripts/ui/settings_popup.gd` |
 | Screen entry animation | `scripts/ui/screen_fade.gd` |
 

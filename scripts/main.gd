@@ -22,6 +22,7 @@ var _totals_lbl: Label = null
 func _ready() -> void:
 	randomize()
 	_build_layout()
+	Music.play_menu()
 	print("[KM27] Title ready.")
 
 

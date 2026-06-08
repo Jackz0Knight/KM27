@@ -264,6 +264,7 @@ func start_run(seed_value: int) -> void:
 	if phase_machine != null:
 		phase_machine.current = PhaseMachine.Phase.PLANNING
 	EventBus.run_started.emit(seed_value)
+	Music.play_gameplay()
 
 
 # ---------- weekly clock ----------
