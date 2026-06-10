@@ -175,24 +175,48 @@ The single source of truth for *what's built, what's in flight, and what's queue
 
 ---
 
-## Phase 8 — Tuning & polish
+## Phase 8 — Convergence, harness & tuning *(restructured 2026-06-10)*
 
-**Goal:** A playable MVP that lasts a satisfying number of weeks without being trivially won or impossible.
+**Goal:** One combat model where every stat and the formation matter, an automated way to measure balance, then the tuning pass — ending in a playable MVP that lasts a satisfying number of weeks without being trivially won or impossible.
 
-**Deliverables**
-- [ ] Run at least one full playthrough (Knight pick → ending). Capture week reached + outcome.
-- [ ] Adjust enemy power multipliers (`× 3`, `× 4`, castle difficulty curve) per GDD §13's sanity check.
+Restructured per the 2026-06-10 project review (see CLAUDE.md "Current State & Development Plan"): the review found the formation layer is preview-only (real battles run `CombatSim`, which ignores slots/leadership/intimidation) and five stats have no combat effect — those must converge before numbers are worth tuning. Content additions are frozen until 8c produces measurements.
+
+**8a — Stats & UI overhaul**
+- [ ] Condensed FM-style at-a-glance stat grid per character (UnitCard / Knight Overview / chooser).
+- [ ] Final stat list decided; every surviving stat has a mechanical job (Leadership / Intimidation / Loyalty / Etiquette / Horsemanship currently do nothing in the sim).
+- [ ] Strategy layer (training targets, slot-match rules, tooltips) updated to match.
+
+**8b — Sim alignment (one combat model)**
+- [ ] Formation slots wired into `CombatUnit` / `CombatSim` (slot effects, Blue leadership aura, Intimidation vs morale pool).
+- [ ] `Combat.resolve_formation` retired or repointed — formation editor preview uses `CombatSim.analyze` so forecast and fight share math.
+- [ ] Tournament model decision: keep deterministic totals or fold into the sim.
+
+**8c — Headless harness & autonomous loop**
+- [ ] Smoke runner: auto-play N seeded weeks headless, fail on script errors. (Cheap — may be pulled ahead of 8a/8b to de-risk them.)
+- [ ] Balance harness: scripted policies (train-weakest / always-defend / balanced), N seeded runs, metrics for week-reached, win rate, gold curve, injury frequency, `DEV_PACE` growth.
+- [ ] Monte-Carlo `CombatSim` win-probability curves per week per enemy template.
+
+**8d — Tuning pass (the original Phase 8)**
+- [ ] Run full playthroughs (Knight pick → ending). Capture week reached + outcome.
+- [ ] Adjust enemy power curves / castle difficulty per GDD §13's sanity check.
 - [ ] Adjust gather-yield base values + Strength scaling if resource scarcity is wrong.
 - [ ] UI polish — readable battle log, clearer event preview, consistent panel theming.
-- [ ] Bug-fix pass on any rough edges flagged during playtest.
+- [ ] Bug-fix pass on rough edges flagged during playtest.
 
-**Done when:** a fresh tester can finish a run without confusion and outcomes feel earned rather than coin-flippy.
+**8e — Cleanup**
+- [ ] Split `planning.gd` (~2,000 lines) into per-tab controllers.
+- [ ] Regression-test the `STAT_CAP + 5` save clamp (body-type cap bumps surviving save/load).
+- [ ] Unfreeze content additions.
+
+**Done when:** a fresh tester can finish a run without confusion, outcomes feel earned rather than coin-flippy, and the harness can verify a balance change without a human playthrough.
 
 ---
 
 ## Progress Log
 
 *Newest entry first. Add a dated line each session that ships code.*
+
+- **2026-06-10 (project review + CLAUDE.md rewrite + Phase 8 restructure)** — Full architecture review session. **Findings:** (1) the formation layer is currently decorative — all real formation battles resolve through `CombatSim.run` on `CombatUnit`s, which derive from stats + weapon + armour only; slot bonuses, slot-match, the Blue leadership buff, and Intimidation reduction live solely in `Combat.resolve_formation`, whose only remaining caller is the formation editor's preview (called with `enemy_power=0`). (2) Five of twelve stats (Leadership, Intimidation, Loyalty, Etiquette, Horsemanship) have no effect in the sim — marked "reserved" in `combat_unit.gd`. (3) CLAUDE.md had gone stale — it still documented `ResourceBundle` (deleted 2026-05-28) as a live pitfall and omitted `CombatSim`/`CombatUnit`/`EnemyActor`/`RewardTableDB`/`Crafting`/`UserPrefs` entirely. **Shipped:** CLAUDE.md rewritten from scratch — accurate architecture summary ("How a Battle Actually Resolves"), new Known Issues section, updated repo layout + touch-point cheat sheet, the agreed five-step development plan, and a content freeze until the harness produces numbers. Phase 8 restructured into 8a–8e (stats & UI overhaul → sim alignment → headless harness → tuning → cleanup) per the plan agreed with Jack. No gameplay code changed this session.
 
 - **2026-05-28 (resource system overhaul — unified Dictionary shape, RewardTableDB, enemy drops, regional gather)** — Big structural pass on the resource system per the 2026-05-28 design call. **`ResourceBundle` is gone.** Every reward roller (Combat, BattleEvent, StoryEventDB, Castle pre-roll, Resolution combat-event kinds, Crafting Caravan path) now returns a `Dictionary` keyed by ResourceDB ids — same shape as `GameState.inventory`. The dual-key namespace (`wood`/`fibres` vs `logs`/`plant_fibres`) is dissolved; `to_inventory_dict()` translation is gone with the class. New helpers on `ResourceDB` (`merge`, `scale`, `subtract_from`, `bundle_is_empty`, `describe`) do the four operations the old class wrapped, with `describe()` sorting tier-ascending for stable display. **New `scripts/data/reward_table_db.gd`** holds the data-driven loot pools — 13 tables shipped (wilderness_loot, mountain_loot, hill_loot, homestead_defence, bandit_pouch, tournament_prize, harvest, caravan_offer, plus 5 terrain-keyed gather tables). Each pool entry declares `amount: [w1_lo, w1_hi, w40_lo, w40_hi]` so progression scaling is per-entry interpolation; `roll(table_id, week, difficulty_mult)` and `roll_blended(weighted_tables, week, mult)` are the two public surfaces. Combat rollers become one-line wrappers — retuning is one number on one entry. **Two axes of scaling baked in**: week (auto-progression, internal to the table) and per-call difficulty multiplier (castles pass `difficulty / 100`, tournaments fold the Etiquette factor and tournament-number scalar, combat events pass a per-entry scalar). **Castle.reward is now a Dictionary** pre-rolled at world gen from a terrain-aware table (mountain-dominant → mountain_loot; hill-dominant → hill_loot; else → wilderness_loot) × `difficulty / 100`. World-dump determinism check updated to compare dicts. **Enemy-driven mob drops**: `EnemyDB.ENEMY_TYPES` gained a typed `drops` array per entry — every existing enemy now declares what dies-drops-what (goblins → goblin_hide + bone_shard, dire wolves → wolf_pelt, orcs → scrap_iron + iron_ore, spiders → spider_web, trolls → troll_bile + bone_shard, etc.). `EnemyDB.roll_drops_for(type_id)` rolls one enemy's drops; `Resolution._roll_spoils_from_enemies(enemy_cus, result)` aggregates spoils across every dead enemy on win, surfaces them as `result["spoils"]`. Folded into `_fill_from_sim` so every existing combat resolver (pillage, home, ambush, village_raid, tavern_riot, away custom modes, combat events) picks them up at the same point — no per-resolver wiring. **Regional gather** (Jack's call — adjacency special case scrapped): `Tick._complete_one` for GATHER now rolls the target tile's `gather_table_id()` at full weight + each Chebyshev-1 neighbour's table at `GATHER_NEIGHBOUR_WEIGHT = 0.3`, all blended into one Dictionary via `RewardTableDB.roll_blended`. Strength still scales the final dict. Mountain is now passable for gather (no more special adjacency rule). Tile placement now matters strategically — a forest tile next to two mountains brings logs *and* a little ore. **Seven new T1 raw materials** (goblin_hide, wolf_pelt, bone_shard, scrap_iron, feathers, troll_bile, strange_relic) anchor the enemy drops; **three new T2 recipes** (quilted_padding, feather_arrow, reforged_blade) consume them so combat loot feeds back into the crafting loop. **UI updates**: Weekly Summary renders Reward + Spoils on separate lines (encounter loot vs kill loot, distinct prose), Planning castle labels route through `ResourceDB.describe`, Caravan picker reads dicts directly, game_state history captures spoils on the chronicle line. **Files changed**: ~16 across data, autoload, systems, screens, dev; `scripts/data/resource_bundle.gd` deleted (+ .uid). **Next up**: validation, then content sweep (more drops on new enemies, more T2 recipes consuming the raws).
 
