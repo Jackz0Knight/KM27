@@ -34,12 +34,14 @@ and a rebuilt main menu.
    Blue-slot leadership aura, Intimidation vs the (already stubbed) morale pool.
    Retire `Combat.resolve_formation` or repoint the formation editor's preview
    at `CombatSim.analyze` so the forecast and the fight share math.
-4. **Headless autonomy harness.** First a cheap *smoke runner* (auto-play N
-   seeded weeks headless, fail on script errors) — worth pulling forward to
-   de-risk steps 2–3. Then the full *balance harness*: scripted policies,
-   Monte-Carlo `CombatSim` win curves per week, metrics for week-reached /
-   gold / injuries / `DEV_PACE`. That opens Phase 8 proper and an autonomous
-   tune-test-commit loop.
+4. **Headless autonomy harness.** ~~First a cheap *smoke runner*~~ — shipped
+   2026-06-10 (`tools/smoke.sh`, see Local Validation below); run it after
+   every change during steps 2–3. Still to come once those land: the full
+   *balance harness* — scripted policies, Monte-Carlo `CombatSim` win curves
+   per week, metrics for week-reached / gold / injuries / `DEV_PACE`. That
+   opens Phase 8d proper and an autonomous tune-test-commit loop. (The full
+   10-seed × 60-week smoke battery runs in ~1 s, so the Monte-Carlo harness
+   is computationally trivial.)
 5. **Minor-notes cleanup.** Split `planning.gd` (~2,000 lines) into per-tab
    controllers; regression-test the `STAT_CAP + 5` save clamp; unfreeze content
    additions once balance numbers exist.
@@ -222,25 +224,46 @@ ad-hoc per scene.
 ## Local Validation (headless Godot)
 
 Headless runs catch parse errors, missing class references, and autoload wiring
-in seconds. **The binary lives on Jack's desktop machine** — cloud/CI sessions
-won't have it; validate by reading carefully and lean on the smoke harness once
-plan step 4 lands.
+in seconds. **Both environments can run Godot:**
 
-```powershell
-& 'C:\Users\zoom3\Desktop\Godot_v4.6.1-stable_win64.exe' --headless --path . --quit-after 30
+- **Cloud/Linux sessions:** `tools/get_godot.sh` downloads + caches the official
+  4.6.1 Linux binary in `~/.cache/godot` and rebuilds the class cache on fresh
+  clones. The committed SessionStart hook (`.claude/settings.json`) runs it
+  automatically, so the binary is usually already there.
+- **Jack's desktop (Windows):** `C:\Users\zoom3\Desktop\Godot_v4.6.1-stable_win64.exe`,
+  whitelisted in `.claude/settings.local.json` (gitignored, machine-specific).
+
+**The smoke runner is the primary validation tool** — run it after every change:
+
+```bash
+tools/smoke.sh                       # 10 seeds × 60 weeks + determinism replay (~1 s)
+tools/smoke.sh --seeds=3 --weeks=12  # quick pass while iterating
+```
+
+It auto-plays full runs headless with a naive policy (`scripts/dev/
+smoke_runner.gd`, driven through `scenes/dev/smoke_run.tscn`), failing on any
+`SCRIPT ERROR`/`Parse Error` line, invariant breach (week stuck, roster ≠ 4,
+negative gold, orphaned expedition), or determinism mismatch (the first seed is
+replayed and must trace identically). Win/loss/survival are all PASSING
+outcomes — it checks correctness, not balance. It never calls
+`SaveManager.save_game()`, so it can't clobber a real save.
+
+Raw boot check (either OS — substitute the binary):
+
+```bash
+<godot> --headless --path . --quit-after 30
 ```
 
 A clean run prints `[KM27] Title ready.` with no `SCRIPT ERROR` / `Parse Error`
 lines. `Could not find type "Unit"`-style errors mean the class cache is
-missing (`.godot/` is gitignored); rebuild it once with:
+missing (`.godot/` is gitignored); rebuild it once with `<godot> --headless
+--path . --editor --quit` (get_godot.sh does this automatically).
 
-```powershell
-& 'C:\Users\zoom3\Desktop\Godot_v4.6.1-stable_win64.exe' --headless --path . --editor --quit
-```
-
-Also useful: `--script res://scripts/dev/<x>.gd` (single script) and
-`--check-only` (pure parse check). The binary path is whitelisted in
-`.claude/settings.local.json` (gitignored, machine-specific).
+**Gotcha:** `--script <file>.gd` mode can't be used for anything that touches
+game code — the project's scripts reference autoload globals, which don't
+exist at `--script` compile time, so the whole dependency graph fails to load.
+Dev tooling that needs the game must be a scene (like `smoke_run.tscn` /
+the F6 scenes), run via `<godot> --headless --path . res://scenes/dev/<x>.tscn`.
 
 ## Dev Hotkeys & Debug Entry Points
 
@@ -277,6 +300,13 @@ Hard-won; check before "fixing":
 - **`RNG` inside sort comparators breaks sort invariants** — see
   `CombatUnit.init_jitter`: stamp randomness onto objects first, compare pure
   keys in the lambda.
+- **Cross-run `static var` state desyncs seeds.** Any static mutable state
+  that survives `start_run()` can change how many RNG draws a code path makes,
+  silently breaking same-seed reproducibility within an app session.
+  `RosterGenerator._taken_names` did exactly this (found by the smoke runner's
+  determinism replay, 2026-06-10; now reset from `start_run`). New per-run
+  state must be reset in `GameState.start_run()` — and the smoke runner's
+  replay check is the regression net.
 - **Old duplicate-message commits** (`a3fb26d`/`64b0be3`, `dcae5a8`/`ba7a20f`)
   are merge artefacts, not bugs.
 - *(Removed 2026-06-10: the `ResourceBundle` migration pitfall — `ResourceBundle`

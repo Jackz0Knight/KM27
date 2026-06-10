@@ -231,6 +231,10 @@ func start_run(seed_value: int) -> void:
 	roster.clear()
 	knight_candidates.clear()
 	starting_squires.clear()
+	# Per-run name-uniqueness pool — must reset before any roster rolls, or
+	# rerolling the same seed in one session draws extra names against the
+	# previous run's list and desyncs the RNG stream (smoke-runner find).
+	RosterGenerator.reset_names()
 	current_event = -1
 	current_battle_event = ""
 	expeditions.clear()

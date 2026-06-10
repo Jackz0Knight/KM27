@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/tools/get_godot.sh\" --quiet >/dev/null 2>&1 || true"
+          }
+        ]
+      }
+    ]
+  }
+}
