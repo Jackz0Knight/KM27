@@ -51,8 +51,12 @@ fi
 
 # Fresh clones lack .godot/ (gitignored) — without the class cache, headless
 # runs fail with "Could not find type"-style errors. One editor pass fixes it.
-if [ ! -f "$ROOT/.godot/global_script_class_cache.cfg" ]; then
-	log "get_godot: rebuilding class cache (.godot/ missing)…"
+# Also rebuild when any script is newer than the cache: a freshly added
+# class_name otherwise breaks headless runs with the same error until the
+# editor happens to open (bit us when SmokeEngine was extracted, 2026-06-10).
+CACHE_FILE="$ROOT/.godot/global_script_class_cache.cfg"
+if [ ! -f "$CACHE_FILE" ] || [ -n "$(find "$ROOT/scripts" -name '*.gd' -newer "$CACHE_FILE" -print -quit 2>/dev/null)" ]; then
+	log "get_godot: rebuilding class cache…"
 	"$BIN" --headless --path "$ROOT" --editor --quit >/dev/null 2>&1 || true
 fi
 

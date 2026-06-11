@@ -240,8 +240,10 @@ tools/smoke.sh                       # 10 seeds × 60 weeks + determinism replay
 tools/smoke.sh --seeds=3 --weeks=12  # quick pass while iterating
 ```
 
-It auto-plays full runs headless with a naive policy (`scripts/dev/
-smoke_runner.gd`, driven through `scenes/dev/smoke_run.tscn`), failing on any
+It auto-plays full runs with a naive policy. The engine is
+`scripts/dev/smoke_engine.gd` (`SmokeEngine`, shared by the headless shell
+`smoke_runner.gd`/`smoke_run.tscn` AND the F1 toolbar's Smoke Harness
+section), failing on any
 `SCRIPT ERROR`/`Parse Error` line, invariant breach (week stuck, roster ≠ 4,
 negative gold, orphaned expedition), or determinism mismatch (the first seed is
 replayed and must trace identically). Win/loss/survival are all PASSING
@@ -269,7 +271,7 @@ the F6 scenes), run via `<godot> --headless --path . res://scenes/dev/<x>.tscn`.
 
 | Key / button | What it does |
 |---|---|
-| **F1** | Dev toolbar overlay (debug builds only — it `queue_free()`s itself otherwise). Add resources, set gold/reputation, advance N weeks, force-queue events, spawn items, edit unit stats live. |
+| **F1** | Dev toolbar overlay (debug builds only — it `queue_free()`s itself otherwise). Add resources, set gold/reputation, advance N weeks, force-queue events, spawn items, edit unit stats live, **run the smoke battery in-game** (Smoke Harness section — snapshots the live run via `SaveManager.snapshot_state()`, runs `SmokeEngine`, restores, reloads the scene). |
 | **F6** (editor) | Run focused dev scene: `world_dump.tscn` (world-gen + determinism), `event_roll_test.tscn` (50-week event roller). |
 | **F11** | Fullscreen toggle (handled in `GameState._input`, works everywhere). |
 | **1–5 / C** (Planning) | Switch main tabs / toggle Calendar pane. |
