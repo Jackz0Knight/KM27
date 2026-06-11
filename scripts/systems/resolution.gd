@@ -226,14 +226,20 @@ static func _apply_away_custom_reward(gs: Node, mode: Dictionary, result: Dictio
 					"copper_ore":   RNG.randi_range(lo, hi),
 				}
 		"iron_haul":
+			# Resources route through result["reward"] like every other kind —
+			# this branch used to mutate gs.inventory directly, which paid the
+			# ore silently: no Reward line on the Weekly Summary, nothing in
+			# the run history (2026-06-10 audit). _apply_reward() does the
+			# inventory merge.
+			var haul: Dictionary = {}
 			var iron: int = RNG.randi_range(int(mode.get("iron_min", 0)), int(mode.get("iron_max", 0)))
 			if iron > 0:
-				gs.inventory["iron_ore"] = int(gs.inventory.get("iron_ore", 0)) + iron
-				result["notes"].append("+%d Iron Ore" % iron)
+				haul["iron_ore"] = iron
 			var fibres: int = RNG.randi_range(int(mode.get("fibres_min", 0)), int(mode.get("fibres_max", 0)))
 			if fibres > 0:
-				gs.inventory["plant_fibres"] = int(gs.inventory.get("plant_fibres", 0)) + fibres
-				result["notes"].append("+%d Plant Fibres" % fibres)
+				haul["plant_fibres"] = fibres
+			if not haul.is_empty():
+				result["reward"] = haul
 			var tip: int = RNG.randi_range(int(mode.get("gold_min", 0)), int(mode.get("gold_max", 0)))
 			if tip > 0:
 				gs.gold += tip
