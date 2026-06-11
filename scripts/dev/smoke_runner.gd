@@ -38,6 +38,7 @@ const DEFAULT_START_SEED: int = 1627
 const SLOT_ORDER: Array[String] = ["blue", "green", "yellow", "red"]
 
 var verbose: bool = false
+var ui_probe: bool = true
 
 
 func _ready() -> void:
@@ -53,6 +54,8 @@ func _ready() -> void:
 			start_seed = int(arg.get_slice("=", 1))
 		elif arg == "--verbose":
 			verbose = true
+		elif arg == "--no-ui":
+			ui_probe = false
 
 	print("[smoke] %d seed(s) from %d, %d week(s) each" % [seeds, start_seed, weeks])
 	var failures: int = 0
@@ -76,6 +79,13 @@ func _ready() -> void:
 		_print_trace_diff(first_trace, replay["trace"])
 	else:
 		print("[smoke] determinism OK (seed %d replayed identically)" % start_seed)
+
+	# UI probe: replay one run instantiating the REAL screens at the matching
+	# moments, so screen _ready crashes surface headless. Separate from the
+	# battery above because screens may legitimately consume RNG (forecasts,
+	# default seeding) and would desync the determinism trace.
+	if ui_probe:
+		failures += await _ui_probe_run(start_seed, weeks)
 
 	if failures > 0:
 		print("[smoke] RESULT: FAIL (%d failure(s))" % failures)
@@ -314,6 +324,106 @@ func _nearest_tile(predicate: Callable) -> MapTile:
 				best_dist = dist
 				best = t
 	return best
+
+
+# ---------- UI probe ----------
+
+# Plays one run like _play_run, but instantiates the real screen scenes at the
+# moments the player would see them: knight chooser at run start, planning /
+# roster / knight overview at week start, pre-battle after the tick, weekly
+# summary after resolution, game-over (or run-win) at the end. Headless
+# instantiation runs each screen's _ready against live state — node-path
+# breaks, renderer crashes, and bad assumptions print SCRIPT ERROR lines that
+# tools/smoke.sh fails on. Probes a subset of weeks to stay fast, but always
+# the first three (the only ones a human has seen), tournament weeks, and the
+# final week.
+func _ui_probe_run(seed_value: int, max_weeks: int) -> int:
+	print("[smoke] UI probe — instantiating real screens against a live run (seed %d)" % seed_value)
+	var fails: int = 0
+
+	GameState.start_run(seed_value)
+	GameState.knight_candidates = RosterGenerator.roll_knight_candidates()
+	GameState.starting_squires = RosterGenerator.roll_starting_squires()
+	fails += await _probe_screen("res://scenes/screens/knight_chooser.tscn")
+	GameState.roster = RosterGenerator.build_starting_roster(
+		GameState.knight_candidates[0], GameState.starting_squires)
+	GameState.roll_current_event()
+
+	var probed: int = 0
+	for _i in range(max_weeks):
+		var probe_this_week: bool = GameState.week <= 3 \
+			or GameState.week % 5 == 0 or GameState.week % 12 == 0
+
+		_plan_week()
+		if probe_this_week:
+			fails += await _probe_screen("res://scenes/screens/planning.tscn")
+			fails += await _probe_screen("res://scenes/screens/roster_view.tscn")
+			GameState.focused_unit_id = GameState.roster[0].id
+			fails += await _probe_screen("res://scenes/screens/knight_overview.tscn")
+
+		for u in GameState.roster:
+			if u.is_on_expedition():
+				continue
+			u.current_task = GameState.pending_tasks.get(u.id, Unit.TASK_DEFEND)
+		GameState.phase_machine.transition(PhaseMachine.Phase.TICK)
+		Tick.apply(GameState)
+
+		if probe_this_week:
+			fails += await _probe_screen("res://scenes/screens/pre_battle_review.tscn")
+
+		GameState.phase_machine.transition(PhaseMachine.Phase.RESOLUTION)
+		var result = Resolution.run(GameState)
+		if not result is Dictionary:
+			print("[smoke]   UI probe: Resolution failed at week %d" % GameState.week)
+			return fails + 1
+		if not GameState.merchant_offers.is_empty() and GameState.merchant_pick < 0:
+			Crafting.accept_caravan_offer(GameState, 0)
+
+		if result.get("is_game_over", false):
+			fails += await _probe_screen("res://scenes/screens/game_over.tscn")
+			# The naive policy never wins the Grand Tournament, so run_win
+			# would otherwise have zero coverage. It only reads formatted
+			# GameState fields (week, reputation, castles), all still valid
+			# here — probe it for crash coverage even though the run was lost.
+			fails += await _probe_screen("res://scenes/screens/run_win.tscn")
+			break
+		if result.get("is_run_win", false):
+			fails += await _probe_screen("res://scenes/screens/run_win.tscn")
+			break
+
+		if probe_this_week:
+			fails += await _probe_screen("res://scenes/screens/weekly_summary.tscn")
+			probed += 1
+
+		GameState.append_history_entry()
+		GameState.wrap_week()
+		GameState.phase_machine.transition(PhaseMachine.Phase.PLANNING)
+		GameState.roll_current_event()
+
+	if fails == 0:
+		print("[smoke] UI probe OK — %d probe week(s), all screens instantiated cleanly" % probed)
+	return fails
+
+
+# Instantiate one screen scene, give it a few frames to run _ready, fades,
+# and deferred work, then free it. Returns 1 on a hard failure (scene failed
+# to load/instantiate); script errors inside the screen surface as SCRIPT
+# ERROR lines for the wrapper's grep.
+func _probe_screen(scene_path: String) -> int:
+	var ps: PackedScene = load(scene_path)
+	if ps == null:
+		print("[smoke]   UI probe: could not load %s" % scene_path)
+		return 1
+	var node: Node = ps.instantiate()
+	if node == null:
+		print("[smoke]   UI probe: could not instantiate %s" % scene_path)
+		return 1
+	add_child(node)
+	for _f in range(3):
+		await get_tree().process_frame
+	node.queue_free()
+	await get_tree().process_frame
+	return 0
 
 
 # ---------- checks & reporting ----------
