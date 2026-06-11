@@ -6,6 +6,8 @@ extends CanvasLayer
 #   • Time — advance N weeks, or force-queue a specific event
 #   • Units — edit individual unit stats live
 
+const DEFAULT_SMOKE_SEED: int = 1627
+
 var _panel: PanelContainer = null
 var _visible: bool = false
 
@@ -322,9 +324,99 @@ func _build_panel() -> void:
 	apply_btn.pressed.connect(_apply_attr_changes)
 	root.add_child(apply_btn)
 
+	root.add_child(HSeparator.new())
+
+	# Smoke Harness — run the SmokeEngine auto-player from inside the game.
+	# The live run (if any) is snapshotted via SaveManager and restored after
+	# the battery, then the current scene reloads so it re-reads GameState.
+	_add_section_header(root, "Smoke Harness")
+
+	var smoke_hbox := HBoxContainer.new()
+	smoke_hbox.add_theme_constant_override("separation", 6)
+	root.add_child(smoke_hbox)
+
+	var seeds_lbl := Label.new()
+	seeds_lbl.text = "Seeds:"
+	smoke_hbox.add_child(seeds_lbl)
+	var seeds_spin := SpinBox.new()
+	seeds_spin.min_value = 1
+	seeds_spin.max_value = 50
+	seeds_spin.value = 5
+	seeds_spin.custom_minimum_size = Vector2(70, 0)
+	smoke_hbox.add_child(seeds_spin)
+
+	var weeks_lbl := Label.new()
+	weeks_lbl.text = "Weeks:"
+	smoke_hbox.add_child(weeks_lbl)
+	var weeks_spin := SpinBox.new()
+	weeks_spin.min_value = 1
+	weeks_spin.max_value = 120
+	weeks_spin.value = 30
+	weeks_spin.custom_minimum_size = Vector2(70, 0)
+	smoke_hbox.add_child(weeks_spin)
+
+	var probe_check := CheckBox.new()
+	probe_check.text = "Probe screens"
+	probe_check.tooltip_text = "Also instantiate every real screen against the run — they flash over the game for a few frames each. Watch the console for SCRIPT ERROR lines."
+	smoke_hbox.add_child(probe_check)
+
+	var smoke_btn := Button.new()
+	smoke_btn.text = "Run Smoke Battery"
+	root.add_child(smoke_btn)
+
+	var smoke_out := RichTextLabel.new()
+	smoke_out.bbcode_enabled = false   # smoke lines start with "[smoke]" — keep literal
+	smoke_out.fit_content = true
+	smoke_out.scroll_following = true
+	smoke_out.custom_minimum_size = Vector2(0, 150)
+	smoke_out.add_theme_font_size_override("normal_font_size", 11)
+	root.add_child(smoke_out)
+
+	smoke_btn.pressed.connect(func():
+		_run_smoke(int(seeds_spin.value), int(weeks_spin.value),
+			probe_check.button_pressed, smoke_btn, smoke_out)
+	)
+
 	# Store refs for later refresh
 	_panel.set_meta("unit_dropdown", unit_dropdown)
 	_panel.set_meta("attr_grid", attr_grid)
+
+
+# Run the smoke battery in-game. GameState is parked via SaveManager's
+# in-memory snapshot and restored afterwards; the current scene is then
+# reloaded so whatever screen is open re-reads the restored state in _ready.
+# When run with no active run (e.g. from the title), the battery's leftover
+# state is cleared instead so the title doesn't think a run exists.
+func _run_smoke(seeds: int, weeks: int, probe: bool, btn: Button, out: RichTextLabel) -> void:
+	btn.disabled = true
+	btn.text = "Running…"
+	out.text = ""
+	out.self_modulate = Color.WHITE
+
+	var snapshot: Dictionary = SaveManager.snapshot_state()
+	var engine := SmokeEngine.new()
+	add_child(engine)
+	engine.progress.connect(func(line: String) -> void:
+		out.add_text(line + "\n")
+		print(line)   # mirror to console so SCRIPT ERROR context lines up
+	)
+	var report: Dictionary = await engine.run_battery(seeds, weeks, DEFAULT_SMOKE_SEED, probe)
+	engine.queue_free()
+
+	if snapshot.is_empty():
+		# No run was active — wipe the battery's leftovers.
+		GameState.world = null
+		GameState.roster.clear()
+		GameState.knight_candidates.clear()
+		GameState.starting_squires.clear()
+		GameState.week = 1
+	else:
+		SaveManager.restore_snapshot(snapshot)
+		get_tree().reload_current_scene()
+
+	out.self_modulate = Color(0.6, 0.95, 0.6) if bool(report["passed"]) else Color(0.95, 0.5, 0.4)
+	btn.text = "Run Smoke Battery"
+	btn.disabled = false
 
 
 func _add_section_header(parent: Control, text: String) -> void:

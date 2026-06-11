@@ -21,18 +21,22 @@ const STAT_ABBREV: Dictionary = {
 }
 
 const STAT_TOOLTIPS: Dictionary = {
-	"strength":      "Strength — raw power; used in formation combat and expedition yield",
-	"speed":         "Speed — affects flanking, ranged approach, and Light Melee (Red slot)",
-	"technique":     "Technique — improves training efficiency and tournament performance",
-	"bravery":       "Bravery — contributes to formation combat power",
-	"loyalty":       "Loyalty — resilience against morale events; underpins Determination",
-	"determination": "Determination — chance of a bonus +1 to a random stat each training week",
-	"swordsmanship": "Swordsmanship — primary skill for Heavy Melee (Yellow) and Light Melee (Red) slots",
-	"archery":       "Archery — primary skill for the Ranged (Green) slot",
-	"horsemanship":  "Horsemanship — boosts mounted scouting and expedition efficiency",
-	"leadership":    "Leadership — enables Camp Leader (Blue) slot, granting +1 power to all other fighters",
-	"etiquette":     "Etiquette — increases tournament reward quality",
-	"intimidation":  "Intimidation — reduces effective enemy power in formation combat",
+	# Mechanics claims here must match what the code actually does — the
+	# combat lines reflect CombatUnit._derive (the real sim), and the parked
+	# stats (see CLAUDE.md Known Issues) get character descriptions only, no
+	# invented effects. Rewritten in the 2026-06-10 honesty pass.
+	"strength":      "Strength — hitting power and toughness in battle; heavier gather yields",
+	"speed":         "Speed — strikes first and is harder to touch",
+	"technique":     "Technique — lands blows cleanly and finds weak spots; counts in tournaments",
+	"bravery":       "Bravery — fighting spirit; keeps a man on his feet longer",
+	"loyalty":       "Loyalty — faith kept with the household; the chronicler marks it",
+	"determination": "Determination — grit; finds extra growth in training and refuses to plateau",
+	"swordsmanship": "Swordsmanship — skill with the blade; strikes true and parries well",
+	"archery":       "Archery — accuracy with bow in hand; the Ranged (Green) slot's craft",
+	"horsemanship":  "Horsemanship — the rider's seat and hands",
+	"leadership":    "Leadership — the gift of command; fits a man for the Camp Leader's slot",
+	"etiquette":     "Etiquette — courtly conduct; raises tournament purses",
+	"intimidation":  "Intimidation — a bearing that unsettles lesser men",
 }
 
 

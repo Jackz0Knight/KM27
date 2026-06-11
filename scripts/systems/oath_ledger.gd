@@ -63,11 +63,11 @@ static func _check_oath_honoured(unit: Unit, gs: Node, result: Dictionary) -> bo
 			# "I will not draw without cause and will not sheathe without result."
 			# In a winning formation combat AND slot-matched in a melee slot
 			# (Yellow / Red).
-			return _slot_matched_in_win(unit, result, ["yellow", "red"])
+			return _slot_matched_in_win(unit, gs, result, ["yellow", "red"])
 		"archery":
 			# "I will loose no arrow I am not prepared to answer for."
 			# Slot-matched in Green during a winning formation combat.
-			return _slot_matched_in_win(unit, result, ["green"])
+			return _slot_matched_in_win(unit, gs, result, ["green"])
 		"horsemanship":
 			# "I will not ride harder than my horse can bear."
 			# On expedition or away party this week (riding, not sitting).
@@ -75,7 +75,7 @@ static func _check_oath_honoured(unit: Unit, gs: Node, result: Dictionary) -> bo
 		"leadership":
 			# "I will see the men under me fed before I eat."
 			# Held the Blue slot in a winning formation combat.
-			return _slot_matched_in_win(unit, result, ["blue"])
+			return _slot_matched_in_win(unit, gs, result, ["blue"])
 		"etiquette":
 			# "I will conduct myself as if the chronicler watches, because he does."
 			# Tournament participant in a winning tournament — the listed
@@ -104,12 +104,14 @@ static func _check_oath_honoured(unit: Unit, gs: Node, result: Dictionary) -> bo
 
 # ---------- signal helpers ----------
 
-# True if the unit appears in the formation per_unit, tournament per_unit,
-# or duel slot in the most recent battle result.
+# True if the unit appears in the formation per_unit, the sim's combatant
+# stats, tournament per_unit, or duel slot in the most recent battle result.
 static func _was_in_combat(unit: Unit, result: Dictionary) -> bool:
 	for entry in result.get("per_unit", []):
 		if int(entry.get("unit_id", -1)) == unit.id:
 			return true
+	if _fought_in_sim(unit, result):
+		return true
 	for entry in result.get("tournament_per_unit", []):
 		if int(entry.get("unit_id", -1)) == unit.id:
 			return true
@@ -121,6 +123,22 @@ static func _was_in_combat(unit: Unit, result: Dictionary) -> bool:
 static func _was_in_formation_combat(unit: Unit, result: Dictionary) -> bool:
 	for entry in result.get("per_unit", []):
 		if int(entry.get("unit_id", -1)) == unit.id:
+			return true
+	# Sim path: only formation battles store a sim_result, so fighting in the
+	# sim IS formation combat (tournaments and duels never set it).
+	return _fought_in_sim(unit, result)
+
+
+# True if the unit took part in this week's CombatSim run on the player side.
+# `_fill_from_sim` stores the whole sim result; combatant_stats carries one
+# entry per fighter. This is the participation signal for formation battles —
+# result["per_unit"] is deliberately empty on the sim path (the old
+# strategy-layer breakdown was never migrated), which silently killed every
+# oath that read it until the 2026-06-10 audit.
+static func _fought_in_sim(unit: Unit, result: Dictionary) -> bool:
+	var sim: Dictionary = result.get("sim_result", {})
+	for entry in sim.get("combatant_stats", []):
+		if str(entry.get("side", "")) == "player" and int(entry.get("unit_id", -1)) == unit.id:
 			return true
 	return false
 
@@ -137,7 +155,16 @@ static func _was_injured(unit: Unit, result: Dictionary) -> bool:
 # True if the unit was slot-matched in a formation slot that won this week.
 # `allowed_slots` is the list of slot keys that count for this oath
 # (e.g. ["yellow", "red"] for swordsmanship).
-static func _slot_matched_in_win(unit: Unit, result: Dictionary, allowed_slots: Array) -> bool:
+#
+# Two sources, because the sim path leaves per_unit empty (see _fought_in_sim):
+#   1. per_unit entries with a fired slot_bonus (legacy strategy-layer shape,
+#      kept for when the breakdown migrates back).
+#   2. Sim fallback: the unit fought, the win landed, gs.formation assigned
+#      them an allowed slot, and Combat.is_slot_match says they fit it. The
+#      slot doesn't reach the sim's math yet (CLAUDE.md Known Issues), but the
+#      oath is about keeping one's sworn role on a winning field — assignment
+#      + fitness is the honest signal available today.
+static func _slot_matched_in_win(unit: Unit, gs: Node, result: Dictionary, allowed_slots: Array) -> bool:
 	if not bool(result.get("won", false)):
 		return false
 	for entry in result.get("per_unit", []):
@@ -147,6 +174,11 @@ static func _slot_matched_in_win(unit: Unit, result: Dictionary, allowed_slots: 
 			return false
 		# Slot match means the slot_bonus contribution fired.
 		return int(entry.get("slot_bonus", 0)) > 0
+	if not _fought_in_sim(unit, result):
+		return false
+	for slot_key in allowed_slots:
+		if int(gs.formation.get(slot_key, -1)) == unit.id:
+			return Combat.is_slot_match(unit, str(slot_key))
 	return false
 
 

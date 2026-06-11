@@ -64,6 +64,27 @@ func delete_save() -> void:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
 
 
+# ---------- in-memory snapshot (dev tooling) ----------
+
+# Serialise the live run to a Dictionary WITHOUT touching disk. Used by the
+# Dev Toolbar's Smoke Harness to park the player's run while the engine
+# trashes GameState, then put it back. Returns {} when no run is active.
+# Caveat: the RNG stream position is not part of the save format, so a
+# restored run continues with a fresh stream — fine for dev tooling, which
+# already breaks same-seed reproducibility the moment it's used.
+func snapshot_state() -> Dictionary:
+	if not GameState.has_active_run():
+		return {}
+	return _serialise_state()
+
+
+# Restore a snapshot_state() Dictionary into GameState. No-op on {}.
+func restore_snapshot(data: Dictionary) -> void:
+	if data.is_empty():
+		return
+	_restore_state(data)
+
+
 # Append a completed run entry and persist immediately.
 func append_run_history(entry: Dictionary) -> void:
 	run_history.append(entry)

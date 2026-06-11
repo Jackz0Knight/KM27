@@ -99,6 +99,15 @@ static func _try_place_castle(world: World, anchor: int) -> Castle:
 			continue
 		if tile.terrain == MapTile.Terrain.TOWN:
 			continue
+		# Ocean is impassable (MapTile.is_passable) — an expedition can never
+		# target it, so a castle there can never be explored or assaulted: a
+		# dead castle the chronicle still counts. Found 2026-06-10 via the
+		# world_dump scene (seed 1627 placed its diff-174 castle at sea).
+		# NOTE: this changes worldgen RNG consumption, so pre-fix saves that
+		# regenerate their world from world_seed will see a shifted map —
+		# same accepted degradation as the pre-seed-fix saves.
+		if not tile.is_passable():
+			continue
 		# Position is decided; now derive the loot context from the surrounding
 		# terrain and pre-roll the reward bundle. Mountain-country castles drop
 		# ore, hill castles drop iron + cloth, everything else uses wilderness.

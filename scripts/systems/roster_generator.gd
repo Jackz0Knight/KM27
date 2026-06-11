@@ -25,9 +25,18 @@ const STARTING_SQUIRE_COUNT: int = 3
 
 # The two roll_* calls share `_taken_names` so the entire Knight Chooser
 # screen — 3 squires + 3 candidate knights — never shows two units with the
-# same first name or surname. Cleared at the start of each call to
-# `roll_starting_squires` since that's the first call the chooser makes.
+# same first name or surname. Reset via reset_names() from GameState.start_run
+# so the pool is per-run regardless of which roll_* is called first. (It used
+# to be cleared inside roll_starting_squires, which made the roll order
+# load-bearing: main.gd rolls knights first, so knights avoided the PREVIOUS
+# run's names — extra RNG draws that desynced same-seed reruns within one app
+# session. Found by the smoke runner's determinism replay, 2026-06-10.)
 static var _taken_names: Array[String] = []
+
+
+# Called by GameState.start_run(). Per-run reset of the name-uniqueness pool.
+static func reset_names() -> void:
+	_taken_names.clear()
 
 
 static func roll_knight_candidates() -> Array[Unit]:
@@ -41,7 +50,6 @@ static func roll_knight_candidates() -> Array[Unit]:
 # the Knight chooser screen can show them before the Knight pick (the player
 # decides which Knight best complements the Squires they're getting).
 static func roll_starting_squires() -> Array[Unit]:
-	_taken_names.clear()
 	var out: Array[Unit] = []
 	for i in range(STARTING_SQUIRE_COUNT):
 		out.append(_roll_squire(2 + i))
