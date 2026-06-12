@@ -106,6 +106,9 @@ makes runs reproducible.
 README.md            Public landing page
 GDD.md               Game Design Document (§1–§18 + Changelog; 728 lines)
 ROADMAP.md           Phased plan + Progress Log (living; source of truth)
+ATTENTION.md         Triage register — every open decision / gap / red flag,
+                     short-form table + in-depth notes. Update it in the
+                     session that resolves (or discovers) an item.
 CLAUDE.md            This file
 LICENSE              Proprietary, all rights reserved
 project.godot        Godot config; autoload list lives here
