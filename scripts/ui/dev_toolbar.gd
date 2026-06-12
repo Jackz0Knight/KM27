@@ -324,6 +324,20 @@ func _build_panel() -> void:
 	apply_btn.pressed.connect(_apply_attr_changes)
 	root.add_child(apply_btn)
 
+	var heal_btn := Button.new()
+	heal_btn.text = "Heal All Injuries"
+	heal_btn.tooltip_text = "Clears every injury on every roster unit."
+	heal_btn.pressed.connect(func():
+		if not GameState.has_active_run():
+			return
+		var cleared: int = 0
+		for u in GameState.roster:
+			cleared += u.injuries.size()
+			u.injuries.clear()
+		print("[dev] healed %d injuries across the roster" % cleared)
+	)
+	root.add_child(heal_btn)
+
 	root.add_child(HSeparator.new())
 
 	# Smoke Harness — run the SmokeEngine auto-player from inside the game.
