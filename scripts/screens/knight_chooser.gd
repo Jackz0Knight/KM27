@@ -40,7 +40,38 @@ func _ready() -> void:
 		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		squires_row.add_child(card)
 
+	# Marshal's counsel — the pick is "who complements these squires", so do
+	# the gap-reading for the player instead of making them average three
+	# stat cards in their head. Named weaknesses only; no numbers.
+	var counsel := Label.new()
+	counsel.text = _marshal_counsel()
+	counsel.modulate = Color(0.82, 0.76, 0.55)
+	counsel.autowrap_mode = TextServer.AUTOWRAP_WORD
+	counsel.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var squires_parent: Node = squires_row.get_parent()
+	squires_parent.add_child(counsel)
+	squires_parent.move_child(counsel, squires_row.get_index())
+
 	ScreenFade.fade_in(self)
+
+
+# The squires' two weakest stat axes, phrased as the marshal sizing up the
+# yard. Recomputed per run — it reads differently when the squire pool rolls
+# differently, which quietly teaches that the right knight changes run to run.
+func _marshal_counsel() -> String:
+	var squires: Array[Unit] = GameState.starting_squires
+	if squires.is_empty():
+		return ""
+	var avgs: Array = []   # [stat_key, avg]
+	for k in Stats.STAT_KEYS:
+		var total: int = 0
+		for s in squires:
+			total += s.stats.get_value(k)
+		avgs.append([k, float(total) / float(squires.size())])
+	avgs.sort_custom(func(a, b) -> bool: return float(a[1]) < float(b[1]))
+	var w1: String = str(avgs[0][0]).capitalize()
+	var w2: String = str(avgs[1][0]).capitalize()
+	return "The marshal's counsel: the yard is thin on %s and %s — a knight strong there would serve the household well." % [w1, w2]
 
 
 func _on_choose(index: int) -> void:
