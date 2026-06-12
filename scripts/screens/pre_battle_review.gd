@@ -187,31 +187,15 @@ func _scout_report() -> String:
 	]
 
 
+# Only non-formation events reach this — formation battles show the scouting
+# report instead (their old curve-derived number described enemies the sim
+# never rolls). What remains is the deterministic-model trio, where the
+# number IS the opposition: tournaments, the Grand, and the Champion's Duel.
 func _battle_enemy_power() -> int:
 	match GameState.current_event:
-		EventKind.AWAY_BATTLE:
-			if GameState.pending_away_mode == "assault" and GameState.pending_assault_castle != null:
-				return GameState.pending_assault_castle.difficulty
-			# Custom away modes can declare a different combat_template; their
-			# displayed enemy power should match the template that'll actually
-			# roll the enemy party at resolve time.
-			if AwayModeDB.has_mode(GameState.pending_away_mode):
-				var template: String = str(AwayModeDB.MODES[GameState.pending_away_mode].get("combat_template", "pillage"))
-				match template:
-					"bandit_ambush": return Combat.enemy_power_bandit_ambush(GameState.week)
-					"home_battle":   return Combat.enemy_power_home(GameState.week)
-				return Combat.enemy_power_pillage(GameState.week)
-			return Combat.enemy_power_pillage(GameState.week)
-		EventKind.HOME_BATTLE:
-			return Combat.enemy_power_home(GameState.week)
 		EventKind.BATTLE_EVENT:
-			if CombatEventDB.has_mode(GameState.current_battle_event):
-				return CombatEventDB.enemy_power_for(GameState.current_battle_event, GameState.week)
-			match GameState.current_battle_event:
-				"bandit_ambush": return Combat.enemy_power_bandit_ambush(GameState.week)
-				"champion_duel": return Combat.enemy_power_champion_duel(GameState.week)
-				"village_raid":  return Combat.enemy_power_home(GameState.week)
-				"tavern_riot":   return Combat.enemy_power_bandit_ambush(GameState.week)
+			if GameState.current_battle_event == "champion_duel":
+				return Combat.enemy_power_champion_duel(GameState.week)
 		EventKind.TOURNAMENT:
 			return Combat.enemy_power_tournament(GameState.week)
 		EventKind.GRAND_TOURNAMENT:
