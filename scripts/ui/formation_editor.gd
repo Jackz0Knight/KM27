@@ -16,12 +16,19 @@ signal formation_changed
 var roster: Array[Unit] = []
 var formation: Dictionary = {}
 
+# Optional forecast context (set by the Tactics tab): when an event key is
+# provided, the readout adds a live win-chance line vs that template's
+# preview party (EnemyDB.preview_party — midpoint stats, no RNG). The
+# Pre-Battle screen does NOT set this; it has its own forecast bar.
+var _forecast_event_key: String = ""
+
 var _slots_row: HBoxContainer = null
 var _slot_zones: Dictionary = {}      # slot_key -> SlotDropZone
 var _pool: PoolDropZone = null
 var _pool_row: HBoxContainer = null
 var _power_lbl: Label = null
 var _power_breakdown_lbl: Label = null
+var _forecast_lbl: Label = null
 
 
 func setup(roster_in: Array[Unit], formation_dict: Dictionary) -> void:
@@ -30,6 +37,13 @@ func setup(roster_in: Array[Unit], formation_dict: Dictionary) -> void:
 	_prune_invalid()
 	_build_once()
 	_rebuild_icons()
+	_refresh_power_readout()
+
+
+# Tactics-tab extra: forecast the party against `event_key`'s typical enemy
+# party for the current week. Call after setup().
+func set_forecast_context(event_key: String) -> void:
+	_forecast_event_key = event_key
 	_refresh_power_readout()
 
 
@@ -78,6 +92,12 @@ func _build_once() -> void:
 	_power_breakdown_lbl.add_theme_font_size_override("font_size", 12)
 	_power_breakdown_lbl.modulate = Color(0.72, 0.68, 0.55)
 	add_child(_power_breakdown_lbl)
+
+	_forecast_lbl = Label.new()
+	_forecast_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_forecast_lbl.add_theme_font_size_override("font_size", 12)
+	_forecast_lbl.visible = false
+	add_child(_forecast_lbl)
 
 	var pool_header := Label.new()
 	pool_header.text = "Available Knights — drag onto a slot above (right-click for menu)"
@@ -160,43 +180,84 @@ func _find_unit(unit_id: int) -> Unit:
 
 # ---------- power readout ----------
 
+# Per-unit battle rating from the SAME derivation the sim fights with
+# (CombatUnit + the CombatSim.analyze score: expected damage per action ×
+# effective HP), scaled down to a readable two-digit number. This replaced
+# the old Combat.resolve_formation projection, which described a formula no
+# real battle used (the formation layer is preview-only until plan step 3
+# wires slots into the sim — see CLAUDE.md Known Issues).
+const RATING_DISPLAY_SCALE: float = 10.0
+
+static func _unit_rating(u: Unit) -> int:
+	var cu := CombatUnit.new(u)
+	var dpt: float = cu.hit_chance * float(cu.damage_min + cu.damage_max) * 0.5
+	var evasion: float = cu.dodge_chance + (1.0 - cu.dodge_chance) * cu.block_chance
+	return roundi(dpt * float(cu.max_hp) * (1.0 + evasion * 0.5) / RATING_DISPLAY_SCALE)
+
+
 func _refresh_power_readout() -> void:
 	if _power_lbl == null:
 		return
-	# Build the participants list from whoever is currently in roster, then
-	# call the same Combat.resolve_formation the real battle uses (with
-	# enemy_power=0 so the result is pure projection). This keeps the
-	# preview honest — if the formula changes, the preview tracks it.
-	var participants: Array[Unit] = []
-	for u in roster:
-		participants.append(u)
-	if participants.is_empty():
-		_power_lbl.text = "Projected combat power: —"
+	if roster.is_empty():
+		_power_lbl.text = "Battle rating: —"
 		_power_breakdown_lbl.text = ""
+		if _forecast_lbl != null:
+			_forecast_lbl.visible = false
 		return
 
-	var result: Dictionary = Combat.resolve_formation(participants, formation, 0, false)
-	var per_unit: Array = result["per_unit"]
-	var total: int = int(result["player_total"])
-
-	# Per-slot breakdown — one chip per filled slot, dash for empty.
-	var by_unit: Dictionary = {}
-	for entry in per_unit:
-		by_unit[int(entry["unit_id"])] = entry
+	# Everyone in `roster` fights this battle, slotted or not — say so
+	# honestly instead of pretending empty slots cost power.
+	var total: int = 0
+	var rating_by_id: Dictionary = {}
+	for u in roster:
+		var rating: int = _unit_rating(u)
+		rating_by_id[u.id] = rating
+		total += rating
 
 	var slot_bits: PackedStringArray = PackedStringArray()
 	var filled: int = 0
 	for slot_key in Combat.SLOTS:
 		var uid: int = int(formation.get(slot_key, -1))
 		var short: String = String(slot_key).substr(0, 1).to_upper()
-		if uid >= 0 and by_unit.has(uid):
+		if uid >= 0 and rating_by_id.has(uid):
 			filled += 1
-			slot_bits.append("%s %d" % [short, int(by_unit[uid]["total"])])
+			slot_bits.append("%s %d" % [short, int(rating_by_id[uid])])
 		else:
 			slot_bits.append("%s —" % short)
 
-	_power_lbl.text = "Projected combat power: %d  ·  %d/4 slots filled" % [total, filled]
-	_power_breakdown_lbl.text = "Per slot:  " + "   ".join(slot_bits)
+	var unslotted: Array[Unit] = _unslotted_units()
+	var tail: String = ""
+	if not unslotted.is_empty():
+		var bits: PackedStringArray = PackedStringArray()
+		for u in unslotted:
+			bits.append("%s %d" % [u.unit_name.get_slice(" ", 0), int(rating_by_id[u.id])])
+		tail = "    ·    with the line: " + ", ".join(bits)
+
+	_power_lbl.text = "Battle rating: %d  ·  %d/4 slots filled" % [total, filled]
+	_power_breakdown_lbl.text = "Per slot:  " + "   ".join(slot_bits) + tail
+	_refresh_forecast()
+
+
+# Win-chance line vs the context event's typical enemy party (Tactics tab
+# only). Uses EnemyDB.preview_party (midpoint stats, no RNG) so it's safe to
+# recompute on every drop, and CombatSim.analyze so it shares math with the
+# Pre-Battle forecast and the fight itself.
+func _refresh_forecast() -> void:
+	if _forecast_lbl == null or _forecast_event_key == "":
+		return
+	if roster.is_empty():
+		_forecast_lbl.visible = false
+		return
+	var player_cus: Array = []
+	for u in roster:
+		player_cus.append(CombatUnit.new(u))
+	var enemy_cus: Array = EnemyDB.preview_party(_forecast_event_key, GameState.week)
+	var analysis: Dictionary = CombatSim.analyze(player_cus, enemy_cus)
+	_forecast_lbl.text = "Against this week's likely foes: ~%d%% — %s" % [
+		roundi(analysis["win_probability"] * 100.0), str(analysis["label"]),
+	]
+	_forecast_lbl.modulate = analysis["color"]
+	_forecast_lbl.visible = true
 
 
 # ---------- right-click assign popup ----------

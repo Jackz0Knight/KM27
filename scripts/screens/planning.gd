@@ -345,6 +345,10 @@ func _refresh_tactics_tab() -> void:
 	var editor := FormationEditor.new()
 	editor_pane.add_child(editor)
 	editor.setup(GameState.roster, dict)
+	# Live forecast vs this week's typical enemy for the formation's purpose:
+	# the Defense default is judged against a home raid, the Attack default
+	# against a pillage camp. Same math as Pre-Battle (CombatSim.analyze).
+	editor.set_forecast_context("home_battle" if _tactics_mode == TACTICS_DEFENSE else "pillage")
 
 
 func _refresh_tactics_upcoming() -> void:
@@ -1273,6 +1277,23 @@ func _refresh_research_tab() -> void:
 	for c in research_body.get_children():
 		c.queue_free()
 
+	# Progress strip — answers "how far along is the household's learning,
+	# and what can it afford?" before the player reads a single cell.
+	var total_projects: int = ResourceDB.RESEARCH_PROJECTS.size()
+	var affordable_now: int = 0
+	for pid: String in ResourceDB.RESEARCH_PROJECTS:
+		var proj: Dictionary = ResourceDB.RESEARCH_PROJECTS[pid]
+		if GameState.researched.has(pid):
+			continue
+		if _research_prereqs_met(proj) and GameState.gold >= int(proj.get("cost_gold", 0)):
+			affordable_now += 1
+	var strip := Label.new()
+	strip.text = "Studied %d of %d  ·  %d within the treasury's reach (gold-rimmed below)" % [
+		GameState.researched.size(), total_projects, affordable_now,
+	]
+	strip.modulate = Color(0.82, 0.76, 0.58)
+	research_body.add_child(strip)
+
 	# Two-column body: swimlane grid on the left, detail card on the right.
 	# Wrap the whole split in a ScrollContainer so a growing tier count can't
 	# push the tab container past the viewport width — otherwise the Research
@@ -1415,15 +1436,31 @@ func _make_research_icon(project_id: String) -> Control:
 	var category: String = str(proj.get("category", ""))
 	var color: Color = RESEARCH_CATEGORY_COLOR.get(category, Color(0.7, 0.7, 0.7))
 
+	var cost: int = int(proj.get("cost_gold", 0))
+	var affordable: bool = prereqs_met and not is_done and GameState.gold >= cost
+
 	var btn := Button.new()
 	btn.custom_minimum_size = RESEARCH_CELL_SIZE
 	btn.toggle_mode = true
 	btn.button_pressed = (_selected_research_id == project_id)
-	btn.tooltip_text = proj["name"] + ("  ✓" if is_done else "")
+	if is_done:
+		btn.tooltip_text = "%s  ✓ studied" % proj["name"]
+	elif not prereqs_met:
+		btn.tooltip_text = "%s — %d gold (locked)" % [proj["name"], cost]
+	else:
+		btn.tooltip_text = "%s — %d gold%s" % [
+			proj["name"], cost, "" if affordable else " (short of coin)",
+		]
 
+	# Border carries the state: category colour when reachable, dimmed when
+	# locked — and gold when it could be bought THIS week, so the tab answers
+	# "what can I afford right now?" at a glance.
+	var border: Color = color if prereqs_met or is_done else color.darkened(0.4)
+	if affordable:
+		border = Color(1.0, 0.84, 0.42)
 	var sb := UiStyle.chip(
 		color.darkened(0.55 if not is_done else 0.30),
-		color if prereqs_met or is_done else color.darkened(0.4),
+		border,
 	)
 	btn.add_theme_stylebox_override("normal", sb)
 	btn.add_theme_stylebox_override("hover", sb)
@@ -1537,11 +1574,22 @@ func _build_research_detail() -> Control:
 		done_lbl.modulate = Color(0.55, 0.55, 0.55)
 		vbox.add_child(done_lbl)
 	else:
+		var cost: int = int(proj["cost_gold"])
 		var btn := Button.new()
-		btn.text = "Research — %d gold" % int(proj["cost_gold"])
-		btn.disabled = (not prereqs_met) or GameState.gold < int(proj["cost_gold"])
+		btn.text = "Research — %d gold" % cost
+		btn.disabled = (not prereqs_met) or GameState.gold < cost
 		btn.pressed.connect(_on_research.bind(_selected_research_id))
 		vbox.add_child(btn)
+		# A disabled button without a reason is a riddle — name the blocker.
+		if btn.disabled:
+			var why := Label.new()
+			if not prereqs_met:
+				why.text = "Locked — study what it requires first."
+			else:
+				why.text = "The treasury is %d gold short." % (cost - GameState.gold)
+			why.modulate = Color(0.85, 0.55, 0.30)
+			why.autowrap_mode = TextServer.AUTOWRAP_WORD
+			vbox.add_child(why)
 
 	return panel
 

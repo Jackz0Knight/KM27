@@ -32,8 +32,9 @@ and a rebuilt main menu.
 3. **Sim alignment.** Wire the new stats and the formation layer into
    `CombatUnit` / `CombatSim` so there is **one** combat model: slot effects,
    Blue-slot leadership aura, Intimidation vs the (already stubbed) morale pool.
-   Retire `Combat.resolve_formation` or repoint the formation editor's preview
-   at `CombatSim.analyze` so the forecast and the fight share math.
+   ~~Retire `Combat.resolve_formation` / repoint the editor's preview at
+   `CombatSim.analyze`~~ — done 2026-06-12; one combat model exists, slots
+   just don't feed it yet.
 4. **Headless autonomy harness.** ~~First a cheap *smoke runner*~~ — shipped
    2026-06-10 (`tools/smoke.sh`, see Local Validation below); run it after
    every change during steps 2–3. Still to come once those land: the full
@@ -57,13 +58,14 @@ These are the traps the 2026-06-10 review found. They are *scheduled* fixes
 (steps 2–3 above), not surprises — don't "fix" them piecemeal mid-task without
 checking the plan.
 
-- **The formation layer is currently decorative.** All real formation battles
-  (pillage, assault, home, ambush, away variants, combat events) resolve through
-  `CombatSim.run` on `CombatUnit`s, which derive from stats + weapon + armour
-  **only**. Slot bonuses, slot-match, the Blue leadership buff, and Intimidation
-  reduction exist solely in `Combat.resolve_formation`, whose only caller is the
-  formation editor's live preview (`formation_editor.gd`, with `enemy_power=0`).
-  Tuning `resolve_formation` changes the preview, not the battle.
+- **Formation slots still have no combat effect** (the UI is honest about it
+  now). All real formation battles resolve through `CombatSim.run` on
+  `CombatUnit`s (stats + weapon + armour only). `Combat.resolve_formation` and
+  the dual-formula trap were **deleted 2026-06-12** — the formation editor's
+  readout and the Tactics-tab forecast now run on `CombatUnit`/`CombatSim.
+  analyze`, the same math as the fight. What remains pending (plan step 3):
+  making slots DO something, as sim-level effects. `Combat.is_slot_match`
+  survives for the editor's ★ markers and the oath-ledger fallback.
 - **Five of twelve stats have no combat effect.** `CombatUnit._derive` consumes
   Strength, Speed, Technique, Bravery, Swordsmanship, Archery, Determination.
   Leadership, Intimidation, Loyalty, Etiquette, Horsemanship are "reserved"
@@ -178,7 +180,8 @@ The canonical path, because it's the part this file used to get wrong:
 | Stat → combat-derivation (HP, initiative, chances) | `scripts/systems/combat_unit.gd` (`_derive`) |
 | Enemy parties, types, stat ranges | `scripts/autoload/enemy_db.gd` (`roll_combat_party`) |
 | Tournament math + enemy-power curves + reward wrappers | `scripts/systems/combat.gd` |
-| Formation editor preview (preview ONLY — see Known Issues) | `scripts/systems/combat.gd` (`resolve_formation`) + `scripts/ui/formation_editor.gd` |
+| Formation editor readout / Tactics forecast | `scripts/ui/formation_editor.gd` (`_unit_rating`, `set_forecast_context`) — sim-derived via `CombatUnit` + `CombatSim.analyze` |
+| Weekly Summary fight table + highlight beats | `scripts/screens/weekly_summary.gd` (`_render_sim_rows`, `_sim_highlights`) — reads `result["sim_result"]` |
 | Loot quantities / pools / week scaling | `scripts/data/reward_table_db.gd` — one dict entry per loot category |
 | Item drop chances / rarity pools | `scripts/systems/item_drops.gd` |
 | Weapon / armour catalogs | `scripts/data/weapon.gd` / `scripts/data/armour.gd` |
