@@ -39,6 +39,11 @@ func _toggle() -> void:
 	_panel.visible = _visible
 	if _visible:
 		_refresh_attr_editor()
+		if _panel.has_meta("seed_label"):
+			var seed_lbl: Label = _panel.get_meta("seed_label")
+			seed_lbl.text = "seed %d · wk %d  " % [
+				GameState.world.seed_value, GameState.week,
+			] if GameState.has_active_run() else "no run  "
 
 
 func _build_panel() -> void:
@@ -68,6 +73,13 @@ func _build_panel() -> void:
 	title_lbl.add_theme_font_size_override("font_size", 16)
 	title_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title_row.add_child(title_lbl)
+	# Run seed — the one fact every bug report needs. Refreshed on toggle.
+	var seed_lbl := Label.new()
+	seed_lbl.name = "SeedLabel"
+	seed_lbl.add_theme_font_size_override("font_size", 12)
+	seed_lbl.modulate = Color(0.7, 0.66, 0.5)
+	title_row.add_child(seed_lbl)
+	_panel.set_meta("seed_label", seed_lbl)
 	var close_btn := Button.new()
 	close_btn.text = "✕"
 	close_btn.pressed.connect(_toggle)
