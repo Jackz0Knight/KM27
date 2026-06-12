@@ -826,7 +826,7 @@ func _refresh_selection() -> void:
 		var res: String = tile.gather_resource()
 		if res != "":
 			var entry: Dictionary = ResourceDB.RESOURCES.get(res, {})
-			bits.append("Yield: %s" % entry.get("name", res))
+			bits.append("Yield: %s%s" % [entry.get("name", res), _border_yield_note(tile)])
 		else:
 			bits.append("Yield: —")
 		if tile.castle != null:
@@ -841,6 +841,43 @@ func _refresh_selection() -> void:
 	if tile.active_expedition != null:
 		bits.append("Active: %s" % tile.active_expedition.describe())
 	selection_lbl.text = " · ".join(bits)
+
+
+# Regional gather surfaced: a gather here also rolls each bordering tile's
+# table at reduced weight (Tick._complete_one), which was invisible — the
+# pane only named the tile's own yield, hiding the most strategic part of
+# picking a gather spot. Only EXPLORED borders are named (naming unscouted
+# terrain would leak the fog); unscouted ones get a teaser count instead.
+func _border_yield_note(tile: MapTile) -> String:
+	var known: Dictionary = {}    # terrain name -> count
+	var order: Array[String] = []
+	var unscouted: int = 0
+	for dx in range(-1, 2):
+		for dy in range(-1, 2):
+			if dx == 0 and dy == 0:
+				continue
+			var n: MapTile = GameState.world.get_tile(tile.x + dx, tile.y + dy)
+			if n == null or n.gather_table_id() == "":
+				continue
+			if n.knowledge == MapTile.Knowledge.EXPLORED:
+				var tname: String = str(MapTile.Terrain.keys()[n.terrain]).capitalize()
+				if not known.has(tname):
+					order.append(tname)
+				known[tname] = int(known.get(tname, 0)) + 1
+			else:
+				unscouted += 1
+	var bits: PackedStringArray = PackedStringArray()
+	for tname in order:
+		var c: int = int(known[tname])
+		bits.append(("%s ×%d" % [tname, c]) if c > 1 else tname)
+	if bits.is_empty() and unscouted == 0:
+		return ""
+	var out: String = ""
+	if not bits.is_empty():
+		out += " + borders: %s" % ", ".join(bits)
+	if unscouted > 0:
+		out += " (+%d unscouted)" % unscouted
+	return out
 
 
 func _on_tile_clicked(x: int, y: int) -> void:
