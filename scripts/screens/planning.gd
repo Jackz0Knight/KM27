@@ -167,7 +167,12 @@ func _default_pending_tasks() -> void:
 		if u.is_on_expedition():
 			continue
 		if not GameState.pending_tasks.has(u.id):
-			GameState.pending_tasks[u.id] = Unit.TASK_DEFEND
+			# Standing orders, FM-style: a unit mid-training keeps training
+			# the same stat until told otherwise. Staged development means a
+			# point takes several weeks — the old always-Defend default made
+			# the player re-pick every unit every week, and one forgotten
+			# click silently traded a training week for Defend.
+			GameState.pending_tasks[u.id] = u.current_task if u.is_training() else Unit.TASK_DEFEND
 
 
 func _show_intro_if_first_week() -> void:
