@@ -373,6 +373,19 @@ The formation editor lives in the Pre-Battle Review Phase. For battles where few
 ## 13. Battle Resolution
 
 ### Formation Battles (Home, Away-Pillage, Away-Assault, combat Battle Events)
+
+> **Superseded in implementation (2026-06-12).** Formation battles resolve
+> through the **tactical combat simulation** (initiative order; per-action
+> hit → dodge → block → crit → damage − armour rolls; turn cap) on combat
+> units derived from stats + weapon + armour. The additive formula below was
+> the strategy-layer model it replaced; its last code path (the formation
+> editor's preview) was retired on 2026-06-12 — the preview now shares the
+> sim's own forecast math. Slot bonuses, the leadership buff, and the
+> Intimidation reduction described below are **not currently in effect**;
+> they re-enter as sim-level effects in the stat-overhaul design pass. The
+> Home-Battle Defend rule (non-Defend units at 0.75×) **is** in effect, as
+> an HP/damage multiplier on the combat unit. Kept for design history:
+
 For each unit fighting:
 ```
 unit_power = 5
@@ -720,6 +733,8 @@ Each item is its own commit / PR. Bottom-up by intent — every layer pins the n
 ---
 
 ## Changelog
+
+- 2026-06-12 — §13 *Formation Battles* marked superseded-in-implementation: battles resolve through the tactical combat sim; the additive `unit_power` formula's last caller (formation editor preview) was retired and the preview now uses the sim's forecast (`CombatSim.analyze`). Slot/leadership/intimidation effects are explicitly flagged as not-in-effect pending the stat-overhaul design pass. Formula text kept for design history.
 
 - 2026-05-27 — Added §18 *Item & Crafting Systems — Design Pass* covering Resources & Economy, Damage ↔ Stat integration, Crafting & Research, and Item Modifiers & Quality Brackets (7-bracket Terrible→Legendary scale, material-driven bias, quality as a separate axis from rarity). Each subsection ships with `> **Open Q…**` blocks for Jack to resolve before the spec migrates into §13/§14 and implementation begins. Also pruned §17 *Excludes* of items now shipped (resource T2–T5, traits, research, economy) or moved to §18 (crafting & item modifiers); kept the original list framed as the MVP boundary for posterity.
 

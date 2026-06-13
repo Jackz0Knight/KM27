@@ -30,19 +30,22 @@ const STAT_GROUPS: Array = [
 	},
 ]
 
+# Mechanics claims must match the live sim (CombatUnit._derive); parked stats
+# (CLAUDE.md Known Issues) get character descriptions, no invented effects —
+# same honesty rule as UnitCard.STAT_TOOLTIPS.
 const STAT_BLURBS: Dictionary = {
-	"strength": "melee power + gather yield",
-	"speed": "dodge contribution",
-	"technique": "ranged power + crit",
-	"bravery": "combat contribution + Home Battle resilience",
-	"loyalty": "reserved for future morale",
-	"determination": "weekly +1 roll + training bonus chance",
-	"swordsmanship": "Yellow/Red slot bonus + duel power",
-	"archery": "Green slot bonus + ranged power",
-	"horsemanship": "reserved for mounted combat",
-	"leadership": "Blue-slot buffs the rest of the formation by +1",
-	"etiquette": "scales Tournament rewards",
-	"intimidation": "reduces enemy total by Σ(Int/4)",
+	"strength": "hitting power + toughness; gather yield",
+	"speed": "strikes first, harder to touch",
+	"technique": "lands blows cleanly, finds weak spots; tournaments",
+	"bravery": "fighting spirit — stays standing longer",
+	"loyalty": "faith kept with the household",
+	"determination": "grit — extra growth in training",
+	"swordsmanship": "blade skill — strikes true, parries well; duels",
+	"archery": "accuracy with bow in hand",
+	"horsemanship": "the rider's seat and hands",
+	"leadership": "the gift of command — fits the Camp Leader's slot",
+	"etiquette": "courtly conduct — raises tournament purses",
+	"intimidation": "a bearing that unsettles lesser men",
 }
 
 @onready var header_lbl: Label = $Margin/VBox/Header

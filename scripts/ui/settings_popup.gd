@@ -58,6 +58,19 @@ func _ready() -> void:
 	# scrubbing doesn't trigger 50 overlapping clicks.
 	sfx_slider.drag_ended.connect(_on_sfx_drag_ended)
 
+	# Hotkey reference — nothing else in the game lists these, so the one
+	# place every player visits gets two quiet lines. Built in code so the
+	# .tscn stays untouched; inserted above the Save button.
+	var keys_lbl := Label.new()
+	keys_lbl.text = "Keys — Enter: confirm  ·  Esc: back / close  ·  F11: fullscreen\n1–5 / C: planning tabs · calendar" \
+		+ ("  ·  F1: dev tools" if OS.is_debug_build() else "")
+	keys_lbl.add_theme_font_size_override("font_size", 12)
+	keys_lbl.modulate = Color(0.62, 0.58, 0.46)
+	keys_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var vbox: Node = save_btn.get_parent()
+	vbox.add_child(keys_lbl)
+	vbox.move_child(keys_lbl, save_btn.get_index())
+
 	# Save button is only useful during an active run.
 	save_btn.disabled = not GameState.has_active_run()
 	if save_btn.disabled:

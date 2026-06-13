@@ -91,7 +91,7 @@ func _emit(line: String) -> void:
 func _play_run(seed_value: int, max_weeks: int) -> Dictionary:
 	var out: Dictionary = {
 		"ok": true, "fail": "", "outcome": "survived", "weeks": 0,
-		"wins": 0, "losses": 0, "trace": "",
+		"wins": 0, "losses": 0, "growth": 0, "trace": "",
 	}
 	var trace: PackedStringArray = PackedStringArray()
 
@@ -104,10 +104,12 @@ func _play_run(seed_value: int, max_weeks: int) -> Dictionary:
 	GameState.roster = RosterGenerator.build_starting_roster(
 		GameState.knight_candidates[0], GameState.starting_squires)
 	GameState.roll_current_event()
+	var stats_at_start: int = _roster_stat_sum()
 
 	for _i in range(max_weeks):
 		var week_before: int = GameState.week
 		out["weeks"] = week_before
+		out["growth"] = _roster_stat_sum() - stats_at_start
 
 		_plan_week()
 
@@ -456,8 +458,11 @@ func _fail(out: Dictionary, reason: String) -> Dictionary:
 
 
 func _summary_line(r: Dictionary) -> String:
-	return "%-8s  %2dw  W/L %d/%d" % [
-		str(r["outcome"]), int(r["weeks"]), int(r["wins"]), int(r["losses"])]
+	# growth = visible stat points gained across the roster — cheap pacing
+	# telemetry for the DEV_PACE knobs ahead of the 8c balance harness.
+	return "%-8s  %2dw  W/L %d/%d  growth +%d" % [
+		str(r["outcome"]), int(r["weeks"]), int(r["wins"]), int(r["losses"]),
+		int(r["growth"])]
 
 
 func _emit_trace_diff(a: String, b: String) -> void:

@@ -208,7 +208,8 @@ func _render_battle_breakdown(r: Dictionary) -> void:
 	for c in battle_breakdown.get_children():
 		c.queue_free()
 
-	var has_formation: bool = not r.get("per_unit", []).is_empty()
+	var sim = r.get("sim_result", {})
+	var has_sim: bool = sim is Dictionary and not sim.is_empty()
 	var has_tourney: bool = not r.get("tournament_per_unit", []).is_empty()
 	var is_duel: bool = r.get("sub_event", "") == "champion_duel"
 	var fought: bool = r.get("fought", false)
@@ -224,7 +225,7 @@ func _render_battle_breakdown(r: Dictionary) -> void:
 
 	# Hide the whole section (header + body) only when there is genuinely
 	# nothing to display.
-	if not (has_formation or has_tourney or is_duel or fought or is_story or has_notes):
+	if not (has_sim or has_tourney or is_duel or fought or is_story or has_notes):
 		battle_breakdown_header.visible = false
 		battle_breakdown.visible = false
 		return
@@ -235,20 +236,21 @@ func _render_battle_breakdown(r: Dictionary) -> void:
 	else:
 		battle_breakdown_header.text = "Battle Breakdown"
 
-	if has_formation:
-		_render_formation_rows(r)
+	if has_sim:
+		_render_sim_rows(r, sim)
 	elif has_tourney:
 		_render_tournament_rows(r)
 	elif is_duel:
 		_render_duel_summary(r)
 
-	# Totals line — short, single string.
+	# Totals line — short, single string. Sim battles report HP remainders,
+	# so phrase them as remaining strength rather than abstract "totals".
 	if fought:
 		var totals := Label.new()
-		var intim: int = int(r.get("intimidation_reduction", 0))
-		if intim > 0:
-			totals.text = "Totals — %d vs %d (intimidation shaved %d)" % [
-				r.get("player_total", 0), r.get("enemy_total", 0), intim,
+		if has_sim:
+			var theirs: int = int(r.get("enemy_total", 0))
+			totals.text = "Strength remaining — yours %d, theirs %s" % [
+				int(r.get("player_total", 0)), ("none" if theirs <= 0 else str(theirs)),
 			]
 		else:
 			totals.text = "Totals — %d vs %d" % [
@@ -267,28 +269,94 @@ func _render_battle_breakdown(r: Dictionary) -> void:
 		battle_breakdown.add_child(note_lbl)
 
 
-func _render_formation_rows(r: Dictionary) -> void:
-	var hdr := _breakdown_row(
-		["Unit", "Slot", "Power", "Total"], true,
-	)
+# Render the tactical fight from the sim's records: one row per combatant
+# (yours first, then theirs), then up to four highlight moments pulled from
+# the turn log (first blood, kills, the heaviest single blow). Replaced the
+# old strategy-formula table, which no real battle had populated since the
+# CombatSim migration.
+func _render_sim_rows(_r: Dictionary, sim: Dictionary) -> void:
+	var hdr := _breakdown_row(["Combatant", "Dealt", "Taken", "Fate"], true)
 	battle_breakdown.add_child(hdr)
-	for entry in r["per_unit"]:
-		var u: Unit = GameState.find_unit(entry["unit_id"])
-		var unit_name: String = u.unit_name if u != null else "?"
-		var slot_label: String = entry["slot"] if entry["slot"] != "" else "—"
-		var power_breakdown: String = "%d + %d str + %d bra + %d skl" % [
-			entry["base"], entry["str"], entry["bra"], entry["skill"],
+
+	var rows: Array = []
+	for entry in sim.get("combatant_stats", []):
+		rows.append(entry)
+	rows.sort_custom(func(a, b) -> bool:
+		# Player side first; stable within sides by record order is fine.
+		return str(a.get("side", "")) == "player" and str(b.get("side", "")) != "player"
+	)
+	for entry in rows:
+		var is_player: bool = str(entry.get("side", "")) == "player"
+		var who: String = "%s%s (%s)" % [
+			"" if is_player else "× ", str(entry.get("name", "?")), str(entry.get("weapon", "?")),
 		]
-		if entry["slot_bonus"] > 0:
-			power_breakdown += " (+%d match)" % entry["slot_bonus"]
-		if entry["leadership_buff"] > 0:
-			power_breakdown += " (+%d lead)" % entry["leadership_buff"]
-		var total_str: String = "%d" % entry["total"]
-		if entry["mult"] != 1.0:
-			total_str = "%d ×%.2f → %d" % [entry["raw"], entry["mult"], entry["total"]]
-		battle_breakdown.add_child(_breakdown_row(
-			[unit_name, slot_label, power_breakdown, total_str], false,
-		))
+		var crits: int = int(entry.get("crits", 0))
+		var dealt: String = "%d dmg / %d hit%s" % [
+			int(entry.get("damage_dealt", 0)), int(entry.get("hits_landed", 0)),
+			"s" if int(entry.get("hits_landed", 0)) != 1 else "",
+		]
+		if crits > 0:
+			dealt += " (%d crit)" % crits
+		var taken: String = "%d dmg" % int(entry.get("damage_taken", 0))
+		var dodges: int = int(entry.get("dodges", 0))
+		if dodges > 0:
+			taken += ", %d dodged" % dodges
+		var hp_end: int = int(entry.get("hp_end", 0))
+		var fate: String
+		if hp_end <= 0:
+			fate = "felled" if is_player else "slain"
+		else:
+			fate = "%d/%d hp" % [hp_end, int(entry.get("hp_start", 0))]
+		battle_breakdown.add_child(_breakdown_row([who, dealt, taken, fate], false))
+
+	for line in _sim_highlights(sim):
+		var lbl := Label.new()
+		lbl.text = line
+		lbl.modulate = Color(0.82, 0.74, 0.52)
+		lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+		battle_breakdown.add_child(lbl)
+
+
+# Pick the fight's memorable beats out of the turn log: first blood, every
+# felling blow (capped), and the heaviest single hit if it wasn't already
+# one of those. Chronicle voice, turn-stamped.
+func _sim_highlights(sim: Dictionary) -> Array[String]:
+	var out: Array[String] = []
+	var log: Array = sim.get("turn_log", [])
+	var first_blood: Dictionary = {}
+	var kills: Array = []
+	var biggest: Dictionary = {}
+	for entry in log:
+		var dmg: int = int(entry.get("damage", 0))
+		if dmg <= 0:
+			continue
+		if first_blood.is_empty():
+			first_blood = entry
+		if int(entry.get("defender_hp", 1)) <= 0:
+			kills.append(entry)
+		if biggest.is_empty() or dmg > int(biggest.get("damage", 0)):
+			biggest = entry
+	if not first_blood.is_empty():
+		out.append("⚔ Turn %d — first blood: %s strikes %s for %d." % [
+			int(first_blood.get("turn", 0)), str(first_blood.get("attacker_name", "?")),
+			str(first_blood.get("defender_name", "?")), int(first_blood.get("damage", 0)),
+		])
+	for k in kills:
+		if out.size() >= 4:
+			break
+		var crit_note: String = ", a critical blow" if bool(k.get("crit", false)) else ""
+		out.append("⚔ Turn %d — %s fells %s (%d dmg%s)." % [
+			int(k.get("turn", 0)), str(k.get("attacker_name", "?")),
+			str(k.get("defender_name", "?")), int(k.get("damage", 0)), crit_note,
+		])
+	if out.size() < 4 and not biggest.is_empty() \
+			and biggest != first_blood and not kills.has(biggest):
+		out.append("⚔ Turn %d — the heaviest blow: %s hits %s for %d%s." % [
+			int(biggest.get("turn", 0)), str(biggest.get("attacker_name", "?")),
+			str(biggest.get("defender_name", "?")), int(biggest.get("damage", 0)),
+			" (crit)" if bool(biggest.get("crit", false)) else "",
+		])
+	return out
 
 
 func _render_tournament_rows(r: Dictionary) -> void:

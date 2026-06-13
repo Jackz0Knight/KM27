@@ -1,22 +1,17 @@
 class_name Combat
 extends RefCounted
 
-# Phase 6 battle math per GDD §12 + §13. Pure functions — given a roster, a
-# formation, and an enemy total, return the per-unit breakdown and the
-# winner. Resolution.gd is the caller; Combat doesn't read GameState directly.
+# Strategy-layer combat math. Pure functions — Combat doesn't read GameState.
 #
-# Formation battles (Home, Away-Pillage, Away-Assault, Bandit Ambush):
-#   unit_power = 5
-#              + Strength
-#              + Bravery
-#              + relevant_skill            (slot-dependent; see _slot_skill)
-#              + slot_bonus                (+2 if matched)
-#              + leadership_buff           (+1 if Blue is filled by another unit)
-# Intimidation reduces enemy power separately (sum of Intimidation/4 floor).
-# Home rule: Defend = full, other tasks = 0.75× (floored).
-# Ties go to the player.
-#
-# Tournament: unit_power = 10 + Str + Tec + max(Sword, Arch). No formation.
+# Formation battles resolve through CombatSim on CombatUnits; the old
+# strategy-layer formula (resolve_formation) was retired 2026-06-12 once its
+# last caller (the formation editor preview) repointed at CombatSim.analyze.
+# What remains here:
+#   • enemy power curves (tournament / duel use them; EnemyDB scales parties)
+#   • is_slot_match — slot-fitness markers (editor ★, oath fallback)
+#   • tournament resolution — deterministic totals, no sim, no formation:
+#       unit_power = 10 + Str + Tec + max(Sword, Arch) + tournament-legal kit
+#   • reward-table wrappers
 
 const SLOTS: Array[String] = ["blue", "green", "yellow", "red"]
 const SLOT_LABELS: Dictionary = {
@@ -26,10 +21,6 @@ const SLOT_LABELS: Dictionary = {
 	"red": "Red (Light Melee)",
 }
 
-const SLOT_BONUS: int = 2
-const LEADERSHIP_BUFF: int = 1
-const HOME_NON_DEFEND_MULT: float = 0.75
-const BASE_POWER: int = 5
 const TOURNAMENT_BASE_POWER: int = 10
 
 
@@ -59,46 +50,12 @@ static func enemy_power_grand_tournament(week: int) -> int:
 	return 200 + Calendar.run_year(week) * 50
 
 
-# ---------- per-unit math ----------
-
-# Strategy-layer weapon contribution to unit_power. Folds the catalogue
-# damage range into a single number so modifiers shift damage_min/max in the
-# catalogue and the formula re-derives — one source of truth. Replaces the
-# old flat `weapon_power_rating` axis per GDD §18.3. Combat-sim layer (the
-# per-hit roll, when it lands) still uses damage_min/max directly.
-static func weapon_damage_contrib(weapon_id: String) -> int:
-	var entry: Dictionary = Weapon.CATALOGUE.get(weapon_id, {})
-	if entry.is_empty():
-		return 0
-	var dmin: int = int(entry.get("damage_min", 0))
-	var dmax: int = int(entry.get("damage_max", 0))
-	return floori(float(dmin + dmax) / 2.0)
-
-
-# Strategy-layer armour contribution. Subtracted from enemy power per defender
-# (sum across the party), mirroring Intimidation. Net mathematical effect on
-# the win comparison is identical to the old `+armour_power_rating` on
-# player_total, so balance on the armour axis is preserved when this PR
-# lands — only the weapon axis shifts. Re-uses Armour.power_rating (0–4)
-# as the resistance value rather than introducing a parallel field today.
-static func armour_resistance(armour_id: String) -> int:
-	return Armour.power_rating(armour_id)
-
-
-# Skill stat the unit uses in `slot`. "" means unit is unassigned — fall back
-# to max(Sword, Archery) per GDD §13.
-static func _slot_skill(unit: Unit, slot: String) -> int:
-	var s: Stats = unit.stats
-	match slot:
-		"blue": return maxi(s.swordsmanship, s.archery)
-		"green": return s.archery
-		"yellow": return s.swordsmanship
-		"red": return s.swordsmanship
-	return maxi(s.swordsmanship, s.archery)
-
+# ---------- slot fitness ----------
 
 # Slot-match rule (binary; GDD §12 "MVP simplification: no 1-slot-away rule").
-# Picks broadly per the "Best Stats" column in the slot table.
+# Picks broadly per the "Best Stats" column in the slot table. Drives the
+# editor's ★ markers and the oath ledger's slot-oath fallback. Has no combat
+# effect yet — slot effects enter the sim in plan step 3 (CLAUDE.md).
 static func is_slot_match(unit: Unit, slot: String) -> bool:
 	var s: Stats = unit.stats
 	match slot:
@@ -111,102 +68,6 @@ static func is_slot_match(unit: Unit, slot: String) -> bool:
 		"red":
 			return s.swordsmanship >= s.archery and s.speed >= s.strength
 	return false
-
-
-# `formation`: slot key → unit_id (-1 = empty). `participants` is the list of
-# units actually fighting (e.g. away_party for Away weeks, all at-home for
-# Home weeks). `home_battle`: applies the 0.75× non-Defend modifier per GDD §13.
-#
-# Returns:
-#   {
-#     "per_unit": [{unit_id, slot, base, str, bra, skill, slot_bonus,
-#                   leadership_buff, raw, mult, total}],
-#     "player_total": int,
-#     "intimidation_reduction": int,
-#     "enemy_power": int,
-#     "enemy_after_intimidation": int,
-#     "won": bool,
-#   }
-static func resolve_formation(
-	participants: Array,           # Array[Unit]
-	formation: Dictionary,
-	enemy_power: int,
-	home_battle: bool = false,
-) -> Dictionary:
-	# Resolve who is in which slot for quick lookup, and detect whether the
-	# Blue slot is filled (drives the leadership buff for everyone else).
-	var slot_for_unit: Dictionary = {}      # unit_id -> slot key
-	for slot_key in SLOTS:
-		var slotted_id: int = int(formation.get(slot_key, -1))
-		if slotted_id >= 0:
-			slot_for_unit[slotted_id] = slot_key
-	var blue_unit_id: int = int(formation.get("blue", -1))
-	var blue_filled: bool = blue_unit_id >= 0
-
-	var per_unit: Array = []
-	var player_total: int = 0
-	var intimidation_total: int = 0
-	var armour_total: int = 0
-
-	for u in participants:
-		var slot: String = slot_for_unit.get(u.id, "")
-		var skill: int = _slot_skill(u, slot)
-		var slot_bonus: int = SLOT_BONUS if slot != "" and is_slot_match(u, slot) else 0
-		# Leadership buff: every unit EXCEPT the one in Blue gets +1 when Blue
-		# is occupied. GDD §13 "the unit currently in the Blue slot does NOT
-		# get this +1 (they're providing it, not receiving it)."
-		var leadership: int = 0
-		if blue_filled and u.id != blue_unit_id:
-			leadership = LEADERSHIP_BUFF
-
-		# Equipment contribution — per GDD §18.3 the strategy layer folds weapon
-		# damage into unit_power (replacing the old flat `power_rating` axis) and
-		# treats armour as resistance that subtracts from enemy power, mirroring
-		# Intimidation. Mathematically equivalent net effect to the old `+armour`
-		# on player_total, so balance is preserved on the armour axis; weapon
-		# contribution shifts heavier — Phase 8 retunes enemy multipliers.
-		var weapon_dmg: int = weapon_damage_contrib(u.weapon_id)
-		var armour_res: int = armour_resistance(u.armour_id)
-
-		var raw: int = BASE_POWER + u.stats.strength + u.stats.bravery + skill + slot_bonus + leadership + weapon_dmg
-
-		var mult: float = 1.0
-		if home_battle and u.current_task != Unit.TASK_DEFEND:
-			mult = HOME_NON_DEFEND_MULT
-		var total: int = floori(float(raw) * mult)
-
-		intimidation_total += floori(u.stats.intimidation / 4.0)   # GDD §13 — rounded down
-		armour_total += armour_res
-
-		per_unit.append({
-			"unit_id": u.id,
-			"slot": slot,
-			"base": BASE_POWER,
-			"str": u.stats.strength,
-			"bra": u.stats.bravery,
-			"skill": skill,
-			"slot_bonus": slot_bonus,
-			"leadership_buff": leadership,
-			"weapon_damage": weapon_dmg,
-			"armour_resistance": armour_res,
-			"raw": raw,
-			"mult": mult,
-			"total": total,
-		})
-		player_total += total
-
-	var enemy_after_intim: int = maxi(0, enemy_power - intimidation_total)
-	var enemy_after_armour: int = maxi(0, enemy_after_intim - armour_total)
-	return {
-		"per_unit": per_unit,
-		"player_total": player_total,
-		"intimidation_reduction": intimidation_total,
-		"armour_reduction": armour_total,
-		"enemy_power": enemy_power,
-		"enemy_after_intimidation": enemy_after_intim,
-		"enemy_after_armour": enemy_after_armour,
-		"won": player_total >= enemy_after_armour,       # ties to the player
-	}
 
 
 # Named helper so the UI and resolve_tournament() share exactly one formula.

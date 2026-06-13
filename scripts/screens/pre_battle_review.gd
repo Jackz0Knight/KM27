@@ -92,13 +92,17 @@ func _refresh_battle_info() -> void:
 	event_lbl.add_theme_font_size_override("font_size", 20)
 	battle_info.add_child(event_lbl)
 
-	var enemy: int = _battle_enemy_power()
-	if enemy > 0:
-		var enemy_lbl := Label.new()
-		enemy_lbl.text = "Enemy strength: %d" % enemy
-		enemy_lbl.modulate = Color(0.95, 0.55, 0.45)
-		battle_info.add_child(enemy_lbl)
-
+	# Formation battles: the real opposition is the party EnemyDB rolls, so
+	# scout THAT (preview_party — midpoint stats, no RNG) instead of quoting
+	# the legacy power curves the sim never consults. Tournaments and duels
+	# resolve on deterministic power totals, so their number is the truth and
+	# stays.
+	if GameState.current_event_uses_formation():
+		var scout_lbl := Label.new()
+		scout_lbl.text = _scout_report()
+		scout_lbl.modulate = Color(0.95, 0.55, 0.45)
+		scout_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+		battle_info.add_child(scout_lbl)
 		var flavor: String = _enemy_flavor_text(ev, sub)
 		if flavor != "":
 			var flavor_lbl := Label.new()
@@ -106,6 +110,21 @@ func _refresh_battle_info() -> void:
 			flavor_lbl.modulate = Color(0.72, 0.68, 0.55)
 			flavor_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
 			battle_info.add_child(flavor_lbl)
+	else:
+		var enemy: int = _battle_enemy_power()
+		if enemy > 0:
+			var enemy_lbl := Label.new()
+			enemy_lbl.text = "Enemy strength: %d" % enemy
+			enemy_lbl.modulate = Color(0.95, 0.55, 0.45)
+			battle_info.add_child(enemy_lbl)
+
+			var flavor2: String = _enemy_flavor_text(ev, sub)
+			if flavor2 != "":
+				var flavor_lbl2 := Label.new()
+				flavor_lbl2.text = flavor2
+				flavor_lbl2.modulate = Color(0.72, 0.68, 0.55)
+				flavor_lbl2.autowrap_mode = TextServer.AUTOWRAP_WORD
+				battle_info.add_child(flavor_lbl2)
 
 	var stakes_lbl := Label.new()
 	stakes_lbl.text = _stakes_text(ev, sub)
@@ -122,31 +141,61 @@ func _refresh_battle_info() -> void:
 	battle_info.add_child(gold_lbl)
 
 
+# FM-style scouting line for formation battles: who's coming, how many, and
+# how each reads against this household — words, not numbers (show-don't-tell;
+# the precise odds live on the forecast bar below). Strength words compare
+# each foe's sim-derived rating to the roster's average so "a fair match"
+# means the same thing in week 3 and week 30.
+func _scout_report() -> String:
+	var enemy_cus: Array = EnemyDB.preview_party(_forecast_event_key(), GameState.week)
+	if enemy_cus.is_empty():
+		return "Scouts report nothing — the field looks clear."
+	var avg_own: float = 0.0
+	var fighters: Array[Unit] = GameState.combat_participants()
+	if fighters.is_empty():
+		fighters = GameState.at_home_units()
+	for u in fighters:
+		avg_own += float(FormationEditor._unit_rating(u))
+	avg_own = maxf(1.0, avg_own / maxf(1.0, float(fighters.size())))
+
+	# Group identical name+word pairs so "Bandit (a fair match)" with a count
+	# reads cleaner than four repeated entries.
+	var groups: Dictionary = {}   # label -> count
+	var order: Array[String] = []
+	for cu in enemy_cus:
+		var dpt: float = cu.hit_chance * float(cu.damage_min + cu.damage_max) * 0.5
+		var evasion: float = cu.dodge_chance + (1.0 - cu.dodge_chance) * cu.block_chance
+		var rating: float = dpt * float(cu.max_hp) * (1.0 + evasion * 0.5) / 10.0
+		var word: String
+		var ratio: float = rating / avg_own
+		if ratio >= 1.35:
+			word = "formidable"
+		elif ratio >= 0.75:
+			word = "a fair match"
+		else:
+			word = "a lesser foe"
+		var label: String = "%s (%s)" % [str(cu.unit.unit_name), word]
+		if not groups.has(label):
+			order.append(label)
+		groups[label] = int(groups.get(label, 0)) + 1
+	var bits: PackedStringArray = PackedStringArray()
+	for label in order:
+		var n: int = int(groups[label])
+		bits.append(("%d× %s" % [n, label]) if n > 1 else label)
+	return "Scouts report %d foe%s: %s" % [
+		enemy_cus.size(), "s" if enemy_cus.size() != 1 else "", ", ".join(bits),
+	]
+
+
+# Only non-formation events reach this — formation battles show the scouting
+# report instead (their old curve-derived number described enemies the sim
+# never rolls). What remains is the deterministic-model trio, where the
+# number IS the opposition: tournaments, the Grand, and the Champion's Duel.
 func _battle_enemy_power() -> int:
 	match GameState.current_event:
-		EventKind.AWAY_BATTLE:
-			if GameState.pending_away_mode == "assault" and GameState.pending_assault_castle != null:
-				return GameState.pending_assault_castle.difficulty
-			# Custom away modes can declare a different combat_template; their
-			# displayed enemy power should match the template that'll actually
-			# roll the enemy party at resolve time.
-			if AwayModeDB.has_mode(GameState.pending_away_mode):
-				var template: String = str(AwayModeDB.MODES[GameState.pending_away_mode].get("combat_template", "pillage"))
-				match template:
-					"bandit_ambush": return Combat.enemy_power_bandit_ambush(GameState.week)
-					"home_battle":   return Combat.enemy_power_home(GameState.week)
-				return Combat.enemy_power_pillage(GameState.week)
-			return Combat.enemy_power_pillage(GameState.week)
-		EventKind.HOME_BATTLE:
-			return Combat.enemy_power_home(GameState.week)
 		EventKind.BATTLE_EVENT:
-			if CombatEventDB.has_mode(GameState.current_battle_event):
-				return CombatEventDB.enemy_power_for(GameState.current_battle_event, GameState.week)
-			match GameState.current_battle_event:
-				"bandit_ambush": return Combat.enemy_power_bandit_ambush(GameState.week)
-				"champion_duel": return Combat.enemy_power_champion_duel(GameState.week)
-				"village_raid":  return Combat.enemy_power_home(GameState.week)
-				"tavern_riot":   return Combat.enemy_power_bandit_ambush(GameState.week)
+			if GameState.current_battle_event == "champion_duel":
+				return Combat.enemy_power_champion_duel(GameState.week)
 		EventKind.TOURNAMENT:
 			return Combat.enemy_power_tournament(GameState.week)
 		EventKind.GRAND_TOURNAMENT:

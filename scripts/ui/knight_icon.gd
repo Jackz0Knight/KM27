@@ -62,11 +62,18 @@ func _initials() -> String:
 
 
 func _tooltip() -> String:
-	return "%s — %s\nStr %d · Bra %d · Sword %d · Arch %d\nLea %d · Etq %d · Int %d" % [
+	var fits: PackedStringArray = PackedStringArray()
+	for slot_key in Combat.SLOTS:
+		if Combat.is_slot_match(unit, slot_key):
+			fits.append(str(Combat.SLOT_LABELS.get(slot_key, slot_key)))
+	var fit_line: String = "Fits: %s" % ", ".join(fits) if not fits.is_empty() \
+		else "Fits no slot naturally — place where needed"
+	return "%s — %s\nStr %d · Bra %d · Sword %d · Arch %d\nLea %d · Etq %d · Int %d\n%s" % [
 		unit.unit_name, unit.class_label(),
 		unit.stats.strength, unit.stats.bravery,
 		unit.stats.swordsmanship, unit.stats.archery,
 		unit.stats.leadership, unit.stats.etiquette, unit.stats.intimidation,
+		fit_line,
 	]
 
 
